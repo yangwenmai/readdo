@@ -31,6 +31,11 @@ test("web root serves inbox html shell", async () => {
     const text = await res.text();
     assert.match(text, /Read→Do Inbox/u);
     assert.match(text, /Clear Filters/u);
+    assert.match(text, /Preview Retry/u);
+    assert.match(text, /Retry Failed/u);
+    assert.match(text, /Preview Archive/u);
+    assert.match(text, /Preview Unarchive/u);
+    assert.match(text, /Preview Offset/u);
   });
 });
 
