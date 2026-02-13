@@ -32,6 +32,7 @@ const html = `<!doctype html>
       .error { color: #b91c1c; font-size: 13px; }
       textarea { width: 100%; min-height: 180px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
       .editor-row { display: flex; gap: 8px; margin: 8px 0; align-items: center; flex-wrap: wrap; }
+      .hint { font-size: 12px; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 6px 8px; margin-top: 6px; }
       @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
     </style>
   </head>
@@ -268,9 +269,68 @@ const html = `<!doctype html>
           <pre>\${JSON.stringify(detail.failure || null, null, 2)}</pre>
         \`;
         detailEl.appendChild(wrap);
+        renderExportPanel(detail);
         renderArtifactVersionViewer(detail);
         renderIntentEditor(detail);
         renderArtifactEditor(detail);
+      }
+
+      function renderExportPanel(detail) {
+        const exportHistory = detail.artifact_history?.export ?? [];
+        const panel = document.createElement("div");
+        panel.className = "item-card";
+
+        const status = detail.item.status;
+        const failure = detail.failure || null;
+
+        let statusHint = "";
+        if (status === "FAILED_EXPORT") {
+          statusHint = "Export failed. Try re-export with md/caption fallback first, then retry png.";
+        } else if (status === "SHIPPED") {
+          statusHint = "Item is shipped. You can re-export to get latest files.";
+        } else if (status === "READY") {
+          statusHint = "Item is ready to export.";
+        }
+        const statusHintHtml = statusHint ? "<div class=\\"hint\\">" + statusHint + "</div>" : "";
+
+        panel.innerHTML = \`
+          <h3>Export Records</h3>
+          <div class="muted">Current status: \${status}</div>
+          \${statusHintHtml}
+          <div id="exportRecordList"></div>
+          <div id="exportFailureHint"></div>
+        \`;
+
+        const listEl = panel.querySelector("#exportRecordList");
+        if (!exportHistory.length) {
+          listEl.innerHTML = '<div class="empty">No export artifacts yet.</div>';
+        } else {
+          for (const exp of exportHistory) {
+            const card = document.createElement("div");
+            card.className = "item-card";
+            const files = exp?.payload?.files ?? [];
+            card.innerHTML = \`
+              <div class="item-head">
+                <span class="status">export v\${exp.version}</span>
+                <span class="muted">\${exp.created_by} · \${exp.created_at}</span>
+              </div>
+              <pre>\${JSON.stringify(files, null, 2)}</pre>
+            \`;
+            listEl.appendChild(card);
+          }
+        }
+
+        const failureEl = panel.querySelector("#exportFailureHint");
+        if (failure?.failed_step === "export") {
+          failureEl.innerHTML = \`
+            <div class="hint">
+              Export failure code: <b>\${failure.error_code || "UNKNOWN"}</b><br/>
+              Message: \${failure.message || "No details"}
+            </div>
+          \`;
+        }
+
+        detailEl.appendChild(panel);
       }
 
       function renderArtifactVersionViewer(detail) {
