@@ -183,7 +183,9 @@ test("process mode must match current status", async () => {
       headers: { "Idempotency-Key": "regen-key-1" },
     });
     assert.equal(regenerateRes.statusCode, 202);
-    assert.equal((regenerateRes.json() as { mode: string }).mode, "REGENERATE");
+    const regeneratePayload = regenerateRes.json() as { mode: string; idempotent_replay: boolean };
+    assert.equal(regeneratePayload.mode, "REGENERATE");
+    assert.equal(regeneratePayload.idempotent_replay, false);
   } finally {
     await app.close();
   }
@@ -221,9 +223,9 @@ test("process endpoint replays idempotent request with same key", async () => {
       payload: { mode: "REGENERATE" },
     });
     assert.equal(firstProcessRes.statusCode, 202);
-    const firstProcessPayload = firstProcessRes.json() as { mode: string; idempotent_replay?: boolean; item: { status: string } };
+    const firstProcessPayload = firstProcessRes.json() as { mode: string; idempotent_replay: boolean; item: { status: string } };
     assert.equal(firstProcessPayload.mode, "REGENERATE");
-    assert.equal(Boolean(firstProcessPayload.idempotent_replay), false);
+    assert.equal(firstProcessPayload.idempotent_replay, false);
     assert.equal(firstProcessPayload.item.status, "QUEUED");
 
     const replayProcessRes = await app.inject({

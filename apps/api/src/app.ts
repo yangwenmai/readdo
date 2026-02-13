@@ -1460,6 +1460,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
         updated_at: ts,
       },
       mode,
+      idempotent_replay: false,
     });
   });
 
