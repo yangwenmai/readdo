@@ -103,6 +103,7 @@ Artifacts payload 必须满足 `docs/contracts/schemas/*.schema.json`。
 * PROCESSING_IN_PROGRESS
 * EXPORT_NOT_ALLOWED
 * PROCESS_NOT_ALLOWED
+* RETRY_LIMIT_REACHED
 * ARCHIVE_NOT_ALLOWED
 * INTERNAL_ERROR
 
@@ -200,6 +201,10 @@ Headers:
     "CAPTURED": 1,
     "PROCESSING": 2,
     "READY": 7
+  },
+  "retry": {
+    "max_attempts": 3,
+    "non_retryable_items": 1
   },
   "worker": {
     "interval_ms": 1500,
@@ -516,6 +521,8 @@ mode 枚举：
 * `RETRY`：失败重试（FAILED_*）
 * `REGENERATE`：重新生成新版本 artifacts（READY/ARCHIVED）
 
+> RETRY 会读取 item.failure.retryable；当达到重试上限时返回 `409 RETRY_LIMIT_REACHED`。
+
 options（MVP 可选）：
 
 * template_profile：engineer/creator/manager
@@ -538,6 +545,7 @@ options（MVP 可选）：
 * 404 NOT_FOUND
 * 409 PROCESSING_IN_PROGRESS
 * 409 STATE_CONFLICT（不允许的状态）
+* 409 RETRY_LIMIT_REACHED（失败重试已达上限）
 
 ---
 

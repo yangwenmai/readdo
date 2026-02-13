@@ -74,6 +74,8 @@ function plusSeconds(timestamp: string, seconds: number): string {
   return new Date(Date.parse(timestamp) + seconds * 1000).toISOString();
 }
 
+const MAX_ITEM_RETRY_ATTEMPTS = 3;
+
 function failure(code: string, message: string, details?: Record<string, unknown>): ApiError {
   return details ? { error: { code, message, details } } : { error: { code, message } };
 }
@@ -571,6 +573,13 @@ function createProcessJob(db: DatabaseSync, itemId: string, requestKey: string):
   ).run(`job_${nanoid(10)}`, itemId, `run_${nanoid(10)}`, requestKey, ts, ts);
 }
 
+function countFailedJobsForItem(db: DatabaseSync, itemId: string): number {
+  const row = db
+    .prepare("SELECT COUNT(1) AS count FROM jobs WHERE item_id = ? AND status = 'FAILED'")
+    .get(itemId) as { count: number } | undefined;
+  return row?.count ?? 0;
+}
+
 export async function createApp(options: CreateAppOptions = {}): Promise<FastifyInstance> {
   const root = repoRoot();
   const dbPath = resolve(root, options.dbPath ?? process.env.DB_PATH ?? "apps/api/data/readdo.db");
@@ -601,10 +610,25 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       acc[row.status] = row.count;
       return acc;
     }, {});
+    const failedItemRows = db
+      .prepare("SELECT failure_json FROM items WHERE status IN ('FAILED_EXTRACTION', 'FAILED_AI', 'FAILED_EXPORT') AND failure_json IS NOT NULL")
+      .all() as Array<{ failure_json: string }>;
+    const nonRetryableItems = failedItemRows.filter((row) => {
+      try {
+        const payload = JSON.parse(row.failure_json) as { retryable?: boolean };
+        return payload.retryable === false;
+      } catch {
+        return false;
+      }
+    }).length;
 
     return {
       queue,
       items,
+      retry: {
+        max_attempts: MAX_ITEM_RETRY_ATTEMPTS,
+        non_retryable_items: nonRetryableItems,
+      },
       worker: {
         interval_ms: workerIntervalMs,
         active: startWorker,
@@ -959,6 +983,27 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       );
     }
 
+    if (mode === "RETRY" && item.failure_json) {
+      try {
+        const failurePayload = JSON.parse(item.failure_json) as {
+          retryable?: boolean;
+          retry_attempts?: number;
+          retry_limit?: number;
+        };
+        if (failurePayload.retryable === false) {
+          return reply.status(409).send(
+            failure("RETRY_LIMIT_REACHED", "Retry limit reached for this item", {
+              item_id: id,
+              retry_attempts: failurePayload.retry_attempts ?? null,
+              retry_limit: failurePayload.retry_limit ?? MAX_ITEM_RETRY_ATTEMPTS,
+            }),
+          );
+        }
+      } catch {
+        // ignore malformed legacy payloads
+      }
+    }
+
     const processKey = String(request.headers["idempotency-key"] ?? body.process_request_id ?? `manual_${nanoid(8)}`);
     createProcessJob(db, id, `process:${id}:${mode}:${processKey}`);
 
@@ -1249,11 +1294,15 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       const message = err instanceof Error ? err.message : String(err);
       const isExtractionFailure = /(Fetch failed|Extracted text too short|network|timeout)/i.test(message);
       const failedStatus = isExtractionFailure ? "FAILED_EXTRACTION" : "FAILED_AI";
+      const failedAttempts = countFailedJobsForItem(db, item.id) + 1;
+      const retryable = failedAttempts < MAX_ITEM_RETRY_ATTEMPTS;
       const failurePayload = {
         failed_step: isExtractionFailure ? "extract" : "pipeline",
         error_code: isExtractionFailure ? "EXTRACTION_FETCH_FAILED" : "AI_PROVIDER_ERROR",
         message,
-        retryable: true,
+        retryable,
+        retry_attempts: failedAttempts,
+        retry_limit: MAX_ITEM_RETRY_ATTEMPTS,
       };
 
       db.prepare("UPDATE items SET status = ?, failure_json = ?, updated_at = ? WHERE id = ?").run(

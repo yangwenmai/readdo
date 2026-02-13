@@ -354,11 +354,14 @@ test("worker status endpoint returns queue and item counters", async () => {
     const payload = workerRes.json() as {
       queue: Record<string, number>;
       items: Record<string, number>;
+      retry: { max_attempts: number; non_retryable_items: number };
       worker: { active: boolean; interval_ms: number };
       timestamp: string;
     };
     assert.ok((payload.queue.QUEUED ?? 0) >= 1);
     assert.ok((payload.items.CAPTURED ?? 0) >= 1);
+    assert.equal(payload.retry.max_attempts, 3);
+    assert.equal(payload.retry.non_retryable_items, 0);
     assert.equal(payload.worker.active, false);
     assert.equal(payload.worker.interval_ms, 20);
     assert.ok(Boolean(payload.timestamp));
@@ -504,6 +507,67 @@ test("capture validates url and source_type", async () => {
       },
     });
     assert.equal(validRes.statusCode, 201);
+  } finally {
+    await app.close();
+  }
+});
+
+test("retry mode is blocked after retry limit reached", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-retry-limit-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,too short",
+        title: "Retry Limit",
+        domain: "example.retry",
+        source_type: "web",
+        intent_text: "check retry strategy",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    for (let i = 0; i < 2; i += 1) {
+      const retryRes = await app.inject({
+        method: "POST",
+        url: `/api/items/${itemId}/process`,
+        payload: { mode: "RETRY" },
+      });
+      assert.equal(retryRes.statusCode, 202);
+      await app.runWorkerOnce();
+    }
+
+    const detailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}`,
+    });
+    assert.equal(detailRes.statusCode, 200);
+    const detail = detailRes.json() as {
+      item: { status: string };
+      failure: { retryable: boolean; retry_attempts: number; retry_limit: number };
+    };
+    assert.equal(detail.item.status, "FAILED_EXTRACTION");
+    assert.equal(detail.failure.retryable, false);
+    assert.equal(detail.failure.retry_attempts, 3);
+    assert.equal(detail.failure.retry_limit, 3);
+
+    const blockedRetryRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      payload: { mode: "RETRY" },
+    });
+    assert.equal(blockedRetryRes.statusCode, 409);
+    assert.equal((blockedRetryRes.json() as { error: { code: string } }).error.code, "RETRY_LIMIT_REACHED");
   } finally {
     await app.close();
   }
