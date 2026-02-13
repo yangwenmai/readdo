@@ -433,6 +433,7 @@ Headers:
 * `sort`：`priority_score_desc | created_desc | updated_desc`
 
   * 默认：`priority_score_desc`
+* `offset`：可选，默认 0；负值按 0 处理
 * `cursor`：分页游标（可选）
 * `limit`：默认 20，范围 `1..100`；非法值回退为默认值 20
 
@@ -791,7 +792,8 @@ Headers:
         { "type": "png", "path": "exports/itm_.../card_v1.png" },
         { "type": "md", "path": "exports/itm_.../card_v1.md" },
         { "type": "caption", "path": "exports/itm_.../caption_v1.txt" }
-      ]
+  ],
+  "requested_offset": 0
     }
   },
   "idempotent_replay": false

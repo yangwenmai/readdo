@@ -1124,6 +1124,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const sort = typeof query.sort === "string" ? query.sort : "priority_score_desc";
     const limitRaw = Number(query.limit ?? 20);
     const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 100) : 20;
+    const offsetRaw = Number(query.offset ?? 0);
+    const requestedOffset = Number.isInteger(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
     const whereParts: string[] = [];
     const params: Array<string | number | null> = [];
     if (statuses.length) {
@@ -1206,23 +1208,27 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
     const rows: DbItemRow[] = [];
     if (retryableFilter === null) {
-      const selected = db.prepare(selectSql).all(...params, limit, 0) as DbItemRow[];
+      const selected = db.prepare(selectSql).all(...params, limit, requestedOffset) as DbItemRow[];
       rows.push(...selected);
     } else {
       const batchSize = Math.max(limit, 100);
-      let offset = 0;
+      let scanOffset = 0;
+      let matchedOffset = 0;
       while (rows.length < limit) {
-        const chunk = db.prepare(selectSql).all(...params, batchSize, offset) as DbItemRow[];
+        const chunk = db.prepare(selectSql).all(...params, batchSize, scanOffset) as DbItemRow[];
         if (!chunk.length) break;
         for (const row of chunk) {
           if (rowMatchesRetryable(row)) {
+            if (matchedOffset < requestedOffset) {
+              matchedOffset += 1;
+              continue;
+            }
             rows.push(row);
             if (rows.length >= limit) break;
           }
         }
         if (chunk.length < batchSize) break;
-        offset += chunk.length;
-        if (offset >= 5000) break;
+        scanOffset += chunk.length;
       }
     }
 
@@ -1230,6 +1236,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
     return {
       items: mappedItems,
+      requested_offset: requestedOffset,
       next_cursor: null,
     };
   });

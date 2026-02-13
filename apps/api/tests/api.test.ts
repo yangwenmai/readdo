@@ -576,6 +576,24 @@ test("items endpoint supports status and query filtering", async () => {
     assert.equal(limitInvalidRes.statusCode, 200);
     const limitInvalidItems = (limitInvalidRes.json() as { items: Array<{ id: string }> }).items;
     assert.ok(limitInvalidItems.length >= 2);
+
+    const offsetRes = await app.inject({
+      method: "GET",
+      url: "/api/items?limit=1&offset=1",
+    });
+    assert.equal(offsetRes.statusCode, 200);
+    const offsetPayload = offsetRes.json() as { items: Array<{ id: string }>; requested_offset: number };
+    assert.equal(offsetPayload.requested_offset, 1);
+    assert.equal(offsetPayload.items.length, 1);
+
+    const negativeOffsetRes = await app.inject({
+      method: "GET",
+      url: "/api/items?limit=1&offset=-9",
+    });
+    assert.equal(negativeOffsetRes.statusCode, 200);
+    const negativeOffsetPayload = negativeOffsetRes.json() as { requested_offset: number; items: Array<{ id: string }> };
+    assert.equal(negativeOffsetPayload.requested_offset, 0);
+    assert.equal(negativeOffsetPayload.items.length, 1);
   } finally {
     await app.close();
   }
@@ -637,6 +655,14 @@ test("items endpoint applies retryable filter before limit truncation", async ()
     assert.equal(failureStepItems.length, 1);
     assert.equal(failureStepItems[0].status, "FAILED_EXTRACTION");
     assert.equal(failureStepItems[0].failure?.failed_step, "extract");
+
+    const retryableOffsetRes = await app.inject({
+      method: "GET",
+      url: "/api/items?retryable=true&limit=1&offset=1",
+    });
+    assert.equal(retryableOffsetRes.statusCode, 200);
+    const retryableOffsetItems = (retryableOffsetRes.json() as { items: Array<{ id: string }>; requested_offset: number }).items;
+    assert.equal(retryableOffsetItems.length, 0);
   } finally {
     await app.close();
   }
