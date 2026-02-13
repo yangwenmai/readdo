@@ -117,6 +117,7 @@ Artifacts payload 必须满足 `docs/contracts/schemas/*.schema.json`。
 * GET  `/system/worker`（队列与状态统计）
 * POST `/system/worker/run-once`（手动执行一次 worker）
 * POST `/items/retry-failed`（批量重试 FAILED_EXTRACTION/FAILED_AI）
+* POST `/items/archive-failed`（批量归档失败项）
 * GET  `/items`
 * GET  `/items/{id}`
 * POST `/items/{id}/intent`（intent 编辑）
@@ -283,6 +284,50 @@ Headers:
   "eligible_export_item_ids": ["itm_d"],
   "skipped_non_retryable": 1,
   "skipped_unsupported_status": 1,
+  "timestamp": "2026-02-13T12:00:00Z"
+}
+```
+
+---
+
+## 4.9 POST /items/archive-failed（批量归档失败项）
+
+### 4.9.1 目的
+
+批量扫描失败项并执行归档，默认归档 **不可重试**（`retryable=false`）失败项，用于快速清理已达上限的噪音告警。
+
+### 4.9.2 Request
+
+```json
+{
+  "limit": 50,
+  "dry_run": false,
+  "retryable": false,
+  "failure_step": "extract"
+}
+```
+
+约束：
+
+* `limit` 可选，范围建议 `1..200`，默认 50
+* `dry_run=true` 时仅返回预估结果，不会修改 item 状态
+* `retryable` 可选：`true | false | null | "all"`（默认 `false`，即仅归档已达重试上限项）
+* `failure_step` 可选：`extract | pipeline | export`
+
+### 4.9.3 Response 200
+
+```json
+{
+  "requested_limit": 50,
+  "dry_run": false,
+  "retryable_filter": false,
+  "failure_step_filter": "extract",
+  "scanned": 8,
+  "eligible": 3,
+  "eligible_item_ids": ["itm_a", "itm_b", "itm_c"],
+  "archived": 3,
+  "archived_item_ids": ["itm_a", "itm_b", "itm_c"],
+  "skipped_retryable_mismatch": 5,
   "timestamp": "2026-02-13T12:00:00Z"
 }
 ```

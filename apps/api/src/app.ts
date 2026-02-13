@@ -794,6 +794,105 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     };
   });
 
+  app.post("/api/items/archive-failed", async (request, reply) => {
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const limitRaw = Number(body.limit ?? 50);
+    const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 50;
+    const dryRun = Boolean(body.dry_run);
+    const failureStepRaw = typeof body.failure_step === "string" ? body.failure_step.trim().toLowerCase() : "";
+    const failureStepFilter =
+      ["extract", "pipeline", "export"].includes(failureStepRaw) ? (failureStepRaw as "extract" | "pipeline" | "export") : null;
+    const retryableRaw = body.retryable;
+    let retryableFilter: boolean | null = false;
+    if (retryableRaw !== undefined) {
+      if (retryableRaw === null) {
+        retryableFilter = null;
+      } else if (typeof retryableRaw === "boolean") {
+        retryableFilter = retryableRaw;
+      } else if (typeof retryableRaw === "string") {
+        const normalized = retryableRaw.trim().toLowerCase();
+        if (normalized === "true") {
+          retryableFilter = true;
+        } else if (normalized === "false") {
+          retryableFilter = false;
+        } else if (!normalized || normalized === "all") {
+          retryableFilter = null;
+        } else {
+          return reply.status(400).send(failure("VALIDATION_ERROR", "retryable must be true|false|null|all"));
+        }
+      } else {
+        return reply.status(400).send(failure("VALIDATION_ERROR", "retryable must be boolean|null|string"));
+      }
+    }
+
+    const targetStatuses =
+      failureStepFilter === "extract"
+        ? ["FAILED_EXTRACTION"]
+        : failureStepFilter === "pipeline"
+          ? ["FAILED_AI"]
+          : failureStepFilter === "export"
+            ? ["FAILED_EXPORT"]
+            : ["FAILED_EXTRACTION", "FAILED_AI", "FAILED_EXPORT"];
+    const statusPlaceholders = targetStatuses.map(() => "?").join(",");
+    const failedItems = db
+      .prepare(
+        `
+        SELECT * FROM items
+        WHERE status IN (${statusPlaceholders})
+        ORDER BY updated_at ASC
+        LIMIT ?
+      `,
+      )
+      .all(...targetStatuses, limit) as DbItemRow[];
+
+    let eligible = 0;
+    let archived = 0;
+    let skippedRetryableMismatch = 0;
+    const eligibleItemIds: string[] = [];
+    const archivedItemIds: string[] = [];
+    const ts = nowIso();
+
+    for (const item of failedItems) {
+      let isRetryable = true;
+      if (item.failure_json) {
+        try {
+          const payload = JSON.parse(item.failure_json) as { retryable?: boolean };
+          isRetryable = payload.retryable !== false;
+        } catch {
+          isRetryable = true;
+        }
+      }
+      if (retryableFilter !== null && isRetryable !== retryableFilter) {
+        skippedRetryableMismatch += 1;
+        continue;
+      }
+      eligible += 1;
+      eligibleItemIds.push(item.id);
+      if (dryRun) {
+        continue;
+      }
+      const updateRes = db.prepare("UPDATE items SET status = 'ARCHIVED', updated_at = ? WHERE id = ? AND status = ?").run(ts, item.id, item.status);
+      if (updateRes.changes > 0) {
+        archived += 1;
+        archivedItemIds.push(item.id);
+      }
+    }
+
+    return {
+      requested_limit: limit,
+      dry_run: dryRun,
+      retryable_filter: retryableFilter,
+      failure_step_filter: failureStepFilter,
+      scanned: failedItems.length,
+      eligible,
+      eligible_item_ids: eligibleItemIds,
+      archived,
+      archived_item_ids: archivedItemIds,
+      skipped_retryable_mismatch: skippedRetryableMismatch,
+      timestamp: nowIso(),
+    };
+  });
+
   app.post("/api/capture", async (request, reply) => {
     const body = request.body as Record<string, unknown>;
     const idempotencyKey = String(request.headers["idempotency-key"] ?? body.capture_id ?? "");

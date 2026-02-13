@@ -556,6 +556,123 @@ test("retry-failed endpoint queues retryable pipeline failures only", async () =
   }
 });
 
+test("archive-failed endpoint archives blocked failures with dry-run support", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-archive-failed-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const blockedCapture = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,short",
+        title: "Blocked Failure",
+        domain: "example.blocked.fail",
+        source_type: "web",
+        intent_text: "force blocked retry case",
+      },
+    });
+    assert.equal(blockedCapture.statusCode, 201);
+    const blockedId = (blockedCapture.json() as { item: { id: string } }).item.id;
+
+    const retryableCapture = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,tiny",
+        title: "Retryable Failure",
+        domain: "example.retryable.fail",
+        source_type: "web",
+        intent_text: "force retryable failure case",
+      },
+    });
+    assert.equal(retryableCapture.statusCode, 201);
+    const retryableId = (retryableCapture.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+    await app.runWorkerOnce();
+
+    for (let i = 0; i < 2; i += 1) {
+      const retryRes = await app.inject({
+        method: "POST",
+        url: `/api/items/${blockedId}/process`,
+        payload: {
+          mode: "RETRY",
+          process_request_id: `archive-failed-retry-${i}`,
+        },
+      });
+      assert.equal(retryRes.statusCode, 202);
+      await app.runWorkerOnce();
+    }
+
+    const blockedDetail = await app.inject({ method: "GET", url: `/api/items/${blockedId}` });
+    assert.equal(blockedDetail.statusCode, 200);
+    const blockedItem = blockedDetail.json() as { item: { status: string }; failure: { retryable?: boolean; retry_attempts?: number } };
+    assert.equal(blockedItem.item.status, "FAILED_EXTRACTION");
+    assert.equal(blockedItem.failure.retryable, false);
+    assert.equal(blockedItem.failure.retry_attempts, 3);
+
+    const retryableDetail = await app.inject({ method: "GET", url: `/api/items/${retryableId}` });
+    assert.equal(retryableDetail.statusCode, 200);
+    const retryableItem = retryableDetail.json() as { item: { status: string }; failure: { retryable?: boolean } };
+    assert.equal(retryableItem.item.status, "FAILED_EXTRACTION");
+    assert.equal(retryableItem.failure.retryable, true);
+
+    const previewRes = await app.inject({
+      method: "POST",
+      url: "/api/items/archive-failed",
+      payload: { limit: 10, dry_run: true, retryable: false, failure_step: "extract" },
+    });
+    assert.equal(previewRes.statusCode, 200);
+    const previewPayload = previewRes.json() as {
+      dry_run: boolean;
+      retryable_filter: boolean | null;
+      failure_step_filter: string | null;
+      scanned: number;
+      eligible: number;
+      archived: number;
+      eligible_item_ids: string[];
+      skipped_retryable_mismatch: number;
+    };
+    assert.equal(previewPayload.dry_run, true);
+    assert.equal(previewPayload.retryable_filter, false);
+    assert.equal(previewPayload.failure_step_filter, "extract");
+    assert.equal(previewPayload.scanned, 2);
+    assert.equal(previewPayload.eligible, 1);
+    assert.equal(previewPayload.archived, 0);
+    assert.ok(previewPayload.eligible_item_ids.includes(blockedId));
+    assert.equal(previewPayload.skipped_retryable_mismatch, 1);
+
+    const archiveRes = await app.inject({
+      method: "POST",
+      url: "/api/items/archive-failed",
+      payload: { limit: 10, retryable: false, failure_step: "extract" },
+    });
+    assert.equal(archiveRes.statusCode, 200);
+    const archivePayload = archiveRes.json() as {
+      dry_run: boolean;
+      eligible: number;
+      archived: number;
+      archived_item_ids: string[];
+    };
+    assert.equal(archivePayload.dry_run, false);
+    assert.equal(archivePayload.eligible, 1);
+    assert.equal(archivePayload.archived, 1);
+    assert.ok(archivePayload.archived_item_ids.includes(blockedId));
+
+    const blockedAfterArchive = await app.inject({ method: "GET", url: `/api/items/${blockedId}` });
+    const retryableAfterArchive = await app.inject({ method: "GET", url: `/api/items/${retryableId}` });
+    assert.equal((blockedAfterArchive.json() as { item: { status: string } }).item.status, "ARCHIVED");
+    assert.equal((retryableAfterArchive.json() as { item: { status: string } }).item.status, "FAILED_EXTRACTION");
+  } finally {
+    await app.close();
+  }
+});
+
 test("png-only export failure moves item to FAILED_EXPORT", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-fail-"));
   const app = await createApp({

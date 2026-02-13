@@ -60,6 +60,7 @@ const html = `<!doctype html>
         <button id="runWorkerBtn" type="button">Run Worker Once</button>
         <button id="previewRetryBtn" type="button">Preview Retry</button>
         <button id="retryFailedBtn" type="button">Retry Failed</button>
+        <button id="archiveBlockedBtn" type="button">Archive Blocked</button>
         <label class="muted" style="display:flex;align-items:center;gap:4px;">
           <input id="autoRefreshToggle" type="checkbox" />
           Auto refresh
@@ -116,6 +117,7 @@ const html = `<!doctype html>
       const runWorkerBtn = document.getElementById("runWorkerBtn");
       const previewRetryBtn = document.getElementById("previewRetryBtn");
       const retryFailedBtn = document.getElementById("retryFailedBtn");
+      const archiveBlockedBtn = document.getElementById("archiveBlockedBtn");
       const autoRefreshToggle = document.getElementById("autoRefreshToggle");
 
       let allItems = [];
@@ -357,8 +359,10 @@ const html = `<!doctype html>
             retryable +
             " | Retry blocked: " +
             blocked;
+          archiveBlockedBtn.textContent = blocked > 0 ? "Archive Blocked (" + blocked + ")" : "Archive Blocked";
         } catch {
           workerStatsEl.textContent = "Queue: unavailable";
+          archiveBlockedBtn.textContent = "Archive Blocked";
         }
       }
 
@@ -955,6 +959,14 @@ const html = `<!doctype html>
         return payload;
       }
 
+      function archiveBlockedPayload(dryRun) {
+        const payload = { limit: 100, dry_run: dryRun, retryable: false };
+        if (failureStepFilter.value) {
+          return { ...payload, failure_step: failureStepFilter.value };
+        }
+        return payload;
+      }
+
       retryFailedBtn.addEventListener("click", async () => {
         const candidates = allItems.filter((item) => isRetryableFailedItem(item));
         if (!candidates.length) {
@@ -1042,6 +1054,47 @@ const html = `<!doctype html>
           retryPreviewOutputEl.textContent = "";
         } finally {
           previewRetryBtn.disabled = false;
+        }
+      });
+
+      archiveBlockedBtn.addEventListener("click", async () => {
+        archiveBlockedBtn.disabled = true;
+        try {
+          const preview = await request("/items/archive-failed", {
+            method: "POST",
+            body: JSON.stringify(archiveBlockedPayload(true))
+          });
+          const eligible = Number(preview.eligible ?? 0);
+          if (!eligible) {
+            errorEl.textContent = "No blocked failed items to archive.";
+            return;
+          }
+          const confirmed = confirm(
+            "Archive " +
+              eligible +
+              " blocked failed items" +
+              (preview.failure_step_filter ? " (failure_step=" + preview.failure_step_filter + ")" : "") +
+              "?",
+          );
+          if (!confirmed) {
+            errorEl.textContent = "Archive blocked action cancelled.";
+            return;
+          }
+          const result = await request("/items/archive-failed", {
+            method: "POST",
+            body: JSON.stringify(archiveBlockedPayload(false))
+          });
+          errorEl.textContent =
+            "Archive blocked done. archived=" +
+            (result.archived ?? 0) +
+            ", skipped_retryable_mismatch=" +
+            (result.skipped_retryable_mismatch ?? 0) +
+            ".";
+        } catch (err) {
+          errorEl.textContent = "Archive blocked failed: " + String(err);
+        } finally {
+          archiveBlockedBtn.disabled = false;
+          await loadItems();
         }
       });
 

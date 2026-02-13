@@ -58,6 +58,8 @@ Last Updated: 2026-02-13
 - `Retry Failed`（批量）：调用 `/items/retry-failed` 批量重试 `FAILED_EXTRACTION/FAILED_AI` 的可重试项；
   `FAILED_EXPORT` 仍应单独走 export 重试。
   - 若 UI 已选择 `failure_step` 筛选，建议把该值透传给 `/items/retry-failed` 以保持“所见即所重试”。
+- `Archive Blocked`（批量）：调用 `/items/archive-failed`，默认归档 `retryable=false` 的失败项（可带 `failure_step`）。
+  - 建议先 `dry_run=true` 预览，再执行真实归档，避免误操作。
 
 ### 1.2 Shipped
 包含状态：
