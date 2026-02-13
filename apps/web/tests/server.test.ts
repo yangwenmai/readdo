@@ -78,6 +78,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Clear Radar/u);
     assert.match(text, /id="recoveryRadarTrend"/u);
     assert.match(text, /Trend vs previous/u);
+    assert.match(text, /Step failed delta/u);
     assert.match(text, /id="recoveryRadarTimeline"/u);
     assert.match(text, /History keeps last 5 recovery runs/u);
     assert.match(text, /Open Sample/u);

@@ -568,6 +568,11 @@ const html = `<!doctype html>
         font-size: 11px;
         color: #475569;
       }
+      .recovery-radar-trend .trend-subhead {
+        margin-top: 8px;
+        font-size: 11px;
+        color: #475569;
+      }
       .recovery-radar-trend .trend-grid {
         margin-top: 6px;
         display: grid;
@@ -1610,6 +1615,24 @@ const html = `<!doctype html>
         };
       }
 
+      function recoveryStepFailedDeltaVsPrevious(summary) {
+        if (!summary?.summary_id) return null;
+        const index = recoveryRadarHistory.findIndex((entry) => entry.summary_id === summary.summary_id);
+        if (index < 0) return null;
+        const previous = recoveryRadarHistory[index + 1] || null;
+        if (!previous) return null;
+        const currentBuckets = summary.step_buckets || emptyRecoveryStepBuckets();
+        const previousBuckets = previous.step_buckets || emptyRecoveryStepBuckets();
+        const keys = ["extract", "pipeline", "export", "unknown"];
+        const deltas = {};
+        for (const key of keys) {
+          deltas[key] =
+            Number(currentBuckets?.[key]?.failed ?? 0) -
+            Number(previousBuckets?.[key]?.failed ?? 0);
+        }
+        return deltas;
+      }
+
       async function copyRecoverySummary(summary) {
         if (!summary) return false;
         try {
@@ -1663,7 +1686,7 @@ const html = `<!doctype html>
             '</button><button type="button" class="secondary" disabled>' +
             QUEUE_RECOVERY_CLEAR_LABEL +
             "</button></div>" +
-            '<div id="recoveryRadarTrend" class="recovery-radar-trend muted">Trend vs previous: —</div>' +
+            '<div id="recoveryRadarTrend" class="recovery-radar-trend muted">Trend vs previous: —<br/>Step failed delta: —</div>' +
             '<div id="recoveryRadarTimeline" class="recovery-radar-timeline muted">' +
             QUEUE_RECOVERY_HISTORY_HINT +
             "</div>";
@@ -1676,6 +1699,7 @@ const html = `<!doctype html>
         const hasNextRun = activeIndex > 0;
         const hasLatestRun = activeIndex > 0;
         const trend = recoveryTrendVsPrevious(activeSummary);
+        const stepFailedDelta = recoveryStepFailedDeltaVsPrevious(activeSummary);
         const trendHtml = trend
           ? '<div id="recoveryRadarTrend" class="recovery-radar-trend">' +
             '<div class="trend-head">Trend vs previous · ' +
@@ -1701,8 +1725,30 @@ const html = `<!doctype html>
             recoveryDeltaClass(trend.deltas.failed) +
             '">' +
             recoveryDeltaText(trend.deltas.failed) +
+            "</span></div></div>" +
+            '<div class="trend-subhead">Step failed delta</div>' +
+            '<div class="trend-grid">' +
+            '<div class="trend-cell">extract <span class="trend-delta ' +
+            recoveryDeltaClass(stepFailedDelta?.extract ?? 0) +
+            '">' +
+            recoveryDeltaText(stepFailedDelta?.extract ?? 0) +
+            '</span></div>' +
+            '<div class="trend-cell">pipeline <span class="trend-delta ' +
+            recoveryDeltaClass(stepFailedDelta?.pipeline ?? 0) +
+            '">' +
+            recoveryDeltaText(stepFailedDelta?.pipeline ?? 0) +
+            '</span></div>' +
+            '<div class="trend-cell">export <span class="trend-delta ' +
+            recoveryDeltaClass(stepFailedDelta?.export ?? 0) +
+            '">' +
+            recoveryDeltaText(stepFailedDelta?.export ?? 0) +
+            '</span></div>' +
+            '<div class="trend-cell">unknown <span class="trend-delta ' +
+            recoveryDeltaClass(stepFailedDelta?.unknown ?? 0) +
+            '">' +
+            recoveryDeltaText(stepFailedDelta?.unknown ?? 0) +
             "</span></div></div></div>"
-          : '<div id="recoveryRadarTrend" class="recovery-radar-trend muted">Trend vs previous: need at least two runs.</div>';
+          : '<div id="recoveryRadarTrend" class="recovery-radar-trend muted">Trend vs previous: need at least two runs.<br/>Step failed delta: need at least two runs.</div>';
         recoveryRadarEl.innerHTML =
           '<div class="recovery-radar-head"><h4>Recovery Radar ' +
           historyBadge +
