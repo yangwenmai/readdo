@@ -424,6 +424,32 @@ const html = `<!doctype html>
       .score-meter-label {
         font-size: 11px;
       }
+      .freshness-chip {
+        margin-top: 6px;
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        padding: 3px 8px;
+      }
+      .freshness-chip.age-fresh {
+        border-color: #86efac;
+        background: #ecfdf5;
+        color: #166534;
+      }
+      .freshness-chip.age-warm {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .freshness-chip.age-stale {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+        color: #475569;
+      }
       .next-move-line {
         margin-top: 7px;
         display: inline-flex;
@@ -1966,6 +1992,34 @@ const html = `<!doctype html>
           meta.label +
           "</div></div>"
         );
+      }
+
+      function freshnessMeta(updatedAt) {
+        const parsedMs = Date.parse(String(updatedAt || ""));
+        if (!Number.isFinite(parsedMs)) {
+          return { label: "Updated: unknown", tone: "age-stale" };
+        }
+        const elapsedMinutes = Math.max(Math.floor((Date.now() - parsedMs) / 60000), 0);
+        if (elapsedMinutes <= 10) {
+          return { label: "Updated: just now", tone: "age-fresh" };
+        }
+        if (elapsedMinutes < 60) {
+          return { label: "Updated: " + elapsedMinutes + "m ago", tone: "age-fresh" };
+        }
+        const elapsedHours = Math.floor(elapsedMinutes / 60);
+        if (elapsedHours < 24) {
+          return { label: "Updated: " + elapsedHours + "h ago", tone: "age-warm" };
+        }
+        const elapsedDays = Math.floor(elapsedHours / 24);
+        if (elapsedDays <= 3) {
+          return { label: "Updated: " + elapsedDays + "d ago", tone: "age-warm" };
+        }
+        return { label: "Updated: " + elapsedDays + "d ago", tone: "age-stale" };
+      }
+
+      function freshnessChipHtml(updatedAt) {
+        const meta = freshnessMeta(updatedAt);
+        return '<span class="freshness-chip ' + meta.tone + '">' + meta.label + "</span>";
       }
 
       function queueNextMoveHtml(item, ops, spotlight = null) {
@@ -3727,6 +3781,7 @@ const html = `<!doctype html>
         const flowRailHtml = queueFlowRailHtml(item);
         const insightPillsHtml = queueInsightPillsHtml(item);
         const scoreMeter = scoreMeterHtml(item.match_score);
+        const freshnessChip = freshnessChipHtml(item.updated_at);
         const nextMoveHtml = queueNextMoveHtml(item, ops, spotlight);
         card.innerHTML = \`
           <div class="item-head">
@@ -3737,6 +3792,7 @@ const html = `<!doctype html>
           <div>\${title}</div>
           <div class="muted">\${item.domain || ""}</div>
           \${scoreMeter}
+          \${freshnessChip}
           \${insightPillsHtml}
           \${flowRailHtml}
           \${nextMoveHtml}
@@ -4123,6 +4179,7 @@ const html = `<!doctype html>
         const heroImpactMeta = impactMetaForItem(detail.item);
         const heroUrgencyMeta = urgencyMetaForItem(detail.item);
         const heroScoreMeter = scoreMeterHtml(detail.item.match_score);
+        const heroFreshnessChip = freshnessChipHtml(detail.item.updated_at);
         wrap.innerHTML = \`
           <div class="item-card detail-hero \${detailHeroTone(detail.item.status)} priority-\${priorityTone(detail.item.priority)}">
             <div class="item-head">
@@ -4138,6 +4195,7 @@ const html = `<!doctype html>
               <span class="insight-pill \${heroUrgencyMeta.tone}">\${heroUrgencyMeta.label}</span>
             </div>
             \${heroScoreMeter}
+            \${heroFreshnessChip}
             <div class="intent">\${detail.item.intent_text}</div>
             <div>\${detail.item.title || detail.item.url}</div>
             <div class="muted">\${detail.item.domain || ""}</div>
