@@ -43,9 +43,19 @@ captureBtn?.addEventListener("click", async () => {
       body: JSON.stringify(payload),
     });
 
-    const responsePayload = await response.json().catch(() => null);
+    const raw = await response.text();
+    let responsePayload = null;
+    if (raw) {
+      try {
+        responsePayload = JSON.parse(raw);
+      } catch {
+        responsePayload = null;
+      }
+    }
     if (!response.ok) {
-      resultEl.textContent = `Capture failed: ${response.status}`;
+      const fallbackBody = raw && raw.trim() ? raw.trim().slice(0, 200) : "";
+      const detail = responsePayload?.error?.message || fallbackBody;
+      resultEl.textContent = detail ? `Capture failed: ${detail}` : `Capture failed: ${response.status}`;
       return;
     }
 
