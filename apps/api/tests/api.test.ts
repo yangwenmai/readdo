@@ -2627,6 +2627,15 @@ test("items endpoint supports status and query filtering", async () => {
     assert.equal(invalidStatusPayload.error.code, "VALIDATION_ERROR");
     assert.match(invalidStatusPayload.error.message, /status must contain valid item statuses/i);
 
+    const unknownItemsQueryRes = await app.inject({
+      method: "GET",
+      url: "/api/items?unknown_filter=1",
+    });
+    assert.equal(unknownItemsQueryRes.statusCode, 400);
+    const unknownItemsQueryPayload = unknownItemsQueryRes.json() as { error: { code: string; message: string } };
+    assert.equal(unknownItemsQueryPayload.error.code, "VALIDATION_ERROR");
+    assert.match(unknownItemsQueryPayload.error.message, /items query supports only status\|priority\|source_type\|retryable\|failure_step\|q\|sort\|offset\|cursor\|limit/i);
+
     const blankStatusRes = await app.inject({
       method: "GET",
       url: "/api/items?status=%20%20%20",
@@ -3031,6 +3040,15 @@ test("item detail validates include_history query values", async () => {
     const blankDetailPayload = blankDetailRes.json() as { error: { code: string; message: string } };
     assert.equal(blankDetailPayload.error.code, "VALIDATION_ERROR");
     assert.match(blankDetailPayload.error.message, /include_history must be true\|false/i);
+
+    const unknownDetailQueryRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}?unknown=true`,
+    });
+    assert.equal(unknownDetailQueryRes.statusCode, 400);
+    const unknownDetailQueryPayload = unknownDetailQueryRes.json() as { error: { code: string; message: string } };
+    assert.equal(unknownDetailQueryPayload.error.code, "VALIDATION_ERROR");
+    assert.match(unknownDetailQueryPayload.error.message, /item detail query supports only include_history\|artifact_versions/i);
   } finally {
     await app.close();
   }

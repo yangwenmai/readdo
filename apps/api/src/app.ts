@@ -1445,6 +1445,17 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
   app.get("/api/items", async (request, reply) => {
     const query = request.query as Record<string, unknown>;
+    const unknownItemsQueryKey = Object.keys(query).find(
+      (key) => !["status", "priority", "source_type", "retryable", "failure_step", "q", "sort", "offset", "cursor", "limit"].includes(key),
+    );
+    if (unknownItemsQueryKey) {
+      return reply.status(400).send(
+        failure(
+          "VALIDATION_ERROR",
+          "items query supports only status|priority|source_type|retryable|failure_step|q|sort|offset|cursor|limit",
+        ),
+      );
+    }
     const rawStatuses = normalizeQueryList(query.status).map((x) => x.toUpperCase());
     if (query.status !== undefined && rawStatuses.length === 0) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "status must contain valid item statuses"));
@@ -1658,6 +1669,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   app.get("/api/items/:id", async (request, reply) => {
     const id = (request.params as { id: string }).id;
     const query = request.query as Record<string, unknown>;
+    const unknownItemDetailQueryKey = Object.keys(query).find((key) => !["include_history", "artifact_versions"].includes(key));
+    if (unknownItemDetailQueryKey) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "item detail query supports only include_history|artifact_versions"));
+    }
     if (query.include_history !== undefined && typeof query.include_history !== "string") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "include_history must be true|false when provided"));
     }

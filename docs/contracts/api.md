@@ -456,6 +456,7 @@ Headers:
 
 ### 5.2 Query Params
 
+* 仅支持键：`status`、`priority`、`source_type`、`retryable`、`failure_step`、`q`、`sort`、`offset`、`cursor`、`limit`（出现其他键返回 `400 VALIDATION_ERROR`）
 * `status`（可重复）：CAPTURED, QUEUED, PROCESSING, READY, FAILED_*, SHIPPED, ARCHIVED（大小写不敏感；`FAILED_*` 会展开为全部失败态；必须至少包含一个非空值；包含非法值返回 `400 VALIDATION_ERROR`）
 * `priority`（可重复）：READ_NEXT, WORTH_IT, IF_TIME, SKIP（大小写不敏感；必须至少包含一个非空值；包含非法值返回 `400 VALIDATION_ERROR`）
 * `source_type`（可重复）：web, youtube, newsletter, other（大小写不敏感；必须至少包含一个非空值；包含非法值返回 `400 VALIDATION_ERROR`）
@@ -500,7 +501,7 @@ Headers:
 
 ### 5.4 错误
 
-* 400 VALIDATION_ERROR（如 status / priority / source_type / retryable / failure_step / sort 参数非法）
+* 400 VALIDATION_ERROR（如筛选参数非法，或出现不支持的查询键）
 
 ---
 
@@ -512,6 +513,7 @@ Headers:
 
 ### 6.2 Query Params
 
+* 仅支持键：`include_history`、`artifact_versions`（出现其他键返回 `400 VALIDATION_ERROR`）
 * `artifact_versions`（可选，json 字符串）：指定要取的版本（按类型）
   - 示例：`?artifact_versions={"todos":1,"card":2}`（URL 编码后传输）
 * `include_history`：`true/false`（大小写不敏感，MVP 默认 false；必须为非空字符串；非法值返回 `400 VALIDATION_ERROR`）
@@ -571,7 +573,7 @@ Headers:
 
 ### 6.4 错误
 
-* 400 VALIDATION_ERROR（如 include_history 参数非法）
+* 400 VALIDATION_ERROR（如 include_history 参数非法，或出现不支持的查询键）
 * 404 NOT_FOUND
 
 ---
