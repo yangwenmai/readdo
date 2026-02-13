@@ -49,6 +49,7 @@ const queueRecoveryClearFailedLabel = "Clear Failed Filter";
 const queueRecoveryContextLabel = "Filter Context";
 const queueRecoveryEditContextLabel = "Edit Context Filters";
 const queueRecoveryFocusModePrefix = "Focus Priority";
+const queueRecoveryFocusModeSmartHint = "Focus Priority: Smart. Auto-pick Search/Retryable when active, otherwise jump by failed step.";
 
 const html = `<!doctype html>
 <html lang="en">
@@ -1097,7 +1098,7 @@ const html = `<!doctype html>
           <option value="pipeline">pipeline</option>
           <option value="export">export</option>
         </select>
-        <select id="recoveryFocusModeFilter">
+        <select id="recoveryFocusModeFilter" title="${queueRecoveryFocusModeSmartHint}" aria-label="${queueRecoveryFocusModeSmartHint}">
           <option value="smart">Focus Priority: Smart</option>
           <option value="query_first">Focus Priority: Query First</option>
           <option value="step_first">Focus Priority: Step First</option>
@@ -1205,6 +1206,7 @@ const html = `<!doctype html>
       const QUEUE_RECOVERY_CONTEXT_LABEL = ${JSON.stringify(queueRecoveryContextLabel)};
       const QUEUE_RECOVERY_EDIT_CONTEXT_LABEL = ${JSON.stringify(queueRecoveryEditContextLabel)};
       const QUEUE_RECOVERY_FOCUS_MODE_PREFIX = ${JSON.stringify(queueRecoveryFocusModePrefix)};
+      const QUEUE_RECOVERY_FOCUS_MODE_SMART_HINT = ${JSON.stringify(queueRecoveryFocusModeSmartHint)};
       const RECOVERY_HISTORY_LIMIT = 5;
       const inboxEl = document.getElementById("inbox");
       const detailEl = document.getElementById("detail");
@@ -1809,6 +1811,9 @@ const html = `<!doctype html>
         if (recoveryFocusModeFilter.value !== recoveryContextFocusMode) {
           recoveryFocusModeFilter.value = recoveryContextFocusMode;
         }
+        const hint = recoveryContextFocusModeControlHint(recoveryContextFocusMode);
+        recoveryFocusModeFilter.setAttribute("title", hint);
+        recoveryFocusModeFilter.setAttribute("aria-label", hint);
       }
 
       function setRecoveryContextFocusMode(mode) {
@@ -1843,6 +1848,17 @@ const html = `<!doctype html>
         if (mode === "query_first") return "Always jump to Search first, then tune other filters.";
         if (mode === "step_first") return "Always jump to failed-step/status controls first.";
         return "Auto-pick Search/Retryable when active, otherwise jump by failed step.";
+      }
+
+      function recoveryContextFocusModeControlHint(mode) {
+        if (!isRecoveryContextFocusMode(mode)) return QUEUE_RECOVERY_FOCUS_MODE_SMART_HINT;
+        return (
+          QUEUE_RECOVERY_FOCUS_MODE_PREFIX +
+          ": " +
+          recoveryContextFocusModeLabel(mode) +
+          ". " +
+          recoveryContextFocusModeNote(mode)
+        );
       }
 
       function nextRecoveryContextFocusMode(mode) {
@@ -5017,7 +5033,11 @@ const html = `<!doctype html>
               if (typeof config.beforeSync === "function") {
                 config.beforeSync();
               }
-              syncControlsWithPreviewState(config.syncOptions || {});
+              if (config.skipPreviewSync) {
+                persistControls();
+              } else {
+                syncControlsWithPreviewState(config.syncOptions || {});
+              }
             },
             config.options || {},
           );
@@ -5413,6 +5433,7 @@ const html = `<!doctype html>
       const queueControlChangeConfigs = expandSeedConfigs([
         createQueueFilterSeed("focus_priority", recoveryFocusModeFilter, {
           beforeSync: normalizeRecoveryFocusModeFilterValue,
+          skipPreviewSync: true,
           syncOptions: { resetOffset: false },
         }),
         createQueueFilterSeed("archive_scope", archiveRetryableFilter, {

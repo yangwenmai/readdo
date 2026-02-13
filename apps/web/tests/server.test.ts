@@ -111,6 +111,8 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Focus Priority: Smart/u);
     assert.match(text, /Focus Priority: Query First/u);
     assert.match(text, /Focus Priority: Step First/u);
+    assert.match(text, /title="Focus Priority: Smart\. Auto-pick Search\/Retryable when active, otherwise jump by failed step\."/u);
+    assert.match(text, /aria-label="Focus Priority: Smart\. Auto-pick Search\/Retryable when active, otherwise jump by failed step\."/u);
     assert.match(text, /id="detailModeChips"/u);
     assert.match(text, /id="detailSectionNav"/u);
     assert.match(text, /data-focus="ready"/u);
