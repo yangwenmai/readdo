@@ -451,6 +451,69 @@ const html = `<!doctype html>
         color: #b91c1c;
         font-size: 11px;
       }
+      .recovery-radar {
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        background: linear-gradient(145deg, #f8fafc, #ffffff);
+        padding: 10px;
+        margin-bottom: 10px;
+      }
+      .recovery-radar-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .recovery-radar-head h4 {
+        margin: 0;
+        font-size: 13px;
+        color: #0f172a;
+      }
+      .recovery-radar-kpi {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+      }
+      .recovery-radar-kpi .cell {
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: #ffffff;
+        padding: 6px 8px;
+      }
+      .recovery-radar-kpi .label {
+        font-size: 10px;
+        color: #475569;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .recovery-radar-kpi .value {
+        font-size: 14px;
+        font-weight: 700;
+        margin-top: 2px;
+      }
+      .recovery-step-grid {
+        margin-top: 8px;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+      }
+      .recovery-step {
+        border-radius: 8px;
+        border: 1px solid #dbe2ea;
+        background: #f8fafc;
+        padding: 6px 8px;
+      }
+      .recovery-step .title {
+        font-size: 11px;
+        font-weight: 700;
+        color: #334155;
+      }
+      .recovery-step .meta {
+        margin-top: 2px;
+        font-size: 11px;
+        color: #64748b;
+      }
       .legend-item {
         border: 1px solid #dbe2ea;
         border-radius: 999px;
@@ -757,6 +820,8 @@ const html = `<!doctype html>
         .detail-aha-grid { grid-template-columns: 1fr; }
         .export-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .quick-action-grid { grid-template-columns: 1fr; }
+        .recovery-radar-kpi { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .recovery-step-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
       @media (max-width: 1100px) {
         main { grid-template-columns: 1fr; min-height: auto; }
@@ -764,6 +829,8 @@ const html = `<!doctype html>
       @media (max-width: 700px) {
         .aha-strip { grid-template-columns: 1fr; }
         .export-kpi-grid { grid-template-columns: 1fr; }
+        .recovery-radar-kpi,
+        .recovery-step-grid { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -859,6 +926,12 @@ const html = `<!doctype html>
         </div>
         <div id="ahaNudge" class="aha-nudge"></div>
         <div id="queueActionBanner" class="muted action-feedback">Ready.</div>
+        <div id="recoveryRadar" class="recovery-radar">
+          <div class="recovery-radar-head">
+            <h4>Recovery Radar</h4>
+            <span class="muted">No recovery runs yet.</span>
+          </div>
+        </div>
         <div id="focusChips" class="focus-chips">
           <button type="button" class="focus-chip active" data-focus="all">All</button>
           <button type="button" class="focus-chip" data-focus="ready">Ready</button>
@@ -900,6 +973,7 @@ const html = `<!doctype html>
       const queueFlowPulseEl = document.getElementById("queueFlowPulse");
       const ahaNudgeEl = document.getElementById("ahaNudge");
       const queueActionBannerEl = document.getElementById("queueActionBanner");
+      const recoveryRadarEl = document.getElementById("recoveryRadar");
       const focusChipsEl = document.getElementById("focusChips");
       const statusLegendEl = document.getElementById("statusLegend");
       const retryPreviewOutputEl = document.getElementById("retryPreviewOutput");
@@ -1288,6 +1362,74 @@ const html = `<!doctype html>
         return buckets;
       }
 
+      function recoveryStepKey(step) {
+        if (step === "extract" || step === "pipeline" || step === "export") return step;
+        return "unknown";
+      }
+
+      function emptyRecoveryStepBuckets() {
+        return {
+          extract: { targeted: 0, queued: 0, replayed: 0, failed: 0 },
+          pipeline: { targeted: 0, queued: 0, replayed: 0, failed: 0 },
+          export: { targeted: 0, queued: 0, replayed: 0, failed: 0 },
+          unknown: { targeted: 0, queued: 0, replayed: 0, failed: 0 },
+        };
+      }
+
+      function renderRecoveryRadar(summary = null) {
+        if (!recoveryRadarEl) return;
+        if (!summary) {
+          recoveryRadarEl.innerHTML =
+            '<div class="recovery-radar-head"><h4>Recovery Radar</h4><span class="muted">No recovery runs yet.</span></div>';
+          return;
+        }
+        const totals = summary.totals || {};
+        const stepBuckets = summary.step_buckets || emptyRecoveryStepBuckets();
+        recoveryRadarEl.innerHTML =
+          '<div class="recovery-radar-head"><h4>Recovery Radar</h4><span class="muted">' +
+          (summary.label || "Latest recovery run") +
+          "</span></div>" +
+          '<div class="recovery-radar-kpi">' +
+          '<div class="cell"><div class="label">Targeted</div><div class="value">' +
+          (totals.targeted ?? 0) +
+          '</div></div>' +
+          '<div class="cell"><div class="label">Queued</div><div class="value">' +
+          (totals.queued ?? 0) +
+          '</div></div>' +
+          '<div class="cell"><div class="label">Replayed</div><div class="value">' +
+          (totals.replayed ?? 0) +
+          '</div></div>' +
+          '<div class="cell"><div class="label">Failed</div><div class="value">' +
+          (totals.failed ?? 0) +
+          "</div></div></div>";
+
+        const stepDefs = [
+          { key: "extract", label: "extract" },
+          { key: "pipeline", label: "pipeline" },
+          { key: "export", label: "export" },
+          { key: "unknown", label: "unknown" },
+        ];
+        const stepGrid = document.createElement("div");
+        stepGrid.className = "recovery-step-grid";
+        for (const def of stepDefs) {
+          const bucket = stepBuckets[def.key] || { targeted: 0, queued: 0, replayed: 0, failed: 0 };
+          const cell = document.createElement("div");
+          cell.className = "recovery-step";
+          cell.innerHTML =
+            '<div class="title">' +
+            def.label +
+            '</div><div class="meta">targeted=' +
+            bucket.targeted +
+            ", queued=" +
+            bucket.queued +
+            ", failed=" +
+            bucket.failed +
+            "</div>";
+          stepGrid.appendChild(cell);
+        }
+        recoveryRadarEl.appendChild(stepGrid);
+      }
+
       function lastAttemptRetryCandidates(items) {
         return items
           .filter((item) => {
@@ -1312,7 +1454,18 @@ const html = `<!doctype html>
         let queued = 0;
         let replayed = 0;
         let failed = 0;
-        for (const itemId of itemIds) {
+        const stepBuckets = emptyRecoveryStepBuckets();
+        for (const itemRef of itemIds) {
+          const itemId =
+            typeof itemRef === "object" && itemRef
+              ? itemRef.id
+              : itemRef;
+          const step = recoveryStepKey(
+            typeof itemRef === "object" && itemRef
+              ? itemRef.failed_step || itemRef.failure_step || itemRef.failure?.failed_step
+              : null,
+          );
+          stepBuckets[step].targeted += 1;
           try {
             const requestId = crypto.randomUUID();
             const response = await request("/items/" + itemId + "/process", {
@@ -1324,14 +1477,17 @@ const html = `<!doctype html>
               headers: { "Idempotency-Key": requestId },
             });
             queued += 1;
+            stepBuckets[step].queued += 1;
             if (response?.idempotent_replay === true) {
               replayed += 1;
+              stepBuckets[step].replayed += 1;
             }
           } catch {
             failed += 1;
+            stepBuckets[step].failed += 1;
           }
         }
-        return { queued, replayed, failed };
+        return { queued, replayed, failed, targeted: itemIds.length, step_buckets: stepBuckets };
       }
 
       function queueItemCardById(itemId) {
@@ -1525,7 +1681,9 @@ const html = `<!doctype html>
                 errorEl.textContent = "Rescue Last Retry cancelled.";
                 return;
               }
-              const result = await retryItemsByIds(candidates.map((item) => item.id));
+              const result = await retryItemsByIds(
+                candidates.map((item) => ({ id: item.id, failed_step: item.failure?.failed_step || null })),
+              );
               errorEl.textContent =
                 "Rescue Last Retry done. queued=" +
                 result.queued +
@@ -1534,6 +1692,16 @@ const html = `<!doctype html>
                 ", failed=" +
                 result.failed +
                 ".";
+              renderRecoveryRadar({
+                label: "Rescue Last Retry",
+                totals: {
+                  targeted: result.targeted ?? candidates.length,
+                  queued: result.queued ?? 0,
+                  replayed: result.replayed ?? 0,
+                  failed: result.failed ?? 0,
+                },
+                step_buckets: result.step_buckets,
+              });
               await loadItems();
             },
           };
@@ -3712,6 +3880,30 @@ const html = `<!doctype html>
           afterExecute: async (batchRes) => {
             const exportSummary = await exportItemsForRetry(batchRes.eligible_export_item_ids);
             renderRetryBatchDoneOutput(batchRes, exportSummary);
+            renderRecoveryRadar({
+              label: "Batch Retry Flow",
+              totals: {
+                targeted: Number(batchRes.eligible_pipeline ?? 0) + Number(batchRes.eligible_export ?? 0),
+                queued: Number(batchRes.queued ?? 0),
+                replayed: 0,
+                failed: Number(exportSummary.failed ?? 0),
+              },
+              step_buckets: {
+                ...emptyRecoveryStepBuckets(),
+                pipeline: {
+                  targeted: Number(batchRes.eligible_pipeline ?? 0),
+                  queued: Number(batchRes.queued ?? 0),
+                  replayed: 0,
+                  failed: 0,
+                },
+                export: {
+                  targeted: Number(batchRes.eligible_export ?? 0),
+                  queued: Number(exportSummary.success ?? 0),
+                  replayed: Number(exportSummary.replayed ?? 0),
+                  failed: Number(exportSummary.failed ?? 0),
+                },
+              },
+            });
           },
         });
       }
