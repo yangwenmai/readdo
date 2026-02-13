@@ -20,6 +20,14 @@ function detectSourceType(url) {
   return "other";
 }
 
+async function stableCaptureKey(url, intentText) {
+  const input = new TextEncoder().encode(`${url}\n${intentText}`);
+  const digest = await crypto.subtle.digest("SHA-256", input);
+  const bytes = Array.from(new Uint8Array(digest)).slice(0, 16);
+  const hex = bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `extcap_${hex}`;
+}
+
 captureBtn?.addEventListener("click", async () => {
   const tab = await currentTab();
   const intentText = (intentEl?.value ?? "").trim();
@@ -30,7 +38,9 @@ captureBtn?.addEventListener("click", async () => {
   }
 
   try {
+    const idempotencyKey = await stableCaptureKey(tab.url, intentText);
     const payload = {
+      capture_id: idempotencyKey,
       url: tab.url,
       title: tab.title ?? "",
       domain: new URL(tab.url).hostname,
@@ -42,16 +52,21 @@ captureBtn?.addEventListener("click", async () => {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "Idempotency-Key": crypto.randomUUID(),
+        "Idempotency-Key": idempotencyKey,
       },
       body: JSON.stringify(payload),
     });
 
+    const responsePayload = await response.json().catch(() => null);
     if (!response.ok) {
       resultEl.textContent = `Capture failed: ${response.status}`;
       return;
     }
 
+    if (responsePayload?.idempotent_replay === true) {
+      resultEl.textContent = "Already captured for this URL + intent. Open Inbox to continue.";
+      return;
+    }
     resultEl.textContent = "Captured. Open Inbox to continue.";
   } catch (err) {
     resultEl.textContent = `Capture failed: ${String(err)}`;

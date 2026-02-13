@@ -87,6 +87,8 @@ UI 提供 `Preview Next` 按钮，可直接基于 `next_offset` 连续翻页预�
 * Enter `Why save this?` (intent)
 * Save → Open Inbox
 
+> Extension 会基于 `URL + intent` 生成稳定幂等键；重复点击同一条输入不会重复创建 item。
+
 ---
 
 ## Run evals (quality gate)
