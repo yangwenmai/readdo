@@ -158,6 +158,50 @@ test("capture endpoint replays idempotent request with same key", async () => {
   }
 });
 
+test("capture handles concurrent same-key requests with idempotent replay", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-capture-idempotent-concurrent-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const requestPayload = {
+      capture_id: "capture-concurrent-key-1",
+      url: "https://example.com/concurrent-capture?utm_source=parallel",
+      title: "Capture Concurrent Replay",
+      source_type: "web",
+      intent_text: "validate concurrent capture idempotency replay",
+    };
+
+    const [firstRes, secondRes] = await Promise.all([
+      app.inject({
+        method: "POST",
+        url: "/api/capture",
+        headers: { "Idempotency-Key": "capture-concurrent-key-1" },
+        payload: requestPayload,
+      }),
+      app.inject({
+        method: "POST",
+        url: "/api/capture",
+        headers: { "Idempotency-Key": "capture-concurrent-key-1" },
+        payload: requestPayload,
+      }),
+    ]);
+
+    assert.equal(firstRes.statusCode, 201);
+    assert.equal(secondRes.statusCode, 201);
+
+    const payloads = [firstRes.json(), secondRes.json()] as Array<{ item: { id: string }; idempotent_replay: boolean }>;
+    assert.equal(payloads.some((x) => x.idempotent_replay === true), true);
+    assert.equal(payloads.some((x) => x.idempotent_replay === false), true);
+    assert.equal(payloads[0].item.id, payloads[1].item.id);
+  } finally {
+    await app.close();
+  }
+});
+
 test("capture endpoint supports idempotency via capture_id body field", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-capture-body-idempotent-"));
   const app = await createApp({
