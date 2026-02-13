@@ -92,6 +92,7 @@ const queueNudgeHeatTrendLabel = "Momentum Trend";
 const queueNudgeHeatTrendSeriesLabel = "Hot+Strong";
 const queueNudgeStoryLabel = "Aha Storyline";
 const queueNudgeDuelLabel = "Aha Duel";
+const queueNudgeDuelGapLabel = "Duel Gap";
 const queueNudgeOpenRivalLabel = "Open Rival";
 const queueNudgeCopyDuelLabel = "Copy Duel";
 const queueLeadGapLabelPrefix = "Lead Gap";
@@ -849,6 +850,34 @@ const html = `<!doctype html>
         color: #334155;
         line-height: 1.4;
       }
+      .hero-story .duel-gap-pill {
+        margin-top: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 8px;
+      }
+      .hero-story .duel-gap-pill.gap-tight {
+        border-color: #fda4af;
+        background: #fff1f2;
+        color: #9f1239;
+      }
+      .hero-story .duel-gap-pill.gap-balanced {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .hero-story .duel-gap-pill.gap-wide {
+        border-color: #86efac;
+        background: #ecfdf5;
+        color: #166534;
+      }
       .hero-story-actions {
         margin-top: 6px;
         display: inline-flex;
@@ -1450,6 +1479,36 @@ const html = `<!doctype html>
       .aha-nudge .nudge-duel .actions {
         margin-top: 0;
       }
+      .aha-nudge .nudge-duel-gap {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 9px;
+      }
+      .aha-nudge .nudge-duel-gap .muted {
+        font-size: 11px;
+      }
+      .aha-nudge .nudge-duel-gap.gap-tight {
+        border-color: #fda4af;
+        background: #fff1f2;
+        color: #9f1239;
+      }
+      .aha-nudge .nudge-duel-gap.gap-balanced {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .aha-nudge .nudge-duel-gap.gap-wide {
+        border-color: #86efac;
+        background: #ecfdf5;
+        color: #166534;
+      }
       .aha-nudge .nudge-heat-chip.tone-hot {
         border-color: #86efac;
         background: #ecfdf5;
@@ -1914,6 +1973,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_HEAT_TREND_SERIES_LABEL = ${JSON.stringify(queueNudgeHeatTrendSeriesLabel)};
       const QUEUE_NUDGE_STORY_LABEL = ${JSON.stringify(queueNudgeStoryLabel)};
       const QUEUE_NUDGE_DUEL_LABEL = ${JSON.stringify(queueNudgeDuelLabel)};
+      const QUEUE_NUDGE_DUEL_GAP_LABEL = ${JSON.stringify(queueNudgeDuelGapLabel)};
       const QUEUE_NUDGE_OPEN_RIVAL_LABEL = ${JSON.stringify(queueNudgeOpenRivalLabel)};
       const QUEUE_NUDGE_COPY_DUEL_LABEL = ${JSON.stringify(queueNudgeCopyDuelLabel)};
       const QUEUE_LEAD_GAP_LABEL_PREFIX = ${JSON.stringify(queueLeadGapLabelPrefix)};
@@ -2844,6 +2904,35 @@ const html = `<!doctype html>
           rivalAction +
           "."
         );
+      }
+
+      function ahaDuelGapMeta(poolItems) {
+        const ranked = sortedAhaItems(poolItems);
+        if (ranked.length < 2) return null;
+        const lead = ranked[0];
+        const rival = ranked[1];
+        const leadValue = ahaIndexMetaForItem(lead).value;
+        const rivalValue = ahaIndexMetaForItem(rival).value;
+        const gap = Math.max(leadValue - rivalValue, 0);
+        if (gap <= 5) {
+          return {
+            tone: "gap-tight",
+            label: "#" + lead.id + " vs #" + rival.id + " · " + gap,
+            hint: "Neck and neck",
+          };
+        }
+        if (gap <= 15) {
+          return {
+            tone: "gap-balanced",
+            label: "#" + lead.id + " vs #" + rival.id + " · " + gap,
+            hint: "Lead is clear",
+          };
+        }
+        return {
+          tone: "gap-wide",
+          label: "#" + lead.id + " vs #" + rival.id + " · " + gap,
+          hint: "Lead runaway",
+        };
       }
 
       function ahaDuelRoleMeta(item, poolItems = null) {
@@ -4635,6 +4724,19 @@ const html = `<!doctype html>
               const duelEl = document.createElement("div");
               duelEl.className = "nudge-duel";
               duelEl.innerHTML = '<span class="label">' + QUEUE_NUDGE_DUEL_LABEL + '</span><span class="body">' + duelText + "</span>";
+              const duelGap = ahaDuelGapMeta(ahaPool);
+              if (duelGap) {
+                const gapEl = document.createElement("span");
+                gapEl.className = "nudge-duel-gap " + duelGap.tone;
+                gapEl.innerHTML =
+                  QUEUE_NUDGE_DUEL_GAP_LABEL +
+                  ": " +
+                  duelGap.label +
+                  '<span class="muted">· ' +
+                  duelGap.hint +
+                  "</span>";
+                duelEl.appendChild(gapEl);
+              }
               const actionsEl = document.createElement("div");
               actionsEl.className = "actions";
               const openRivalBtn = document.createElement("button");
@@ -5403,6 +5505,7 @@ const html = `<!doctype html>
         const top = rankedPool[0];
         const story = detailStoryText(item, rankedPool);
         const duel = ahaDuelText(rankedPool);
+        const duelGap = ahaDuelGapMeta(rankedPool);
         const rival = rankedPool[1] || null;
         storyHost.innerHTML =
           '<div class="label">' +
@@ -5415,6 +5518,18 @@ const html = `<!doctype html>
           duelEl.className = "hero-duel";
           duelEl.textContent = duel;
           storyHost.appendChild(duelEl);
+          if (duelGap) {
+            const duelGapEl = document.createElement("span");
+            duelGapEl.className = "duel-gap-pill " + duelGap.tone;
+            duelGapEl.innerHTML =
+              QUEUE_NUDGE_DUEL_GAP_LABEL +
+              ": " +
+              duelGap.label +
+              '<span class="muted">· ' +
+              duelGap.hint +
+              "</span>";
+            storyHost.appendChild(duelGapEl);
+          }
         }
         const actionsEl = document.createElement("div");
         actionsEl.className = "hero-story-actions";

@@ -138,6 +138,11 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /nudge-duel/u);
     assert.match(text, /Aha Duel/u);
     assert.match(text, /Duel:/u);
+    assert.match(text, /nudge-duel-gap/u);
+    assert.match(text, /Duel Gap/u);
+    assert.match(text, /Neck and neck/u);
+    assert.match(text, /Lead is clear/u);
+    assert.match(text, /Lead runaway/u);
     assert.match(text, /Open Rival/u);
     assert.match(text, /Copy Duel/u);
     assert.match(text, /gap /u);
@@ -236,6 +241,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /detailHeroStory/u);
     assert.match(text, /hero-story/u);
     assert.match(text, /hero-duel/u);
+    assert.match(text, /duel-gap-pill/u);
     assert.match(text, /Queue Storyline/u);
     assert.match(text, /Copy Duel/u);
     assert.match(text, /Open Lead/u);
