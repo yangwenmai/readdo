@@ -2779,6 +2779,16 @@ const html = `<!doctype html>
         });
       }
 
+      async function runQueueBatchAction(op, button) {
+        await runActionWithFeedback(op, {
+          button,
+          localFeedbackEl: queueActionBannerEl,
+          onFinally: async () => {
+            await loadItems();
+          },
+        });
+      }
+
       bindPreviewAction(previewArchiveBtn, {
         id: "queue_preview_archive",
         label: "Preview Archive",
@@ -2787,7 +2797,7 @@ const html = `<!doctype html>
       });
 
       retryFailedBtn.addEventListener("click", async () => {
-        await runActionWithFeedback(
+        await runQueueBatchAction(
           {
             id: "queue_retry_failed",
             label: "Retry Failed Batch",
@@ -2845,13 +2855,7 @@ const html = `<!doctype html>
               }
             },
           },
-          {
-            button: retryFailedBtn,
-            localFeedbackEl: queueActionBannerEl,
-            onFinally: async () => {
-              await loadItems();
-            },
-          },
+          retryFailedBtn,
         );
       });
 
@@ -2863,7 +2867,7 @@ const html = `<!doctype html>
       });
 
       archiveBlockedBtn.addEventListener("click", async () => {
-        await runActionWithFeedback(
+        await runQueueBatchAction(
           {
             id: "queue_archive_failed",
             label: "Archive Failed Batch",
@@ -2893,13 +2897,7 @@ const html = `<!doctype html>
               }
             },
           },
-          {
-            button: archiveBlockedBtn,
-            localFeedbackEl: queueActionBannerEl,
-            onFinally: async () => {
-              await loadItems();
-            },
-          },
+          archiveBlockedBtn,
         );
       });
 
@@ -2936,7 +2934,7 @@ const html = `<!doctype html>
       });
 
       unarchiveBatchBtn.addEventListener("click", async () => {
-        await runActionWithFeedback(
+        await runQueueBatchAction(
           {
             id: "queue_unarchive_batch",
             label: "Unarchive Batch",
@@ -2965,13 +2963,7 @@ const html = `<!doctype html>
               }
             },
           },
-          {
-            button: unarchiveBatchBtn,
-            localFeedbackEl: queueActionBannerEl,
-            onFinally: async () => {
-              await loadItems();
-            },
-          },
+          unarchiveBatchBtn,
         );
       });
 
