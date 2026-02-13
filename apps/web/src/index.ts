@@ -450,6 +450,48 @@ const html = `<!doctype html>
         background: #f8fafc;
         color: #475569;
       }
+      .aha-index {
+        margin-top: 7px;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 4px 9px;
+      }
+      .aha-index-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.92);
+        color: #ffffff;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        padding: 2px 7px;
+      }
+      .aha-index.tone-hot {
+        border-color: #86efac;
+        background: #ecfdf5;
+        color: #166534;
+      }
+      .aha-index.tone-strong {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .aha-index.tone-warm {
+        border-color: #ddd6fe;
+        background: #f5f3ff;
+        color: #6d28d9;
+      }
+      .aha-index.tone-cool {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+        color: #475569;
+      }
       .next-move-line {
         margin-top: 7px;
         display: inline-flex;
@@ -2020,6 +2062,56 @@ const html = `<!doctype html>
       function freshnessChipHtml(updatedAt) {
         const meta = freshnessMeta(updatedAt);
         return '<span class="freshness-chip ' + meta.tone + '">' + meta.label + "</span>";
+      }
+
+      function ahaIndexMetaForItem(item) {
+        const scoreMeta = scoreMeterMeta(item?.match_score);
+        const urgencyMeta = urgencyMetaForItem(item);
+        const freshness = freshnessMeta(item?.updated_at);
+        let base = scoreMeta.value;
+        if (urgencyMeta.tone === "urgency-now") {
+          base += 16;
+        } else if (urgencyMeta.tone === "urgency-soon") {
+          base += 10;
+        } else {
+          base += 4;
+        }
+        if (freshness.tone === "age-fresh") {
+          base += 12;
+        } else if (freshness.tone === "age-warm") {
+          base += 6;
+        }
+        if (String(item?.status || "").startsWith("FAILED_")) {
+          base -= 8;
+        }
+        const value = Math.min(Math.max(Math.round(base), 0), 100);
+        if (value >= 85) {
+          return { value, tone: "tone-hot", note: "Hot Now" };
+        }
+        if (value >= 70) {
+          return { value, tone: "tone-strong", note: "Ready Push" };
+        }
+        if (value >= 50) {
+          return { value, tone: "tone-warm", note: "Worth Queue" };
+        }
+        return { value, tone: "tone-cool", note: "Park/Refine" };
+      }
+
+      function ahaIndexHtml(item) {
+        const meta = ahaIndexMetaForItem(item);
+        return (
+          '<div class="aha-index ' +
+          meta.tone +
+          '" role="img" aria-label="Aha Index: ' +
+          meta.value +
+          ' · ' +
+          meta.note +
+          '"><span class="aha-index-chip">Aha Index</span>' +
+          meta.value +
+          '<span class="muted">· ' +
+          meta.note +
+          "</span></div>"
+        );
       }
 
       function queueNextMoveHtml(item, ops, spotlight = null) {
@@ -3782,6 +3874,7 @@ const html = `<!doctype html>
         const insightPillsHtml = queueInsightPillsHtml(item);
         const scoreMeter = scoreMeterHtml(item.match_score);
         const freshnessChip = freshnessChipHtml(item.updated_at);
+        const ahaIndex = ahaIndexHtml(item);
         const nextMoveHtml = queueNextMoveHtml(item, ops, spotlight);
         card.innerHTML = \`
           <div class="item-head">
@@ -3793,6 +3886,7 @@ const html = `<!doctype html>
           <div class="muted">\${item.domain || ""}</div>
           \${scoreMeter}
           \${freshnessChip}
+          \${ahaIndex}
           \${insightPillsHtml}
           \${flowRailHtml}
           \${nextMoveHtml}
@@ -4180,6 +4274,7 @@ const html = `<!doctype html>
         const heroUrgencyMeta = urgencyMetaForItem(detail.item);
         const heroScoreMeter = scoreMeterHtml(detail.item.match_score);
         const heroFreshnessChip = freshnessChipHtml(detail.item.updated_at);
+        const heroAhaIndex = ahaIndexHtml(detail.item);
         wrap.innerHTML = \`
           <div class="item-card detail-hero \${detailHeroTone(detail.item.status)} priority-\${priorityTone(detail.item.priority)}">
             <div class="item-head">
@@ -4196,6 +4291,7 @@ const html = `<!doctype html>
             </div>
             \${heroScoreMeter}
             \${heroFreshnessChip}
+            \${heroAhaIndex}
             <div class="intent">\${detail.item.intent_text}</div>
             <div>\${detail.item.title || detail.item.url}</div>
             <div class="muted">\${detail.item.domain || ""}</div>

@@ -181,6 +181,10 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /freshness-chip/u);
     assert.match(text, /Updated: unknown/u);
     assert.match(text, /Updated: just now/u);
+    assert.match(text, /aha-index/u);
+    assert.match(text, /aha-index-chip/u);
+    assert.match(text, /Aha Index/u);
+    assert.match(text, /Hot Now/u);
     assert.match(text, /next-move-line/u);
     assert.match(text, /next-move-chip/u);
     assert.match(text, /Next Move/u);
