@@ -102,7 +102,22 @@ const html = `<!doctype html>
       .status-default { background: #eef2ff; color: #3730a3; border-color: #e0e7ff; }
       .actions { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
       .actions button:disabled { cursor: not-allowed; opacity: 0.6; transform: none; box-shadow: none; }
-      .group-title { margin: 12px 0 6px; font-size: 13px; color: #334155; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+      .group-title {
+        margin: 12px 0 6px;
+        font-size: 13px;
+        color: #334155;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-weight: 700;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+      .group-title .section-chip {
+        padding: 3px 8px;
+        font-size: 11px;
+      }
       .aha-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
       .focus-chips {
         display: flex;
@@ -475,6 +490,17 @@ const html = `<!doctype html>
       let previewContinuation = null;
       let detailAdvancedEnabled = false;
       const controlsStorageKey = "readdo.web.controls.v1";
+      const defaultCollapsedGroups = {
+        read_next: false,
+        worth_it: false,
+        if_time: false,
+        in_progress: false,
+        needs_attention: false,
+        skip: false,
+        shipped: true,
+        archived: true,
+      };
+      let collapsedGroups = { ...defaultCollapsedGroups };
       const controlDefaults = {
         q: "",
         status: "",
@@ -486,6 +512,7 @@ const html = `<!doctype html>
         preview_offset: 0,
         auto_refresh: false,
         detail_advanced: false,
+        collapsed_groups: defaultCollapsedGroups,
       };
 
       function statusByFocusChip(focus) {
@@ -598,6 +625,7 @@ const html = `<!doctype html>
             preview_offset: normalizedPreviewOffset(),
             auto_refresh: Boolean(autoRefreshToggle.checked),
             detail_advanced: Boolean(detailAdvancedEnabled),
+            collapsed_groups: collapsedGroups,
           };
           localStorage.setItem(controlsStorageKey, JSON.stringify(payload));
         } catch {
@@ -624,6 +652,15 @@ const html = `<!doctype html>
           }
           autoRefreshToggle.checked = Boolean(payload?.auto_refresh);
           detailAdvancedEnabled = Boolean(payload?.detail_advanced);
+          if (payload?.collapsed_groups && typeof payload.collapsed_groups === "object" && !Array.isArray(payload.collapsed_groups)) {
+            const normalizedGroups = { ...defaultCollapsedGroups };
+            for (const [key, value] of Object.entries(payload.collapsed_groups)) {
+              if (Object.prototype.hasOwnProperty.call(normalizedGroups, key)) {
+                normalizedGroups[key] = Boolean(value);
+              }
+            }
+            collapsedGroups = normalizedGroups;
+          }
           syncDetailModeChips();
         } catch {
           // ignore malformed storage payloads
@@ -641,6 +678,7 @@ const html = `<!doctype html>
         previewOffsetInput.value = String(controlDefaults.preview_offset);
         autoRefreshToggle.checked = controlDefaults.auto_refresh;
         detailAdvancedEnabled = controlDefaults.detail_advanced;
+        collapsedGroups = { ...controlDefaults.collapsed_groups };
         syncDetailModeChips();
       }
 
@@ -1036,12 +1074,24 @@ const html = `<!doctype html>
         addDetailSectionNav("Quick Actions", "detail-quick-actions");
       }
 
-      function appendGroup(target, title, items) {
+      function appendGroup(target, key, title, items) {
         if (!items.length) return;
+        const isCollapsed = Boolean(collapsedGroups[key]);
         const label = document.createElement("div");
         label.className = "group-title";
-        label.textContent = title + " (" + items.length + ")";
+        label.innerHTML = '<span>' + title + " (" + items.length + ")</span>";
+        const toggleBtn = document.createElement("button");
+        toggleBtn.type = "button";
+        toggleBtn.className = "section-chip";
+        toggleBtn.textContent = isCollapsed ? "Expand" : "Collapse";
+        toggleBtn.addEventListener("click", () => {
+          collapsedGroups[key] = !Boolean(collapsedGroups[key]);
+          persistControls();
+          renderInbox(allItems);
+        });
+        label.appendChild(toggleBtn);
         target.appendChild(label);
+        if (isCollapsed) return;
         for (const item of items) {
           target.appendChild(renderItem(item));
         }
@@ -1056,14 +1106,14 @@ const html = `<!doctype html>
           return;
         }
         const groups = groupedItems(items);
-        appendGroup(inboxEl, "Read Next", groups.read_next);
-        appendGroup(inboxEl, "Worth It", groups.worth_it);
-        appendGroup(inboxEl, "If Time", groups.if_time);
-        appendGroup(inboxEl, "In Progress", groups.in_progress);
-        appendGroup(inboxEl, "Needs Attention", groups.needs_attention);
-        appendGroup(inboxEl, "Skip", groups.skip);
-        appendGroup(inboxEl, "Shipped", groups.shipped);
-        appendGroup(inboxEl, "Archived", groups.archived);
+        appendGroup(inboxEl, "read_next", "Read Next", groups.read_next);
+        appendGroup(inboxEl, "worth_it", "Worth It", groups.worth_it);
+        appendGroup(inboxEl, "if_time", "If Time", groups.if_time);
+        appendGroup(inboxEl, "in_progress", "In Progress", groups.in_progress);
+        appendGroup(inboxEl, "needs_attention", "Needs Attention", groups.needs_attention);
+        appendGroup(inboxEl, "skip", "Skip", groups.skip);
+        appendGroup(inboxEl, "shipped", "Shipped", groups.shipped);
+        appendGroup(inboxEl, "archived", "Archived", groups.archived);
       }
 
       async function loadItems() {
