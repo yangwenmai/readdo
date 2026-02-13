@@ -3193,6 +3193,20 @@ const html = `<!doctype html>
         };
       }
 
+      function createSimpleBatchActionConfig(button, id, label, kind, flowConfig) {
+        return createBatchActionConfig(
+          button,
+          id,
+          label,
+          kind,
+          createSimpleBatchRunner({
+            kind,
+            cancelledMessage: queueActionCopy.batch_cancelled[kind],
+            ...flowConfig,
+          }),
+        );
+      }
+
       const previewActionConfigs = [
         createPreviewActionConfig(previewArchiveBtn, "queue_preview_archive", "Preview Archive", "archive"),
         createPreviewActionConfig(previewRetryBtn, "queue_preview_retry", "Preview Retry", "retry"),
@@ -3207,32 +3221,28 @@ const html = `<!doctype html>
           "retry",
           runRetryBatchFlow,
         ),
-        createBatchActionConfig(
+        createSimpleBatchActionConfig(
           archiveBlockedBtn,
           "queue_archive_failed",
           "Archive Failed Batch",
           "archive",
-          createSimpleBatchRunner({
-            kind: "archive",
+          {
             renderNoEligible: renderArchiveNoEligibleOutput,
             renderPreview: renderArchivePreviewOutput,
             buildConfirm: buildArchiveBatchConfirmMessage,
-            cancelledMessage: queueActionCopy.batch_cancelled.archive,
             renderDone: renderArchiveBatchDoneOutput,
-          }),
+          },
         ),
-        createBatchActionConfig(
+        createSimpleBatchActionConfig(
           unarchiveBatchBtn,
           "queue_unarchive_batch",
           "Unarchive Batch",
           "unarchive",
-          createSimpleBatchRunner({
-            kind: "unarchive",
+          {
             renderNoEligible: renderUnarchiveNoEligibleOutput,
             buildConfirm: buildUnarchiveBatchConfirmMessage,
-            cancelledMessage: queueActionCopy.batch_cancelled.unarchive,
             renderDone: renderUnarchiveBatchDoneOutput,
-          }),
+          },
         ),
       ];
 
