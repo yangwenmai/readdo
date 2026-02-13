@@ -14,6 +14,11 @@ test("canonicalizeUrlForCapture strips tracking params and hash", () => {
   assert.equal(canonical, "https://example.com/path?a=1&b=2");
 });
 
+test("canonicalizeUrlForCapture strips tracking params case-insensitively", () => {
+  const canonical = canonicalizeUrlForCapture("https://example.com/path?A=1&UTM_SOURCE=x&FbClId=foo&b=2");
+  assert.equal(canonical, "https://example.com/path?A=1&b=2");
+});
+
 test("canonicalizeUrlForCapture keeps unknown params sorted", () => {
   const canonical = canonicalizeUrlForCapture("https://example.com/path?z=9&k=3");
   assert.equal(canonical, "https://example.com/path?k=3&z=9");

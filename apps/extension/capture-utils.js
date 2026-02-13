@@ -13,7 +13,8 @@ export function canonicalizeUrlForCapture(url) {
     parsed.hash = "";
     const trackingKeys = new Set(["fbclid", "gclid", "mc_eid", "mkt_tok"]);
     for (const key of Array.from(parsed.searchParams.keys())) {
-      if (key.startsWith("utm_") || trackingKeys.has(key)) {
+      const normalizedKey = key.toLowerCase();
+      if (normalizedKey.startsWith("utm_") || trackingKeys.has(normalizedKey)) {
         parsed.searchParams.delete(key);
       }
     }
