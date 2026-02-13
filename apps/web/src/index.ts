@@ -97,6 +97,7 @@ const queueNudgeDuelLabel = "Aha Duel";
 const queueNudgeDuelGapLabel = "Duel Gap";
 const queueNudgeOpenRivalLabel = "Open Rival";
 const queueNudgeCopyDuelLabel = "Copy Duel";
+const queueNudgeRunRivalLabel = "Run Rival Action";
 const queueLeadGapLabelPrefix = "Lead Gap";
 const queueDuelRoleLabelPrefix = "Duel Role";
 const detailStoryLabel = "Queue Storyline";
@@ -1978,6 +1979,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_DUEL_GAP_LABEL = ${JSON.stringify(queueNudgeDuelGapLabel)};
       const QUEUE_NUDGE_OPEN_RIVAL_LABEL = ${JSON.stringify(queueNudgeOpenRivalLabel)};
       const QUEUE_NUDGE_COPY_DUEL_LABEL = ${JSON.stringify(queueNudgeCopyDuelLabel)};
+      const QUEUE_NUDGE_RUN_RIVAL_LABEL = ${JSON.stringify(queueNudgeRunRivalLabel)};
       const QUEUE_LEAD_GAP_LABEL_PREFIX = ${JSON.stringify(queueLeadGapLabelPrefix)};
       const QUEUE_DUEL_ROLE_LABEL_PREFIX = ${JSON.stringify(queueDuelRoleLabelPrefix)};
       const DETAIL_STORY_LABEL = ${JSON.stringify(detailStoryLabel)};
@@ -4757,6 +4759,14 @@ const html = `<!doctype html>
                 await runCopyAhaDuelAction(copyDuelBtn);
               });
               actionsEl.appendChild(copyDuelBtn);
+              const runRivalBtn = document.createElement("button");
+              runRivalBtn.type = "button";
+              runRivalBtn.className = "secondary";
+              runRivalBtn.textContent = QUEUE_NUDGE_RUN_RIVAL_LABEL;
+              runRivalBtn.addEventListener("click", async () => {
+                await runRivalAhaPrimaryAction(runRivalBtn);
+              });
+              actionsEl.appendChild(runRivalBtn);
               duelEl.appendChild(actionsEl);
               ahaNudgeEl.appendChild(duelEl);
             }
@@ -5604,6 +5614,14 @@ const html = `<!doctype html>
             );
           });
           actionsEl.appendChild(rivalBtn);
+          const runRivalBtn = document.createElement("button");
+          runRivalBtn.type = "button";
+          runRivalBtn.className = "secondary";
+          runRivalBtn.textContent = QUEUE_NUDGE_RUN_RIVAL_LABEL;
+          runRivalBtn.addEventListener("click", async () => {
+            await runRivalAhaPrimaryAction(runRivalBtn);
+          });
+          actionsEl.appendChild(runRivalBtn);
         }
         storyHost.appendChild(actionsEl);
       }
@@ -6658,6 +6676,39 @@ const html = `<!doctype html>
               await primary.action();
               const meta = ahaIndexMetaForItem(target);
               errorEl.textContent = "Ran top Aha action (" + primary.label + ") on #" + target.id + " (" + meta.value + ").";
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
+      async function runRivalAhaPrimaryAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_run_rival_aha_primary",
+            label: "Run Rival Action",
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const pool = visibleItems.length ? visibleItems : allItems;
+              if (!pool.length) {
+                errorEl.textContent = "No items available to run.";
+                return;
+              }
+              const rival = topAhaCandidates(pool, 2)[1] || null;
+              if (!rival) {
+                errorEl.textContent = "No rival candidate available to run.";
+                return;
+              }
+              await selectItem(rival.id);
+              focusQueueItemCard(rival.id, { revealCollapsed: true });
+              const primary = primaryActionForItem(rival);
+              if (!primary || primary.disabled) {
+                errorEl.textContent = "Rival candidate has no runnable primary action.";
+                return;
+              }
+              await primary.action();
+              const meta = ahaIndexMetaForItem(rival);
+              errorEl.textContent = "Ran rival action (" + primary.label + ") on #" + rival.id + " (" + meta.value + ").";
             },
           },
           { button, localFeedbackEl: queueActionBannerEl },

@@ -147,6 +147,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Lead runaway/u);
     assert.match(text, /Open Rival/u);
     assert.match(text, /Copy Duel/u);
+    assert.match(text, /Run Rival Action/u);
     assert.match(text, /gap /u);
     assert.match(text, /lead→/u);
     assert.match(text, /rival→/u);
