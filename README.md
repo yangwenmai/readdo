@@ -91,7 +91,7 @@ UI 提供 `Preview Next` 按钮，可直接基于 `next_offset` 连续翻页预�
 
 > Extension 会基于“规范化 URL（去 hash、去常见跟踪参数、移除默认端口、移除 hostname 尾随点、移除 URL 凭据、稳定排序 query）+ 规范化 intent（合并多空白）”生成稳定幂等键；重复点击同一条输入不会重复创建 item。`stableCaptureKey` 内部也会做 URL 规范化，避免调用方遗漏预处理。扩展提交给 API 的 `url/domain/source_type` 也基于同一 canonical URL，减少存储形态漂移。
 > API 在 capture 入库前也会做 URL 规范化（移除 credentials/hash/常见跟踪参数、移除默认端口和 hostname 尾点、稳定排序 query），用于统一存储形态。
-> 即使调用方未显式提供 `Idempotency-Key/capture_id`，API 也会基于“规范化 url + 规范化 intent_text”推导稳定 capture key，减少重复 capture。
+> 即使调用方未显式提供 `Idempotency-Key/capture_id`，API 也会基于“规范化 url + 规范化 intent_text”推导稳定 capture key（与 extension `stableCaptureKey` 格式对齐），减少重复 capture。
 > 为避免无效请求，扩展仅允许在 `http/https` 页面发起捕获（`chrome://`、`file://` 等会在前端直接提示不支持）。
 > API 层仍允许 `data:` URL（主要用于本地测试与回归用例），因此自动化测试中会看到 `data:text/plain,...` 的捕获样例。
 
