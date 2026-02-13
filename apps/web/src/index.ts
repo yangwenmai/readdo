@@ -15,6 +15,7 @@ const shortcutGuideItems = [
   { key: "P", label: "Focus Priority" },
   { key: "Shift+P", label: "Focus Priority (reverse)" },
   { key: "G", label: "Edit Context Filters" },
+  { key: "Shift+G", label: "Clear Step Focus" },
   { key: "R", label: "Refresh" },
   { key: shortcutTriggerKey, label: "Show shortcuts" },
 ];
@@ -1978,6 +1979,17 @@ const html = `<!doctype html>
         const feedback = "Focused control: " + target.label + ".";
         setActionFeedbackPair("done", feedback, queueActionBannerEl);
         errorEl.textContent = feedback;
+      }
+
+      function clearRecoveryFocusFromShortcut() {
+        const activeStep = activeFailedStepKey();
+        if (!activeStep) {
+          const hint = "No step focus to clear.";
+          setActionFeedbackPair("done", hint, queueActionBannerEl);
+          errorEl.textContent = hint;
+          return;
+        }
+        void focusRecoveryStepFromTrend(activeStep, activeRecoverySummary(), null);
       }
 
       function trendStepActionTitle(step) {
@@ -5220,6 +5232,11 @@ const html = `<!doctype html>
         if (key === "p" && event.shiftKey) {
           event.preventDefault();
           cycleRecoveryContextFocusMode("previous");
+          return;
+        }
+        if (key === "g" && event.shiftKey) {
+          event.preventDefault();
+          clearRecoveryFocusFromShortcut();
           return;
         }
         const action = shortcutActionByKey(key);
