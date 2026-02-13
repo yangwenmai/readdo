@@ -1912,7 +1912,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
   app.post("/api/items/:id/export", async (request, reply) => {
     const id = (request.params as { id: string }).id;
-    const body = (request.body ?? {}) as Record<string, unknown>;
+    if (request.body !== undefined && !isObjectRecord(request.body)) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "request body must be an object when provided"));
+    }
+    const body = (isObjectRecord(request.body) ? request.body : {}) as Record<string, unknown>;
+    const unknownExportKey = Object.keys(body).find((key) => !["export_key", "formats", "card_version", "options"].includes(key));
+    if (unknownExportKey) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "export body supports only export_key|formats|card_version|options"));
+    }
     if (body.export_key != null && typeof body.export_key !== "string") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "export_key must be a string when provided"));
     }

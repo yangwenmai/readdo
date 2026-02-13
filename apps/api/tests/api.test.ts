@@ -1212,6 +1212,26 @@ test("export rejects unsupported formats without mutating item status", async ()
 
     await app.runWorkerOnce();
 
+    const nonObjectExportBodyRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: [],
+    });
+    assert.equal(nonObjectExportBodyRes.statusCode, 400);
+    const nonObjectExportBodyPayload = nonObjectExportBodyRes.json() as { error: { code: string; message: string } };
+    assert.equal(nonObjectExportBodyPayload.error.code, "VALIDATION_ERROR");
+    assert.match(nonObjectExportBodyPayload.error.message, /request body must be an object/i);
+
+    const unknownExportKeyRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: "invalid-export-body-key-unknown", unknown_key: true },
+    });
+    assert.equal(unknownExportKeyRes.statusCode, 400);
+    const unknownExportKeyPayload = unknownExportKeyRes.json() as { error: { code: string; message: string } };
+    assert.equal(unknownExportKeyPayload.error.code, "VALIDATION_ERROR");
+    assert.match(unknownExportKeyPayload.error.message, /export body supports only export_key\|formats\|card_version\|options/i);
+
     const invalidOptionsShapeRes = await app.inject({
       method: "POST",
       url: `/api/items/${itemId}/export`,

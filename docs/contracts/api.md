@@ -824,6 +824,7 @@ Headers:
 
 约束：
 
+* body 若提供，必须是对象，且当前仅支持键：`export_key`、`formats`、`card_version`、`options`
 * `export_key` 若提供，必须是字符串
 * `formats` 若提供，必须是逗号分隔字符串，或“全部元素均为字符串”的数组；并且值仅能为 `png | md | caption`，为空或包含其他值返回 `400 VALIDATION_ERROR`
 * `card_version` 若提供，必须为整数且 `>=1`；若指定版本不存在返回 `404 NOT_FOUND`
