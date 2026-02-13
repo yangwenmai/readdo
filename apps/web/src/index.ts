@@ -1249,8 +1249,50 @@ const html = `<!doctype html>
         let exportSuccess = 0;
         let exportFailed = 0;
         try {
-          errorEl.textContent = "Retrying failed items...";
           const executionOffset = normalizedPreviewOffset();
+          const previewRes = await request("/items/retry-failed", {
+            method: "POST",
+            body: JSON.stringify(retryFailedPayload(true, executionOffset))
+          });
+          syncPreviewOffsetFromResponse(previewRes);
+          const eligiblePipeline = Number(previewRes.eligible_pipeline ?? 0);
+          const eligibleExport = Number(previewRes.eligible_export ?? 0);
+          if (eligiblePipeline <= 0 && eligibleExport <= 0) {
+            errorEl.textContent =
+              "No retryable failed items matching current filters. scanned=" +
+              (previewRes.scanned ?? 0) +
+              "/" +
+              (previewRes.scanned_total ?? previewRes.scanned ?? 0) +
+              ", limit=" +
+              (previewRes.requested_limit ?? normalizedBatchLimit()) +
+              ", offset=" +
+              (previewRes.requested_offset ?? 0) +
+              ", q=" +
+              (previewRes.q_filter || "all") +
+              ", filter=" +
+              (previewRes.failure_step_filter || "all") +
+              ".";
+            return;
+          }
+          const confirmed = confirm(
+            "Retry failed items [q=" +
+              (previewRes.q_filter || "all") +
+              ", filter=" +
+              (previewRes.failure_step_filter || "all") +
+              "]? pipeline=" +
+              eligiblePipeline +
+              ", export=" +
+              eligibleExport +
+              ", scanned=" +
+              (previewRes.scanned ?? 0) +
+              "/" +
+              (previewRes.scanned_total ?? previewRes.scanned ?? 0),
+          );
+          if (!confirmed) {
+            errorEl.textContent = "Retry failed action cancelled.";
+            return;
+          }
+          errorEl.textContent = "Retrying failed items...";
           const batchRes = await request("/items/retry-failed", {
             method: "POST",
             body: JSON.stringify(retryFailedPayload(false, executionOffset))
@@ -1271,23 +1313,6 @@ const html = `<!doctype html>
             } catch {
               exportFailed += 1;
             }
-          }
-          if (Number(batchRes.queued ?? 0) <= 0 && Number(batchRes.eligible_export ?? 0) <= 0) {
-            errorEl.textContent =
-              "No retryable failed items matching current filters. scanned=" +
-              (batchRes.scanned ?? 0) +
-              "/" +
-              (batchRes.scanned_total ?? batchRes.scanned ?? 0) +
-              ", limit=" +
-              (batchRes.requested_limit ?? normalizedBatchLimit()) +
-              ", offset=" +
-              (batchRes.requested_offset ?? 0) +
-              ", q=" +
-              (batchRes.q_filter || "all") +
-              ", filter=" +
-              (batchRes.failure_step_filter || "all") +
-              ".";
-            return;
           }
           errorEl.textContent =
             "Batch retry done. queued=" +
