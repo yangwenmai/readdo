@@ -2693,91 +2693,102 @@ const html = `<!doctype html>
       });
 
       archiveBlockedBtn.addEventListener("click", async () => {
-        archiveBlockedBtn.disabled = true;
-        try {
-          clearPreviewContinuation();
-          clearPreviewOutput();
-          const previewOffset = normalizedPreviewOffset();
-          const preview = await request("/items/archive-failed", {
-            method: "POST",
-            body: JSON.stringify(archiveBlockedPayload(true, previewOffset))
-          });
-          syncPreviewOffsetFromResponse(preview);
-          const eligible = Number(preview.eligible ?? 0);
-          if (!eligible) {
-            errorEl.textContent = "No failed items matching archive filter.";
-            return;
-          }
-          retryPreviewOutputEl.style.display = "block";
-          retryPreviewOutputEl.textContent = JSON.stringify(
-            {
-              preview_type: "archive_blocked",
-              retryable_filter: preview.retryable_filter == null ? "all" : preview.retryable_filter,
-              q_filter: preview.q_filter || null,
-              filter: preview.failure_step_filter || "all",
-              scanned: preview.scanned ?? 0,
-              scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
-              scan_truncated: Boolean(preview.scan_truncated),
-              requested_offset: preview.requested_offset ?? 0,
-              next_offset: preview.next_offset ?? null,
-              eligible_item_ids: preview.eligible_item_ids || [],
-              skipped_retryable_mismatch: preview.skipped_retryable_mismatch || 0,
+        await runActionWithFeedback(
+          {
+            id: "queue_archive_failed",
+            label: "Archive Failed Batch",
+            action: async () => {
+              try {
+                clearPreviewContinuation();
+                clearPreviewOutput();
+                const previewOffset = normalizedPreviewOffset();
+                const preview = await request("/items/archive-failed", {
+                  method: "POST",
+                  body: JSON.stringify(archiveBlockedPayload(true, previewOffset))
+                });
+                syncPreviewOffsetFromResponse(preview);
+                const eligible = Number(preview.eligible ?? 0);
+                if (!eligible) {
+                  errorEl.textContent = "No failed items matching archive filter.";
+                  return;
+                }
+                retryPreviewOutputEl.style.display = "block";
+                retryPreviewOutputEl.textContent = JSON.stringify(
+                  {
+                    preview_type: "archive_blocked",
+                    retryable_filter: preview.retryable_filter == null ? "all" : preview.retryable_filter,
+                    q_filter: preview.q_filter || null,
+                    filter: preview.failure_step_filter || "all",
+                    scanned: preview.scanned ?? 0,
+                    scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
+                    scan_truncated: Boolean(preview.scan_truncated),
+                    requested_offset: preview.requested_offset ?? 0,
+                    next_offset: preview.next_offset ?? null,
+                    eligible_item_ids: preview.eligible_item_ids || [],
+                    skipped_retryable_mismatch: preview.skipped_retryable_mismatch || 0,
+                  },
+                  null,
+                  2,
+                );
+                const confirmed = confirm(
+                  "Archive " +
+                    eligible +
+                    " failed items" +
+                    " [retryable=" +
+                    (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
+                    ", q=" +
+                    (preview.q_filter || "all") +
+                    "]" +
+                    (preview.failure_step_filter ? " (failure_step=" + preview.failure_step_filter + ")" : "") +
+                    "?",
+                );
+                if (!confirmed) {
+                  errorEl.textContent = "Archive blocked action cancelled.";
+                  return;
+                }
+                const executeOffset = normalizedPreviewOffset();
+                const result = await request("/items/archive-failed", {
+                  method: "POST",
+                  body: JSON.stringify(archiveBlockedPayload(false, executeOffset))
+                });
+                syncPreviewOffsetFromResponse(result);
+                errorEl.textContent =
+                  "Archive blocked done. archived=" +
+                  (result.archived ?? 0) +
+                  ", scanned=" +
+                  (result.scanned ?? 0) +
+                  "/" +
+                  (result.scanned_total ?? result.scanned ?? 0) +
+                  ", limit=" +
+                  (result.requested_limit ?? normalizedBatchLimit()) +
+                  ", offset=" +
+                  (result.requested_offset ?? 0) +
+                  ", q=" +
+                  (result.q_filter || "all") +
+                  ", retryable=" +
+                  (result.retryable_filter == null ? "all" : String(result.retryable_filter)) +
+                  ", filter=" +
+                  (result.failure_step_filter || "all") +
+                  ", truncated=" +
+                  (result.scan_truncated ? "yes" : "no") +
+                  ", next_offset=" +
+                  (result.next_offset == null ? "null" : String(result.next_offset)) +
+                  ", skipped_retryable_mismatch=" +
+                  (result.skipped_retryable_mismatch ?? 0) +
+                  ".";
+              } catch (err) {
+                throw new Error("Archive blocked failed: " + String(err));
+              }
             },
-            null,
-            2,
-          );
-          const confirmed = confirm(
-            "Archive " +
-              eligible +
-              " failed items" +
-              " [retryable=" +
-              (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
-              ", q=" +
-              (preview.q_filter || "all") +
-              "]" +
-              (preview.failure_step_filter ? " (failure_step=" + preview.failure_step_filter + ")" : "") +
-              "?",
-          );
-          if (!confirmed) {
-            errorEl.textContent = "Archive blocked action cancelled.";
-            return;
-          }
-          const executeOffset = normalizedPreviewOffset();
-          const result = await request("/items/archive-failed", {
-            method: "POST",
-            body: JSON.stringify(archiveBlockedPayload(false, executeOffset))
-          });
-          syncPreviewOffsetFromResponse(result);
-          errorEl.textContent =
-            "Archive blocked done. archived=" +
-            (result.archived ?? 0) +
-            ", scanned=" +
-            (result.scanned ?? 0) +
-            "/" +
-            (result.scanned_total ?? result.scanned ?? 0) +
-            ", limit=" +
-            (result.requested_limit ?? normalizedBatchLimit()) +
-            ", offset=" +
-            (result.requested_offset ?? 0) +
-            ", q=" +
-            (result.q_filter || "all") +
-            ", retryable=" +
-            (result.retryable_filter == null ? "all" : String(result.retryable_filter)) +
-            ", filter=" +
-            (result.failure_step_filter || "all") +
-            ", truncated=" +
-            (result.scan_truncated ? "yes" : "no") +
-            ", next_offset=" +
-            (result.next_offset == null ? "null" : String(result.next_offset)) +
-            ", skipped_retryable_mismatch=" +
-            (result.skipped_retryable_mismatch ?? 0) +
-            ".";
-        } catch (err) {
-          errorEl.textContent = "Archive blocked failed: " + String(err);
-        } finally {
-          archiveBlockedBtn.disabled = false;
-          await loadItems();
-        }
+          },
+          {
+            button: archiveBlockedBtn,
+            localFeedbackEl: queueActionBannerEl,
+            onFinally: async () => {
+              await loadItems();
+            },
+          },
+        );
       });
 
       previewUnarchiveBtn.addEventListener("click", async () => {
@@ -3016,70 +3027,81 @@ const html = `<!doctype html>
       });
 
       unarchiveBatchBtn.addEventListener("click", async () => {
-        unarchiveBatchBtn.disabled = true;
-        try {
-          clearPreviewContinuation();
-          clearPreviewOutput();
-          const previewOffset = normalizedPreviewOffset();
-          const preview = await request("/items/unarchive-batch", {
-            method: "POST",
-            body: JSON.stringify(unarchiveBatchPayload(true, previewOffset))
-          });
-          syncPreviewOffsetFromResponse(preview);
-          const eligible = Number(preview.eligible ?? 0);
-          if (!eligible) {
-            errorEl.textContent = "No archived items to unarchive.";
-            return;
-          }
-          const modeLabel = preview.regenerate ? "regenerate" : "smart";
-          const confirmed = confirm(
-            "Unarchive " +
-              eligible +
-              " archived items" +
-              " [mode=" +
-              modeLabel +
-              ", q=" +
-              (preview.q_filter || "all") +
-              "]?",
-          );
-          if (!confirmed) {
-            errorEl.textContent = "Unarchive action cancelled.";
-            return;
-          }
-          const executeOffset = normalizedPreviewOffset();
-          const result = await request("/items/unarchive-batch", {
-            method: "POST",
-            body: JSON.stringify(unarchiveBatchPayload(false, executeOffset))
-          });
-          syncPreviewOffsetFromResponse(result);
-          errorEl.textContent =
-            "Unarchive done. unarchived=" +
-            (result.unarchived ?? 0) +
-            ", scanned=" +
-            (result.scanned ?? 0) +
-            "/" +
-            (result.scanned_total ?? result.scanned ?? 0) +
-            ", limit=" +
-            (result.requested_limit ?? normalizedBatchLimit()) +
-            ", offset=" +
-            (result.requested_offset ?? 0) +
-            ", mode=" +
-            (result.regenerate ? "regenerate" : "smart") +
-            ", q=" +
-            (result.q_filter || "all") +
-            ", truncated=" +
-            (result.scan_truncated ? "yes" : "no") +
-            ", next_offset=" +
-            (result.next_offset == null ? "null" : String(result.next_offset)) +
-            ", queued_jobs_created=" +
-            (result.queued_jobs_created ?? 0) +
-            ".";
-        } catch (err) {
-          errorEl.textContent = "Unarchive batch failed: " + String(err);
-        } finally {
-          unarchiveBatchBtn.disabled = false;
-          await loadItems();
-        }
+        await runActionWithFeedback(
+          {
+            id: "queue_unarchive_batch",
+            label: "Unarchive Batch",
+            action: async () => {
+              try {
+                clearPreviewContinuation();
+                clearPreviewOutput();
+                const previewOffset = normalizedPreviewOffset();
+                const preview = await request("/items/unarchive-batch", {
+                  method: "POST",
+                  body: JSON.stringify(unarchiveBatchPayload(true, previewOffset))
+                });
+                syncPreviewOffsetFromResponse(preview);
+                const eligible = Number(preview.eligible ?? 0);
+                if (!eligible) {
+                  errorEl.textContent = "No archived items to unarchive.";
+                  return;
+                }
+                const modeLabel = preview.regenerate ? "regenerate" : "smart";
+                const confirmed = confirm(
+                  "Unarchive " +
+                    eligible +
+                    " archived items" +
+                    " [mode=" +
+                    modeLabel +
+                    ", q=" +
+                    (preview.q_filter || "all") +
+                    "]?",
+                );
+                if (!confirmed) {
+                  errorEl.textContent = "Unarchive action cancelled.";
+                  return;
+                }
+                const executeOffset = normalizedPreviewOffset();
+                const result = await request("/items/unarchive-batch", {
+                  method: "POST",
+                  body: JSON.stringify(unarchiveBatchPayload(false, executeOffset))
+                });
+                syncPreviewOffsetFromResponse(result);
+                errorEl.textContent =
+                  "Unarchive done. unarchived=" +
+                  (result.unarchived ?? 0) +
+                  ", scanned=" +
+                  (result.scanned ?? 0) +
+                  "/" +
+                  (result.scanned_total ?? result.scanned ?? 0) +
+                  ", limit=" +
+                  (result.requested_limit ?? normalizedBatchLimit()) +
+                  ", offset=" +
+                  (result.requested_offset ?? 0) +
+                  ", mode=" +
+                  (result.regenerate ? "regenerate" : "smart") +
+                  ", q=" +
+                  (result.q_filter || "all") +
+                  ", truncated=" +
+                  (result.scan_truncated ? "yes" : "no") +
+                  ", next_offset=" +
+                  (result.next_offset == null ? "null" : String(result.next_offset)) +
+                  ", queued_jobs_created=" +
+                  (result.queued_jobs_created ?? 0) +
+                  ".";
+              } catch (err) {
+                throw new Error("Unarchive batch failed: " + String(err));
+              }
+            },
+          },
+          {
+            button: unarchiveBatchBtn,
+            localFeedbackEl: queueActionBannerEl,
+            onFinally: async () => {
+              await loadItems();
+            },
+          },
+        );
       });
 
       archiveRetryableFilter.addEventListener("change", async () => {
