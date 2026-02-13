@@ -1141,6 +1141,18 @@ const html = `<!doctype html>
         targetEl.className = "muted action-feedback" + (state ? " " + state : "");
       }
 
+      function setActionFeedbackPair(state, text, localFeedbackEl = null) {
+        setActionFeedback(detailActionBannerEl(), state, text);
+        setActionFeedback(localFeedbackEl, state, text);
+      }
+
+      function actionFeedbackText(state, label, message = "") {
+        if (state === "pending") return "Running: " + label;
+        if (state === "done") return "Completed: " + label;
+        if (state === "error") return "Failed: " + label + " — " + message;
+        return String(label || "");
+      }
+
       async function runActionWithFeedback(op, options = {}) {
         if (op.disabled) return;
         const button = options.button;
@@ -1157,17 +1169,14 @@ const html = `<!doctype html>
         if (onStart) {
           onStart();
         }
-        setActionFeedback(detailActionBannerEl(), "pending", "Running: " + label);
-        setActionFeedback(localFeedbackEl, "pending", "Running: " + label);
+        setActionFeedbackPair("pending", actionFeedbackText("pending", label), localFeedbackEl);
         try {
           errorEl.textContent = "";
           await op.action();
-          setActionFeedback(detailActionBannerEl(), "done", "Completed: " + label);
-          setActionFeedback(localFeedbackEl, "done", "Completed: " + label);
+          setActionFeedbackPair("done", actionFeedbackText("done", label), localFeedbackEl);
         } catch (err) {
           const message = String(err);
-          setActionFeedback(detailActionBannerEl(), "error", "Failed: " + label + " — " + message);
-          setActionFeedback(localFeedbackEl, "error", "Failed: " + label + " — " + message);
+          setActionFeedbackPair("error", actionFeedbackText("error", label, message), localFeedbackEl);
           errorEl.textContent = message;
         } finally {
           if (button) {
@@ -1179,8 +1188,7 @@ const html = `<!doctype html>
               await onFinally();
             } catch (finalErr) {
               const finalMessage = "Post-action cleanup failed: " + String(finalErr);
-              setActionFeedback(detailActionBannerEl(), "error", finalMessage);
-              setActionFeedback(localFeedbackEl, "error", finalMessage);
+              setActionFeedbackPair("error", finalMessage, localFeedbackEl);
               errorEl.textContent = finalMessage;
             }
           }
@@ -3047,8 +3055,7 @@ const html = `<!doctype html>
 
       function showShortcutHint() {
         const hint = ${JSON.stringify(shortcutSummaryText)};
-        setActionFeedback(queueActionBannerEl, "done", hint);
-        setActionFeedback(detailActionBannerEl(), "done", hint);
+        setActionFeedbackPair("done", hint, queueActionBannerEl);
       }
 
       function bindGlobalKeyboardShortcuts() {
