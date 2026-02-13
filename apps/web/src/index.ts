@@ -28,6 +28,7 @@ const shortcutGuideItems = [
   { key: "O", label: "Open Selected Source" },
   { key: "Y", label: "Copy Selected Source" },
   { key: "I", label: "Copy Selected Context" },
+  { key: "U", label: "Copy Aha Snapshot" },
   { key: "B", label: "Open First Blocked" },
   { key: "X", label: "Rescue Last Retry" },
   { key: "Shift+G", label: "Clear Step Focus" },
@@ -75,6 +76,7 @@ const queueNudgeFocusTopLabel = "Focus Top Aha (Z)";
 const queueNudgeFocusNextLabel = "Focus Next Aha (Shift+N)";
 const queueNudgeFocusPrevLabel = "Focus Previous Aha (Alt+N)";
 const queueNudgeFocusSecondLabel = "Focus 2nd Aha (Shift+Z)";
+const queueNudgeCopySnapshotLabel = "Copy Aha Snapshot (U)";
 const queueNudgeResetCycleLabel = "Reset Aha Cycle (Shift+R)";
 const queueNudgeCandidatesLabel = "Top Aha Candidates";
 const queueNudgeCandidateOpenLabel = "Open Candidate";
@@ -1601,6 +1603,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_FOCUS_NEXT_LABEL = ${JSON.stringify(queueNudgeFocusNextLabel)};
       const QUEUE_NUDGE_FOCUS_PREV_LABEL = ${JSON.stringify(queueNudgeFocusPrevLabel)};
       const QUEUE_NUDGE_FOCUS_SECOND_LABEL = ${JSON.stringify(queueNudgeFocusSecondLabel)};
+      const QUEUE_NUDGE_COPY_SNAPSHOT_LABEL = ${JSON.stringify(queueNudgeCopySnapshotLabel)};
       const QUEUE_NUDGE_RESET_CYCLE_LABEL = ${JSON.stringify(queueNudgeResetCycleLabel)};
       const QUEUE_NUDGE_CANDIDATES_LABEL = ${JSON.stringify(queueNudgeCandidatesLabel)};
       const QUEUE_NUDGE_CANDIDATE_OPEN_LABEL = ${JSON.stringify(queueNudgeCandidateOpenLabel)};
@@ -1761,6 +1764,7 @@ const html = `<!doctype html>
       let ahaCandidateCycleCursor = -1;
       let currentAhaRankMap = new Map();
       let previousAhaRankMap = new Map();
+      let latestAhaSnapshot = null;
 
       function statusByFocusChip(focus) {
         if (focus === "ready") return "READY";
@@ -2316,6 +2320,60 @@ const html = `<!doctype html>
           total: ranked.length,
           value: meta.value,
         };
+      }
+
+      function refreshAhaSnapshot(items) {
+        const ranked = sortedAhaItems(items);
+        if (!ranked.length) {
+          latestAhaSnapshot = null;
+          return;
+        }
+        latestAhaSnapshot = {
+          generated_at: new Date().toISOString(),
+          pool_size: ranked.length,
+          candidates: ranked.slice(0, 5).map((item, index) => {
+            const primary = primaryActionForItem(item);
+            return {
+              rank: index + 1,
+              id: item.id,
+              status: item.status,
+              aha_index: ahaIndexMetaForItem(item).value,
+              score: scoreMeterMeta(item.match_score).value,
+              primary_action: primary?.label || "No action",
+              title: truncateSelectionLabel(item.title || item.url || "Untitled", 80),
+            };
+          }),
+        };
+      }
+
+      function ahaSnapshotText(snapshot = latestAhaSnapshot) {
+        if (!snapshot || !Array.isArray(snapshot.candidates) || !snapshot.candidates.length) {
+          return "";
+        }
+        const lines = [
+          "Aha Snapshot",
+          "generated_at: " + snapshot.generated_at,
+          "pool_size: " + snapshot.pool_size,
+          "top_candidates:",
+        ];
+        for (const candidate of snapshot.candidates) {
+          lines.push(
+            String(candidate.rank) +
+              ". #" +
+              String(candidate.id) +
+              " " +
+              String(candidate.status) +
+              " · aha=" +
+              String(candidate.aha_index) +
+              " · score=" +
+              Number(candidate.score ?? 0).toFixed(1) +
+              " · next=" +
+              String(candidate.primary_action || "No action") +
+              " · " +
+              String(candidate.title || "Untitled"),
+          );
+        }
+        return lines.join("\n");
       }
 
       function refreshAhaRankMap(items) {
@@ -3774,9 +3832,30 @@ const html = `<!doctype html>
             });
             actionsEl.appendChild(focusSecondBtn);
           }
+          const copySnapshotBtn = document.createElement("button");
+          copySnapshotBtn.type = "button";
+          copySnapshotBtn.className = "secondary";
+          copySnapshotBtn.textContent = QUEUE_NUDGE_COPY_SNAPSHOT_LABEL;
+          copySnapshotBtn.addEventListener("click", async () => {
+            await runCopyAhaSnapshotAction(copySnapshotBtn);
+          });
+          actionsEl.appendChild(copySnapshotBtn);
           ahaNudgeEl.appendChild(actionsEl);
         } else {
           setActionFeedback(queueActionBannerEl, "", "No immediate CTA. Capture or process new items.");
+          if (ahaPool.length) {
+            const actionsEl = document.createElement("div");
+            actionsEl.className = "nudge-actions";
+            const copySnapshotBtn = document.createElement("button");
+            copySnapshotBtn.type = "button";
+            copySnapshotBtn.className = "secondary";
+            copySnapshotBtn.textContent = QUEUE_NUDGE_COPY_SNAPSHOT_LABEL;
+            copySnapshotBtn.addEventListener("click", async () => {
+              await runCopyAhaSnapshotAction(copySnapshotBtn);
+            });
+            actionsEl.appendChild(copySnapshotBtn);
+            ahaNudgeEl.appendChild(actionsEl);
+          }
         }
         if (ahaCandidates.length > 1) {
           const candidatesEl = document.createElement("div");
@@ -4382,6 +4461,7 @@ const html = `<!doctype html>
       function renderInbox(items) {
         inboxEl.innerHTML = "";
         refreshAhaRankMap(items);
+        refreshAhaSnapshot(items);
         renderQueueHighlights(items);
         renderStatusLegend(items);
         if (!items.length) {
@@ -5445,6 +5525,30 @@ const html = `<!doctype html>
               const focused = focusQueueItemCard(itemId, { revealCollapsed: true });
               if (!focused) {
                 errorEl.textContent = "Recommended item selected, but hidden by current list filters.";
+              }
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
+      async function runCopyAhaSnapshotAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_copy_aha_snapshot",
+            label: "Copy Aha Snapshot",
+            action: async () => {
+              const snapshotText = ahaSnapshotText();
+              if (!snapshotText) {
+                errorEl.textContent = "No Aha snapshot available yet.";
+                return;
+              }
+              const copied = await copyTextToClipboard(snapshotText, {
+                success: "Copied Aha snapshot.",
+                failure: "Copy Aha snapshot failed.",
+              });
+              if (!copied) {
+                throw new Error("Copy Aha snapshot failed.");
               }
             },
           },
@@ -6709,6 +6813,9 @@ const html = `<!doctype html>
         },
         i: () => {
           void runCopySelectedContextAction();
+        },
+        u: () => {
+          void runCopyAhaSnapshotAction();
         },
         b: () => {
           void runOpenFirstBlockedAction();
