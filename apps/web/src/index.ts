@@ -666,6 +666,28 @@ const html = `<!doctype html>
         background: #eff6ff;
         color: #1d4ed8;
       }
+      .recovery-radar-trend .trend-focus-hint .trend-focus-mode-group {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .recovery-radar-trend .trend-focus-hint .trend-focus-mode-group .mode-prefix {
+        color: #64748b;
+        font-size: 11px;
+      }
+      .recovery-radar-trend .trend-focus-hint .trend-focus-mode-btn {
+        border-color: #dbe2ea;
+        background: #ffffff;
+        color: #475569;
+      }
+      .recovery-radar-trend .trend-focus-hint .trend-focus-mode-btn.active {
+        border-color: #1d4ed8;
+        background: #dbeafe;
+        color: #1e3a8a;
+        box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
+      }
       .trend-delta.pos { color: #166534; font-weight: 700; }
       .trend-delta.neg { color: #b91c1c; font-weight: 700; }
       .trend-delta.zero { color: #475569; font-weight: 700; }
@@ -1445,8 +1467,8 @@ const html = `<!doctype html>
           }
           autoRefreshToggle.checked = Boolean(payload?.auto_refresh);
           detailAdvancedEnabled = Boolean(payload?.detail_advanced);
-          if (payload?.recovery_focus_mode === "smart" || payload?.recovery_focus_mode === "query_first" || payload?.recovery_focus_mode === "step_first") {
-            recoveryContextFocusMode = payload.recovery_focus_mode;
+          if (typeof payload?.recovery_focus_mode === "string") {
+            setRecoveryContextFocusMode(payload.recovery_focus_mode);
           }
           if (payload?.collapsed_groups && typeof payload.collapsed_groups === "object" && !Array.isArray(payload.collapsed_groups)) {
             const normalizedGroups = { ...defaultCollapsedGroups };
@@ -1508,7 +1530,7 @@ const html = `<!doctype html>
         previewOffsetInput.value = String(controlDefaults.preview_offset);
         autoRefreshToggle.checked = controlDefaults.auto_refresh;
         detailAdvancedEnabled = controlDefaults.detail_advanced;
-        recoveryContextFocusMode = controlDefaults.recovery_focus_mode;
+        setRecoveryContextFocusMode(controlDefaults.recovery_focus_mode);
         collapsedGroups = { ...controlDefaults.collapsed_groups };
         syncDetailModeChips();
       }
@@ -1759,20 +1781,28 @@ const html = `<!doctype html>
         return "unknown";
       }
 
+      function isRecoveryContextFocusMode(mode) {
+        return mode === "smart" || mode === "query_first" || mode === "step_first";
+      }
+
+      function setRecoveryContextFocusMode(mode) {
+        if (!isRecoveryContextFocusMode(mode)) return false;
+        recoveryContextFocusMode = mode;
+        return true;
+      }
+
+      function recoveryContextFocusModes() {
+        return [
+          { key: "smart", label: "Smart", id: "trendFocusModeSmartBtn" },
+          { key: "query_first", label: "Query First", id: "trendFocusModeQueryFirstBtn" },
+          { key: "step_first", label: "Step First", id: "trendFocusModeStepFirstBtn" },
+        ];
+      }
+
       function recoveryContextFocusModeLabel(mode) {
         if (mode === "query_first") return "Query First";
         if (mode === "step_first") return "Step First";
         return "Smart";
-      }
-
-      function nextRecoveryContextFocusMode(mode) {
-        if (mode === "query_first") return "step_first";
-        if (mode === "step_first") return "smart";
-        return "query_first";
-      }
-
-      function recoveryContextFocusModeHint() {
-        return QUEUE_RECOVERY_FOCUS_MODE_PREFIX + ": " + recoveryContextFocusModeLabel(recoveryContextFocusMode);
       }
 
       function clearFocusedFilterControl() {
@@ -2015,6 +2045,24 @@ const html = `<!doctype html>
         const stepFailedDelta = recoveryStepFailedDeltaVsPrevious(activeSummary);
         const trendStatus = recoveryTrendStatusByDelta(trend);
         const focusContext = activeStep ? failedFilterContextSummary(activeStep) : "";
+        const focusModeButtonsHtml = recoveryContextFocusModes()
+          .map((mode) => {
+            const isActive = recoveryContextFocusMode === mode.key;
+            return (
+              '<button type="button" class="trend-focus-mode-btn ' +
+              (isActive ? "active" : "") +
+              '" id="' +
+              mode.id +
+              '" data-focus-mode="' +
+              mode.key +
+              '" aria-pressed="' +
+              (isActive ? "true" : "false") +
+              '">' +
+              mode.label +
+              "</button>"
+            );
+          })
+          .join("");
         const focusHintHtml = activeStep
           ? '<div class="trend-focus-hint"><span>Step focus active: ' +
             activeStep +
@@ -2022,9 +2070,11 @@ const html = `<!doctype html>
             QUEUE_RECOVERY_CONTEXT_LABEL +
             ": " +
             focusContext +
-            '</span><button type="button" class="secondary" id="switchTrendFocusModeBtn">' +
-            recoveryContextFocusModeHint() +
-            '</button><button type="button" class="secondary" id="editTrendFocusContextBtn">' +
+            '</span><div class="trend-focus-mode-group"><span class="mode-prefix">' +
+            QUEUE_RECOVERY_FOCUS_MODE_PREFIX +
+            ":</span>" +
+            focusModeButtonsHtml +
+            '</div><button type="button" class="secondary" id="editTrendFocusContextBtn">' +
             QUEUE_RECOVERY_EDIT_CONTEXT_LABEL +
             '</button><button type="button" id="clearTrendStepFocusBtn">' +
             (activeStep === "unknown" ? QUEUE_RECOVERY_CLEAR_FAILED_LABEL : QUEUE_RECOVERY_CLEAR_STEP_LABEL) +
@@ -2274,23 +2324,26 @@ const html = `<!doctype html>
             { button: editTrendFocusBtn, localFeedbackEl: queueActionBannerEl },
           );
         });
-        const switchTrendFocusModeBtn = recoveryRadarEl.querySelector("#switchTrendFocusModeBtn");
-        switchTrendFocusModeBtn?.addEventListener("click", async () => {
-          if (!activeStep) return;
-          await runActionWithFeedback(
-            {
-              id: "recovery_trend_focus_mode",
-              label: recoveryContextFocusModeHint(),
-              action: async () => {
-                recoveryContextFocusMode = nextRecoveryContextFocusMode(recoveryContextFocusMode);
-                persistControls();
-                renderRecoveryRadar(activeSummary);
-                errorEl.textContent = "Context focus mode: " + recoveryContextFocusModeLabel(recoveryContextFocusMode) + ".";
+        for (const focusMode of recoveryContextFocusModes()) {
+          const focusModeBtn = recoveryRadarEl.querySelector("#" + focusMode.id);
+          focusModeBtn?.addEventListener("click", async () => {
+            if (!activeStep) return;
+            await runActionWithFeedback(
+              {
+                id: "recovery_trend_focus_mode_" + focusMode.key,
+                label: QUEUE_RECOVERY_FOCUS_MODE_PREFIX + ": " + recoveryContextFocusModeLabel(focusMode.key),
+                action: async () => {
+                  const changed = setRecoveryContextFocusMode(focusMode.key);
+                  if (!changed) return;
+                  persistControls();
+                  renderRecoveryRadar(activeSummary);
+                  errorEl.textContent = "Context focus mode: " + recoveryContextFocusModeLabel(focusMode.key) + ".";
+                },
               },
-            },
-            { button: switchTrendFocusModeBtn, localFeedbackEl: queueActionBannerEl },
-          );
-        });
+              { button: focusModeBtn, localFeedbackEl: queueActionBannerEl },
+            );
+          });
+        }
         const clearTrendFocusBtn = recoveryRadarEl.querySelector("#clearTrendStepFocusBtn");
         clearTrendFocusBtn?.addEventListener("click", async () => {
           if (!activeStep) return;
