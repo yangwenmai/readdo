@@ -142,10 +142,15 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Aha Duel/u);
     assert.match(text, /Duel:/u);
     assert.match(text, /nudge-duel-gap/u);
+    assert.match(text, /nudge-duel-edge/u);
     assert.match(text, /Duel Gap/u);
+    assert.match(text, /Duel Edge/u);
     assert.match(text, /Neck and neck/u);
     assert.match(text, /Lead is clear/u);
     assert.match(text, /Lead runaway/u);
+    assert.match(text, /Coin flip/u);
+    assert.match(text, /Lean lead/u);
+    assert.match(text, /Strong lead/u);
     assert.match(text, /Open Rival/u);
     assert.match(text, /Copy Duel/u);
     assert.match(text, /Run Rival Action/u);
@@ -246,6 +251,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /hero-story/u);
     assert.match(text, /hero-duel/u);
     assert.match(text, /duel-gap-pill/u);
+    assert.match(text, /duel-edge-pill/u);
     assert.match(text, /Queue Storyline/u);
     assert.match(text, /Copy Duel/u);
     assert.match(text, /Open Lead/u);

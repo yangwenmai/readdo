@@ -96,6 +96,7 @@ const queueNudgeHeatTrendSeriesLabel = "Hot+Strong";
 const queueNudgeStoryLabel = "Aha Storyline";
 const queueNudgeDuelLabel = "Aha Duel";
 const queueNudgeDuelGapLabel = "Duel Gap";
+const queueNudgeDuelEdgeLabel = "Duel Edge";
 const queueNudgeOpenRivalLabel = "Open Rival";
 const queueNudgeCopyDuelLabel = "Copy Duel";
 const queueNudgeRunRivalLabel = "Run Rival Action (Alt+E)";
@@ -882,6 +883,35 @@ const html = `<!doctype html>
         background: #ecfdf5;
         color: #166534;
       }
+      .hero-story .duel-edge-pill {
+        margin-top: 6px;
+        margin-left: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 8px;
+      }
+      .hero-story .duel-edge-pill.edge-close {
+        border-color: #fda4af;
+        background: #fff1f2;
+        color: #9f1239;
+      }
+      .hero-story .duel-edge-pill.edge-mid {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .hero-story .duel-edge-pill.edge-strong {
+        border-color: #86efac;
+        background: #ecfdf5;
+        color: #166534;
+      }
       .hero-story-actions {
         margin-top: 6px;
         display: inline-flex;
@@ -1513,6 +1543,33 @@ const html = `<!doctype html>
         background: #ecfdf5;
         color: #166534;
       }
+      .aha-nudge .nudge-duel-edge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 9px;
+      }
+      .aha-nudge .nudge-duel-edge.edge-close {
+        border-color: #fda4af;
+        background: #fff1f2;
+        color: #9f1239;
+      }
+      .aha-nudge .nudge-duel-edge.edge-mid {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .aha-nudge .nudge-duel-edge.edge-strong {
+        border-color: #86efac;
+        background: #ecfdf5;
+        color: #166534;
+      }
       .aha-nudge .nudge-heat-chip.tone-hot {
         border-color: #86efac;
         background: #ecfdf5;
@@ -1978,6 +2035,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_STORY_LABEL = ${JSON.stringify(queueNudgeStoryLabel)};
       const QUEUE_NUDGE_DUEL_LABEL = ${JSON.stringify(queueNudgeDuelLabel)};
       const QUEUE_NUDGE_DUEL_GAP_LABEL = ${JSON.stringify(queueNudgeDuelGapLabel)};
+      const QUEUE_NUDGE_DUEL_EDGE_LABEL = ${JSON.stringify(queueNudgeDuelEdgeLabel)};
       const QUEUE_NUDGE_OPEN_RIVAL_LABEL = ${JSON.stringify(queueNudgeOpenRivalLabel)};
       const QUEUE_NUDGE_COPY_DUEL_LABEL = ${JSON.stringify(queueNudgeCopyDuelLabel)};
       const QUEUE_NUDGE_RUN_RIVAL_LABEL = ${JSON.stringify(queueNudgeRunRivalLabel)};
@@ -2937,6 +2995,40 @@ const html = `<!doctype html>
           tone: "gap-wide",
           label: "#" + lead.id + " vs #" + rival.id + " · " + gap,
           hint: "Lead runaway",
+        };
+      }
+
+      function ahaDuelEdgeMeta(poolItems) {
+        const ranked = sortedAhaItems(poolItems);
+        if (ranked.length < 2) return null;
+        const lead = ranked[0];
+        const rival = ranked[1];
+        const leadValue = ahaIndexMetaForItem(lead).value;
+        const rivalValue = ahaIndexMetaForItem(rival).value;
+        const gap = Math.max(leadValue - rivalValue, 0);
+        const trend = ahaHeatTrendMeta();
+        let edge = 50 + gap * 2.2;
+        if (trend.tone === "heat-up") edge += 4;
+        if (trend.tone === "heat-down") edge -= 4;
+        const value = Math.min(Math.max(Math.round(edge), 50), 95);
+        if (value <= 58) {
+          return {
+            tone: "edge-close",
+            label: value + "%",
+            hint: "Coin flip",
+          };
+        }
+        if (value <= 74) {
+          return {
+            tone: "edge-mid",
+            label: value + "%",
+            hint: "Lean lead",
+          };
+        }
+        return {
+          tone: "edge-strong",
+          label: value + "%",
+          hint: "Strong lead",
         };
       }
 
@@ -4742,6 +4834,19 @@ const html = `<!doctype html>
                   "</span>";
                 duelEl.appendChild(gapEl);
               }
+              const duelEdge = ahaDuelEdgeMeta(ahaPool);
+              if (duelEdge) {
+                const edgeEl = document.createElement("span");
+                edgeEl.className = "nudge-duel-edge " + duelEdge.tone;
+                edgeEl.innerHTML =
+                  QUEUE_NUDGE_DUEL_EDGE_LABEL +
+                  ": " +
+                  duelEdge.label +
+                  '<span class="muted">· ' +
+                  duelEdge.hint +
+                  "</span>";
+                duelEl.appendChild(edgeEl);
+              }
               const actionsEl = document.createElement("div");
               actionsEl.className = "actions";
               const openRivalBtn = document.createElement("button");
@@ -5519,6 +5624,7 @@ const html = `<!doctype html>
         const story = detailStoryText(item, rankedPool);
         const duel = ahaDuelText(rankedPool);
         const duelGap = ahaDuelGapMeta(rankedPool);
+        const duelEdge = ahaDuelEdgeMeta(rankedPool);
         const rival = rankedPool[1] || null;
         storyHost.innerHTML =
           '<div class="label">' +
@@ -5542,6 +5648,18 @@ const html = `<!doctype html>
               duelGap.hint +
               "</span>";
             storyHost.appendChild(duelGapEl);
+          }
+          if (duelEdge) {
+            const duelEdgeEl = document.createElement("span");
+            duelEdgeEl.className = "duel-edge-pill " + duelEdge.tone;
+            duelEdgeEl.innerHTML =
+              QUEUE_NUDGE_DUEL_EDGE_LABEL +
+              ": " +
+              duelEdge.label +
+              '<span class="muted">· ' +
+              duelEdge.hint +
+              "</span>";
+            storyHost.appendChild(duelEdgeEl);
           }
         }
         const actionsEl = document.createElement("div");
