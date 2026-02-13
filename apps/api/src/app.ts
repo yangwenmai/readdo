@@ -245,7 +245,7 @@ async function tryRenderPngFromCard(
       };
     };
   },
-): Promise<{ path?: string; renderer: { name: string; version: string } }> {
+): Promise<{ path?: string; renderer: { name: string; version: string }; error_message?: string }> {
   try {
     const require = createRequire(import.meta.url);
     const playwright = require("playwright") as { chromium: { launch: (options: Record<string, unknown>) => Promise<unknown> } };
@@ -308,12 +308,14 @@ async function tryRenderPngFromCard(
     } finally {
       await browser.close();
     }
-  } catch {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     return {
       renderer: {
         name: "markdown-caption-fallback",
         version: "0.1.0",
       },
+      error_message: message,
     };
   }
 }
@@ -879,11 +881,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       };
     };
     const files: Array<{ type: "png" | "md" | "caption"; path: string; created_at: string }> = [];
+    let pngErrorMessage: string | undefined;
 
     if (formats.includes("png")) {
       const pngResult = await tryRenderPngFromCard(root, id, card);
       if (pngResult.path) {
         files.push({ type: "png", path: pngResult.path, created_at: nowIso() });
+      } else {
+        pngErrorMessage = pngResult.error_message ?? "PNG rendering failed";
       }
     }
 
@@ -904,6 +909,21 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     }
 
     if (files.length === 0) {
+      const ts = nowIso();
+      const failurePayload = {
+        failed_step: "export",
+        error_code: "EXPORT_RENDER_FAILED",
+        message: pngErrorMessage ?? "No export files generated",
+        retryable: true,
+      };
+      db.prepare("UPDATE items SET status = 'FAILED_EXPORT', failure_json = ?, updated_at = ? WHERE id = ?").run(
+        JSON.stringify(failurePayload),
+        ts,
+        id,
+      );
+      if (formats.includes("png")) {
+        return reply.status(500).send(failure("EXPORT_RENDER_FAILED", pngErrorMessage ?? "PNG render failed"));
+      }
       return reply.status(400).send(failure("VALIDATION_ERROR", "formats must include at least one of png|md|caption"));
     }
 

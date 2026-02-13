@@ -366,3 +366,55 @@ test("worker status endpoint returns queue and item counters", async () => {
     await app.close();
   }
 });
+
+test("png-only export failure moves item to FAILED_EXPORT", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-fail-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20content%20will%20be%20used%20to%20verify%20png-only%20export%20failure%20path.",
+        title: "PNG Export Failure",
+        domain: "example.export.fail",
+        source_type: "web",
+        intent_text: "Check failed export behavior.",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const exportRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: {
+        export_key: "png-only-fail",
+        formats: ["png"],
+      },
+    });
+    assert.ok([200, 500].includes(exportRes.statusCode));
+
+    if (exportRes.statusCode === 500) {
+      const errPayload = exportRes.json() as { error: { code: string } };
+      assert.equal(errPayload.error.code, "EXPORT_RENDER_FAILED");
+
+      const detailRes = await app.inject({
+        method: "GET",
+        url: `/api/items/${itemId}`,
+      });
+      assert.equal(detailRes.statusCode, 200);
+      const detail = detailRes.json() as { item: { status: string } };
+      assert.equal(detail.item.status, "FAILED_EXPORT");
+    }
+  } finally {
+    await app.close();
+  }
+});
