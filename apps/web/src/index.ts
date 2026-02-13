@@ -60,6 +60,7 @@ const html = `<!doctype html>
         <button id="runWorkerBtn" type="button">Run Worker Once</button>
         <button id="previewRetryBtn" type="button">Preview Retry</button>
         <button id="retryFailedBtn" type="button">Retry Failed</button>
+        <button id="previewArchiveBtn" type="button">Preview Archive</button>
         <button id="archiveBlockedBtn" type="button">Archive Blocked</button>
         <label class="muted" style="display:flex;align-items:center;gap:4px;">
           <input id="autoRefreshToggle" type="checkbox" />
@@ -117,6 +118,7 @@ const html = `<!doctype html>
       const runWorkerBtn = document.getElementById("runWorkerBtn");
       const previewRetryBtn = document.getElementById("previewRetryBtn");
       const retryFailedBtn = document.getElementById("retryFailedBtn");
+      const previewArchiveBtn = document.getElementById("previewArchiveBtn");
       const archiveBlockedBtn = document.getElementById("archiveBlockedBtn");
       const autoRefreshToggle = document.getElementById("autoRefreshToggle");
 
@@ -967,6 +969,43 @@ const html = `<!doctype html>
         return payload;
       }
 
+      previewArchiveBtn.addEventListener("click", async () => {
+        previewArchiveBtn.disabled = true;
+        try {
+          const preview = await request("/items/archive-failed", {
+            method: "POST",
+            body: JSON.stringify(archiveBlockedPayload(true))
+          });
+          errorEl.textContent =
+            "Archive preview: scanned=" +
+            (preview.scanned ?? 0) +
+            ", filter=" +
+            (preview.failure_step_filter || "all") +
+            ", eligible=" +
+            (preview.eligible ?? 0) +
+            ", skipped_retryable_mismatch=" +
+            (preview.skipped_retryable_mismatch ?? 0) +
+            ".";
+          retryPreviewOutputEl.style.display = "block";
+          retryPreviewOutputEl.textContent = JSON.stringify(
+            {
+              preview_type: "archive_blocked",
+              filter: preview.failure_step_filter || "all",
+              eligible_item_ids: preview.eligible_item_ids || [],
+              skipped_retryable_mismatch: preview.skipped_retryable_mismatch || 0,
+            },
+            null,
+            2,
+          );
+        } catch (err) {
+          errorEl.textContent = "Archive preview failed: " + String(err);
+          retryPreviewOutputEl.style.display = "none";
+          retryPreviewOutputEl.textContent = "";
+        } finally {
+          previewArchiveBtn.disabled = false;
+        }
+      });
+
       retryFailedBtn.addEventListener("click", async () => {
         const candidates = allItems.filter((item) => isRetryableFailedItem(item));
         if (!candidates.length) {
@@ -1069,6 +1108,17 @@ const html = `<!doctype html>
             errorEl.textContent = "No blocked failed items to archive.";
             return;
           }
+          retryPreviewOutputEl.style.display = "block";
+          retryPreviewOutputEl.textContent = JSON.stringify(
+            {
+              preview_type: "archive_blocked",
+              filter: preview.failure_step_filter || "all",
+              eligible_item_ids: preview.eligible_item_ids || [],
+              skipped_retryable_mismatch: preview.skipped_retryable_mismatch || 0,
+            },
+            null,
+            2,
+          );
           const confirmed = confirm(
             "Archive " +
               eligible +
