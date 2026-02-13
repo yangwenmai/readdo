@@ -1073,6 +1073,7 @@ const html = `<!doctype html>
       let recoveryRadarHistory = [];
       let activeRecoverySummaryId = null;
       const controlsStorageKey = "readdo.web.controls.v1";
+      const recoveryRadarStorageKey = "readdo.web.recovery-radar.v1";
       const defaultCollapsedGroups = {
         read_next: false,
         worth_it: false,
@@ -1306,6 +1307,40 @@ const html = `<!doctype html>
           syncDetailModeChips();
         } catch {
           // ignore malformed storage payloads
+        }
+      }
+
+      function persistRecoveryRadarState() {
+        try {
+          const payload = {
+            active_summary_id: activeRecoverySummaryId || null,
+            history: recoveryRadarHistory.slice(0, RECOVERY_HISTORY_LIMIT),
+          };
+          localStorage.setItem(recoveryRadarStorageKey, JSON.stringify(payload));
+        } catch {
+          // ignore storage failures
+        }
+      }
+
+      function restoreRecoveryRadarState() {
+        try {
+          const raw = localStorage.getItem(recoveryRadarStorageKey);
+          if (!raw) return;
+          const payload = JSON.parse(raw);
+          if (!Array.isArray(payload?.history)) return;
+          const normalizedHistory = payload.history
+            .map((entry) => normalizeRecoverySummary(entry))
+            .filter(Boolean)
+            .slice(0, RECOVERY_HISTORY_LIMIT);
+          if (!normalizedHistory.length) return;
+          recoveryRadarHistory = normalizedHistory;
+          activeRecoverySummaryId =
+            typeof payload?.active_summary_id === "string" ? payload.active_summary_id : normalizedHistory[0].summary_id;
+          const activeSummary = activeRecoverySummary();
+          latestRecoverySummary = activeSummary || normalizedHistory[0];
+          renderRecoveryRadar(latestRecoverySummary);
+        } catch {
+          // ignore malformed recovery radar payloads
         }
       }
 
@@ -1641,6 +1676,7 @@ const html = `<!doctype html>
           latestRecoverySummary = null;
           recoveryRadarHistory = [];
           activeRecoverySummaryId = null;
+          persistRecoveryRadarState();
           renderRecoveryRadar(null);
         });
         const timelineEl = document.createElement("div");
@@ -1663,6 +1699,7 @@ const html = `<!doctype html>
             chip.addEventListener("click", () => {
               activeRecoverySummaryId = entry.summary_id;
               latestRecoverySummary = entry;
+              persistRecoveryRadarState();
               renderRecoveryRadar(entry);
             });
             timelineEl.appendChild(chip);
@@ -1680,6 +1717,7 @@ const html = `<!doctype html>
         ].slice(0, RECOVERY_HISTORY_LIMIT);
         latestRecoverySummary = normalized;
         activeRecoverySummaryId = normalized.summary_id;
+        persistRecoveryRadarState();
         renderRecoveryRadar(normalized);
       }
 
@@ -3595,6 +3633,11 @@ const html = `<!doctype html>
               clearPreviewState();
               applyControlDefaults();
               localStorage.removeItem(controlsStorageKey);
+              localStorage.removeItem(recoveryRadarStorageKey);
+              latestRecoverySummary = null;
+              recoveryRadarHistory = [];
+              activeRecoverySummaryId = null;
+              renderRecoveryRadar(null);
               setAutoRefresh(false);
               await loadItems();
             },
@@ -4378,6 +4421,7 @@ const html = `<!doctype html>
 
       function initializeQueueBootstrap() {
         restoreControls();
+        restoreRecoveryRadarState();
         setAutoRefresh(Boolean(autoRefreshToggle.checked));
         refreshItemsWithErrorHandling();
       }
