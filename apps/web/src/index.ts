@@ -13,6 +13,7 @@ const shortcutGuideItems = [
   { key: "F", label: "Focus Mode" },
   { key: "A", label: "Advanced Panels" },
   { key: "R", label: "Refresh" },
+  { key: shortcutTriggerKey, label: "Show shortcuts" },
 ];
 const shortcutDiscoveryText = `Press ${shortcutTriggerKey} for shortcuts`;
 const shortcutSummaryText =
