@@ -666,6 +666,71 @@ test("export accepts repeated idempotency header values by using first key", asy
   }
 });
 
+test("export handles concurrent same-key requests with idempotent replay", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-idempotent-concurrent-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+    disablePngRender: true,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20content%20verifies%20concurrent%20same-key%20export%20idempotency%20behavior.",
+        title: "Export Concurrent Replay",
+        domain: "example.export.concurrent",
+        source_type: "web",
+        intent_text: "verify concurrent export idempotency replay",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+    await app.runWorkerOnce();
+
+    const exportKey = "export-concurrent-key-1";
+    const [firstRes, secondRes] = await Promise.all([
+      app.inject({
+        method: "POST",
+        url: `/api/items/${itemId}/export`,
+        headers: { "Idempotency-Key": exportKey },
+        payload: { export_key: exportKey, formats: ["png", "md"] },
+      }),
+      app.inject({
+        method: "POST",
+        url: `/api/items/${itemId}/export`,
+        headers: { "Idempotency-Key": exportKey },
+        payload: { export_key: exportKey, formats: ["png", "md"] },
+      }),
+    ]);
+
+    assert.equal(firstRes.statusCode, 200);
+    assert.equal(secondRes.statusCode, 200);
+
+    const payloads = [firstRes.json(), secondRes.json()] as Array<{ idempotent_replay: boolean }>;
+    assert.equal(payloads.some((x) => x.idempotent_replay === true), true);
+    assert.equal(payloads.some((x) => x.idempotent_replay === false), true);
+
+    const detailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}?include_history=true`,
+    });
+    assert.equal(detailRes.statusCode, 200);
+    const detailPayload = detailRes.json() as {
+      artifact_history?: {
+        export?: Array<{ payload: { export_key?: string } }>;
+      };
+    };
+    const exportHistory = detailPayload.artifact_history?.export ?? [];
+    assert.equal(exportHistory.filter((x) => x.payload?.export_key === exportKey).length, 1);
+  } finally {
+    await app.close();
+  }
+});
+
 test("export rejects mismatched header idempotency key and export_key", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-mismatch-idempotent-"));
   const app = await createApp({
