@@ -570,6 +570,82 @@ test("export idempotency replays old export_key beyond recent window", async () 
   }
 });
 
+test("export idempotent replay clears stale failed_export failure payload", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-replay-clears-failure-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+    disablePngRender: true,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20content%20verifies%20that%20export%20replay%20clears%20stale%20failure%20payloads.",
+        title: "Export Replay Clears Failure",
+        domain: "example.export.replay.clear.failure",
+        source_type: "web",
+        intent_text: "verify export replay clears stale failure payload",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const firstExportKey = "exp-replay-clear-failure-1";
+    const firstExportRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: firstExportKey, formats: ["md"] },
+    });
+    assert.equal(firstExportRes.statusCode, 200);
+
+    const failedExportRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: "exp-replay-clear-failure-2", formats: ["png"] },
+    });
+    assert.equal(failedExportRes.statusCode, 500);
+
+    const failedDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}`,
+    });
+    assert.equal(failedDetailRes.statusCode, 200);
+    const failedDetail = failedDetailRes.json() as { item: { status: string }; failure?: unknown };
+    assert.equal(failedDetail.item.status, "FAILED_EXPORT");
+    assert.notEqual(failedDetail.failure, undefined);
+
+    const replayRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: firstExportKey, formats: ["md"] },
+    });
+    assert.equal(replayRes.statusCode, 200);
+    const replayPayload = replayRes.json() as {
+      idempotent_replay: boolean;
+      export: { payload: { export_key: string } };
+    };
+    assert.equal(replayPayload.idempotent_replay, true);
+    assert.equal(replayPayload.export.payload.export_key, firstExportKey);
+
+    const replayDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}`,
+    });
+    assert.equal(replayDetailRes.statusCode, 200);
+    const replayDetail = replayDetailRes.json() as { item: { status: string }; failure?: unknown };
+    assert.equal(replayDetail.item.status, "SHIPPED");
+    assert.equal(replayDetail.failure, undefined);
+  } finally {
+    await app.close();
+  }
+});
+
 test("export endpoint supports idempotency via header key only", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-idempotent-header-"));
   const app = await createApp({

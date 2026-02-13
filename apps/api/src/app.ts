@@ -699,6 +699,25 @@ function createProcessJob(db: DatabaseSync, itemId: string, requestKey: string):
   ).run(`job_${nanoid(10)}`, itemId, `run_${nanoid(10)}`, requestKey, ts, ts);
 }
 
+function findExportPayloadByKey(db: DatabaseSync, itemId: string, exportKey: string): Record<string, unknown> | null {
+  const existingExports = db
+    .prepare("SELECT payload_json FROM artifacts WHERE item_id = ? AND artifact_type = 'export' ORDER BY version DESC")
+    .all(itemId) as Array<{ payload_json: string }>;
+  for (const row of existingExports) {
+    try {
+      const parsed = JSON.parse(row.payload_json) as unknown;
+      if (!parsed || typeof parsed !== "object") continue;
+      const payload = parsed as Record<string, unknown>;
+      if (payload.export_key === exportKey) {
+        return payload;
+      }
+    } catch {
+      // ignore malformed legacy payloads
+    }
+  }
+  return null;
+}
+
 function countFailedJobsForItem(db: DatabaseSync, itemId: string): number {
   const row = db
     .prepare("SELECT COUNT(1) AS count FROM jobs WHERE item_id = ? AND status = 'FAILED'")
@@ -1713,27 +1732,18 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       return reply.status(409).send(failure("STATE_CONFLICT", "Card artifact is missing"));
     }
 
-    const existingExports = db
-      .prepare("SELECT payload_json FROM artifacts WHERE item_id = ? AND artifact_type = 'export' ORDER BY version DESC")
-      .all(id) as Array<{ payload_json: string }>;
-    for (const row of existingExports) {
-      try {
-        const payload = JSON.parse(row.payload_json) as { export_key?: string };
-        if (payload.export_key === exportKey) {
-          const ts = nowIso();
-          db.prepare("UPDATE items SET status = 'SHIPPED', updated_at = ? WHERE id = ?").run(ts, id);
-          return {
-            item: { id, status: "SHIPPED", updated_at: ts },
-            export: {
-              artifact_type: "export",
-              payload,
-            },
-            idempotent_replay: true,
-          };
-        }
-      } catch {
-        // ignore malformed legacy payloads
-      }
+    const existingExportPayload = findExportPayloadByKey(db, id, exportKey);
+    if (existingExportPayload) {
+      const ts = nowIso();
+      db.prepare("UPDATE items SET status = 'SHIPPED', updated_at = ?, failure_json = NULL WHERE id = ?").run(ts, id);
+      return {
+        item: { id, status: "SHIPPED", updated_at: ts },
+        export: {
+          artifact_type: "export",
+          payload: existingExportPayload,
+        },
+        idempotent_replay: true,
+      };
     }
 
     const exportDir = resolve(root, "exports", id);
@@ -1819,6 +1829,20 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
         return reply.status(500).send(failure("EXPORT_RENDER_FAILED", pngErrorMessage ?? "PNG render failed"));
       }
       return reply.status(400).send(failure("VALIDATION_ERROR", "formats must include at least one of png|md|caption"));
+    }
+
+    const concurrentReplayPayload = findExportPayloadByKey(db, id, exportKey);
+    if (concurrentReplayPayload) {
+      const ts = nowIso();
+      db.prepare("UPDATE items SET status = 'SHIPPED', updated_at = ?, failure_json = NULL WHERE id = ?").run(ts, id);
+      return {
+        item: { id, status: "SHIPPED", updated_at: ts },
+        export: {
+          artifact_type: "export",
+          payload: concurrentReplayPayload,
+        },
+        idempotent_replay: true,
+      };
     }
 
     const exportPayload = {
