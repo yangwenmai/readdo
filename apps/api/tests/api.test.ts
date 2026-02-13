@@ -1871,6 +1871,23 @@ test("items endpoint supports status and query filtering", async () => {
     assert.ok(multiSourceTypeItems.some((x) => x.source_type === "web"));
     assert.ok(multiSourceTypeItems.every((x) => ["youtube", "web"].includes(x.source_type)));
 
+    const trimmedSortRes = await app.inject({
+      method: "GET",
+      url: "/api/items?sort=%20created_desc%20&limit=1",
+    });
+    assert.equal(trimmedSortRes.statusCode, 200);
+    const trimmedSortItems = (trimmedSortRes.json() as { items: Array<{ id: string }> }).items;
+    assert.equal(trimmedSortItems.length, 1);
+
+    const invalidSortRes = await app.inject({
+      method: "GET",
+      url: "/api/items?sort=bad_order",
+    });
+    assert.equal(invalidSortRes.statusCode, 400);
+    const invalidSortPayload = invalidSortRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidSortPayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidSortPayload.error.message, /sort must be priority_score_desc\|created_desc\|updated_desc/i);
+
     const limitOneRes = await app.inject({
       method: "GET",
       url: "/api/items?limit=1",

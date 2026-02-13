@@ -1321,7 +1321,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const failureStepFilter =
       ["extract", "pipeline", "export"].includes(failureStepQuery) ? (failureStepQuery as "extract" | "pipeline" | "export") : null;
     const q = typeof query.q === "string" ? query.q.trim() : "";
-    const sort = typeof query.sort === "string" ? query.sort : "priority_score_desc";
+    if (query.sort !== undefined && typeof query.sort !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "sort must be priority_score_desc|created_desc|updated_desc"));
+    }
+    const sortRaw = typeof query.sort === "string" ? query.sort.trim() : "";
+    const sort = sortRaw || "priority_score_desc";
+    if (!["priority_score_desc", "created_desc", "updated_desc"].includes(sort)) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "sort must be priority_score_desc|created_desc|updated_desc"));
+    }
     const limitRaw = Number(query.limit ?? 20);
     const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 100) : 20;
     const offsetRaw = Number(query.offset ?? 0);
