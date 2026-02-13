@@ -617,6 +617,10 @@ const html = `<!doctype html>
         cursor: pointer;
         width: 100%;
       }
+      .recovery-radar-trend .trend-cell-action.active {
+        border-color: #1d4ed8;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.22);
+      }
       .recovery-radar-trend .trend-cell-action:hover {
         border-color: #93c5fd;
         box-shadow: 0 3px 10px rgba(37, 99, 235, 0.18);
@@ -1682,16 +1686,23 @@ const html = `<!doctype html>
         return failedSamples[0] || allSamples[0] || null;
       }
 
+      function isFailedStepFilterActive(step) {
+        if (statusFilter.value !== "FAILED_EXTRACTION,FAILED_AI,FAILED_EXPORT") return false;
+        if (step === "unknown") return !failureStepFilter.value;
+        return failureStepFilter.value === step;
+      }
+
       async function focusRecoveryStepFromTrend(step, summary, button) {
         const sampleId = recoverySampleIdByStep(summary, step);
         const stepFilter = step === "unknown" ? "" : step;
+        const isAlreadyFocused = isFailedStepFilterActive(step);
         await runActionWithFeedback(
           {
             id: "recovery_trend_focus_" + step,
             label: "Trend Focus: " + step,
             action: async () => {
               statusFilter.value = "FAILED_EXTRACTION,FAILED_AI,FAILED_EXPORT";
-              failureStepFilter.value = stepFilter;
+              failureStepFilter.value = isAlreadyFocused ? "" : stepFilter;
               syncFocusChips();
               persistControls();
               resetPreviewOffset();
@@ -1808,22 +1819,30 @@ const html = `<!doctype html>
             "</span></div></div>" +
             '<div class="trend-subhead">Step failed delta</div>' +
             '<div class="trend-grid">' +
-            '<button type="button" class="trend-cell trend-cell-action" id="trendStepDeltaExtractBtn">extract <span class="trend-delta ' +
+            '<button type="button" class="trend-cell trend-cell-action ' +
+            (isFailedStepFilterActive("extract") ? "active" : "") +
+            '" id="trendStepDeltaExtractBtn">extract <span class="trend-delta ' +
             recoveryDeltaClass(stepFailedDelta?.extract ?? 0) +
             '">' +
             recoveryDeltaText(stepFailedDelta?.extract ?? 0) +
             '</span></button>' +
-            '<button type="button" class="trend-cell trend-cell-action" id="trendStepDeltaPipelineBtn">pipeline <span class="trend-delta ' +
+            '<button type="button" class="trend-cell trend-cell-action ' +
+            (isFailedStepFilterActive("pipeline") ? "active" : "") +
+            '" id="trendStepDeltaPipelineBtn">pipeline <span class="trend-delta ' +
             recoveryDeltaClass(stepFailedDelta?.pipeline ?? 0) +
             '">' +
             recoveryDeltaText(stepFailedDelta?.pipeline ?? 0) +
             '</span></button>' +
-            '<button type="button" class="trend-cell trend-cell-action" id="trendStepDeltaExportBtn">export <span class="trend-delta ' +
+            '<button type="button" class="trend-cell trend-cell-action ' +
+            (isFailedStepFilterActive("export") ? "active" : "") +
+            '" id="trendStepDeltaExportBtn">export <span class="trend-delta ' +
             recoveryDeltaClass(stepFailedDelta?.export ?? 0) +
             '">' +
             recoveryDeltaText(stepFailedDelta?.export ?? 0) +
             '</span></button>' +
-            '<button type="button" class="trend-cell trend-cell-action" id="trendStepDeltaUnknownBtn">unknown <span class="trend-delta ' +
+            '<button type="button" class="trend-cell trend-cell-action ' +
+            (isFailedStepFilterActive("unknown") ? "active" : "") +
+            '" id="trendStepDeltaUnknownBtn">unknown <span class="trend-delta ' +
             recoveryDeltaClass(stepFailedDelta?.unknown ?? 0) +
             '">' +
             recoveryDeltaText(stepFailedDelta?.unknown ?? 0) +
