@@ -612,6 +612,15 @@ const html = `<!doctype html>
         font-size: 11px;
         color: #334155;
       }
+      .recovery-radar-trend .trend-cell-action {
+        text-align: left;
+        cursor: pointer;
+        width: 100%;
+      }
+      .recovery-radar-trend .trend-cell-action:hover {
+        border-color: #93c5fd;
+        box-shadow: 0 3px 10px rgba(37, 99, 235, 0.18);
+      }
       .trend-delta.pos { color: #166534; font-weight: 700; }
       .trend-delta.neg { color: #b91c1c; font-weight: 700; }
       .trend-delta.zero { color: #475569; font-weight: 700; }
@@ -1665,6 +1674,39 @@ const html = `<!doctype html>
         return { tone: "flat", label: "Trend Status: Flat" };
       }
 
+      function recoverySampleIdByStep(summary, step) {
+        const bucket = summary?.step_buckets?.[step] || null;
+        if (!bucket) return null;
+        const failedSamples = Array.isArray(bucket.failed_item_ids) ? bucket.failed_item_ids : [];
+        const allSamples = Array.isArray(bucket.sample_item_ids) ? bucket.sample_item_ids : [];
+        return failedSamples[0] || allSamples[0] || null;
+      }
+
+      async function focusRecoveryStepFromTrend(step, summary, button) {
+        const sampleId = recoverySampleIdByStep(summary, step);
+        const stepFilter = step === "unknown" ? "" : step;
+        await runActionWithFeedback(
+          {
+            id: "recovery_trend_focus_" + step,
+            label: "Trend Focus: " + step,
+            action: async () => {
+              statusFilter.value = "FAILED_EXTRACTION,FAILED_AI,FAILED_EXPORT";
+              failureStepFilter.value = stepFilter;
+              syncFocusChips();
+              persistControls();
+              resetPreviewOffset();
+              clearPreviewState();
+              await loadItems();
+              if (sampleId != null) {
+                await selectItem(sampleId);
+                focusQueueItemCard(sampleId);
+              }
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
       async function copyRecoverySummary(summary) {
         if (!summary) return false;
         try {
@@ -1766,26 +1808,26 @@ const html = `<!doctype html>
             "</span></div></div>" +
             '<div class="trend-subhead">Step failed delta</div>' +
             '<div class="trend-grid">' +
-            '<div class="trend-cell">extract <span class="trend-delta ' +
+            '<button type="button" class="trend-cell trend-cell-action" id="trendStepDeltaExtractBtn">extract <span class="trend-delta ' +
             recoveryDeltaClass(stepFailedDelta?.extract ?? 0) +
             '">' +
             recoveryDeltaText(stepFailedDelta?.extract ?? 0) +
-            '</span></div>' +
-            '<div class="trend-cell">pipeline <span class="trend-delta ' +
+            '</span></button>' +
+            '<button type="button" class="trend-cell trend-cell-action" id="trendStepDeltaPipelineBtn">pipeline <span class="trend-delta ' +
             recoveryDeltaClass(stepFailedDelta?.pipeline ?? 0) +
             '">' +
             recoveryDeltaText(stepFailedDelta?.pipeline ?? 0) +
-            '</span></div>' +
-            '<div class="trend-cell">export <span class="trend-delta ' +
+            '</span></button>' +
+            '<button type="button" class="trend-cell trend-cell-action" id="trendStepDeltaExportBtn">export <span class="trend-delta ' +
             recoveryDeltaClass(stepFailedDelta?.export ?? 0) +
             '">' +
             recoveryDeltaText(stepFailedDelta?.export ?? 0) +
-            '</span></div>' +
-            '<div class="trend-cell">unknown <span class="trend-delta ' +
+            '</span></button>' +
+            '<button type="button" class="trend-cell trend-cell-action" id="trendStepDeltaUnknownBtn">unknown <span class="trend-delta ' +
             recoveryDeltaClass(stepFailedDelta?.unknown ?? 0) +
             '">' +
             recoveryDeltaText(stepFailedDelta?.unknown ?? 0) +
-            "</span></div></div></div>"
+            "</span></button></div></div>"
           : '<div id="recoveryRadarTrend" class="recovery-radar-trend muted">Trend vs previous: need at least two runs.<br/>Trend Status: need at least two runs.<br/>Step failed delta: need at least two runs.</div>';
         recoveryRadarEl.innerHTML =
           '<div class="recovery-radar-head"><h4>Recovery Radar ' +
@@ -1921,6 +1963,18 @@ const html = `<!doctype html>
           if (!target) return;
           activateRecoverySummary(target.summary_id);
         });
+        const trendStepBindings = [
+          { id: "trendStepDeltaExtractBtn", step: "extract" },
+          { id: "trendStepDeltaPipelineBtn", step: "pipeline" },
+          { id: "trendStepDeltaExportBtn", step: "export" },
+          { id: "trendStepDeltaUnknownBtn", step: "unknown" },
+        ];
+        for (const binding of trendStepBindings) {
+          const trendBtn = recoveryRadarEl.querySelector("#" + binding.id);
+          trendBtn?.addEventListener("click", async () => {
+            await focusRecoveryStepFromTrend(binding.step, activeSummary, trendBtn);
+          });
+        }
         const clearBtn = recoveryRadarEl.querySelector("#clearRecoverySummaryBtn");
         clearBtn?.addEventListener("click", () => {
           latestRecoverySummary = null;
