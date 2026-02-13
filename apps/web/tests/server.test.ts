@@ -143,8 +143,11 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Duel:/u);
     assert.match(text, /nudge-duel-gap/u);
     assert.match(text, /nudge-duel-edge/u);
+    assert.match(text, /nudge-duel-trend/u);
     assert.match(text, /Duel Gap/u);
     assert.match(text, /Duel Edge/u);
+    assert.match(text, /Duel Gap Trend/u);
+    assert.match(text, /Lead-Rival/u);
     assert.match(text, /Neck and neck/u);
     assert.match(text, /Lead is clear/u);
     assert.match(text, /Lead runaway/u);
@@ -162,6 +165,8 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Cooling -/u);
     assert.match(text, /Rising \+/u);
     assert.match(text, /Falling -/u);
+    assert.match(text, /Widening \+/u);
+    assert.match(text, /Closing -/u);
     assert.match(text, /Flat/u);
     assert.match(text, /Steady/u);
     assert.match(text, /Baseline/u);
