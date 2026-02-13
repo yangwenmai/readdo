@@ -25,6 +25,8 @@ const shortcutGuideItems = [
   { key: "Alt+N", label: "Focus Previous Aha Candidate" },
   { key: "Shift+Z", label: "Focus 2nd Aha Candidate" },
   { key: "Q", label: "Run Top Aha Action" },
+  { key: "E", label: "Open Aha Rival" },
+  { key: "Shift+E", label: "Copy Aha Duel" },
   { key: "M", label: "Run Primary Item Action" },
   { key: "O", label: "Open Selected Source" },
   { key: "Y", label: "Copy Selected Source" },
@@ -7928,6 +7930,7 @@ const html = `<!doctype html>
           return "alt+" + key;
         }
         if (event.altKey && key === "n") return "alt+n";
+        if (event.shiftKey && key === "e") return "shift+e";
         if (event.shiftKey && key === "u") return "shift+u";
         if (event.shiftKey && key === "p") return "shift+p";
         if (event.shiftKey && key === "n") return "shift+n";
@@ -8004,6 +8007,12 @@ const html = `<!doctype html>
         },
         q: () => {
           void runTopAhaPrimaryAction();
+        },
+        e: () => {
+          void runOpenAhaRivalAction();
+        },
+        "shift+e": () => {
+          void runCopyAhaDuelAction();
         },
         z: () => {
           void runFocusTopAhaQueueAction();
