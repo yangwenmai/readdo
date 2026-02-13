@@ -2934,6 +2934,41 @@ const html = `<!doctype html>
         });
       }
 
+      function resolvePreviewContinuation() {
+        if (!previewContinuation || previewContinuation.next_offset == null) return null;
+        const continuationKind = previewContinuation.kind;
+        if (!isPreviewKind(continuationKind)) {
+          clearPreviewContinuation();
+          return null;
+        }
+        return { kind: continuationKind, nextOffset: Number(previewContinuation.next_offset) };
+      }
+
+      function bindPreviewNextAction(button) {
+        button.addEventListener("click", async () => {
+          const continuation = resolvePreviewContinuation();
+          if (!continuation) return;
+          await runQueueAction(
+            {
+              id: "queue_preview_next",
+              label: "Preview Next",
+              action: async () => {
+                await withActionError(
+                  "Preview next failed: ",
+                  async () => {
+                    await loadAndRenderPreview(continuation.kind, continuation.nextOffset);
+                  },
+                  () => {
+                    clearPreviewState();
+                  },
+                );
+              },
+            },
+            { button },
+          );
+        });
+      }
+
       [
         {
           button: previewArchiveBtn,
@@ -3003,33 +3038,7 @@ const html = `<!doctype html>
         bindQueueBatchAction(config);
       });
 
-      previewNextBtn.addEventListener("click", async () => {
-        if (!previewContinuation || previewContinuation.next_offset == null) return;
-        await runQueueAction(
-          {
-            id: "queue_preview_next",
-            label: "Preview Next",
-            action: async () => {
-              await withActionError(
-                "Preview next failed: ",
-                async () => {
-                  const nextOffset = Number(previewContinuation.next_offset);
-                  const continuationKind = previewContinuation.kind;
-                  if (!isPreviewKind(continuationKind)) {
-                    clearPreviewContinuation();
-                    return;
-                  }
-                  await loadAndRenderPreview(continuationKind, nextOffset);
-                },
-                () => {
-                  clearPreviewState();
-                },
-              );
-            },
-          },
-          { button: previewNextBtn },
-        );
-      });
+      bindPreviewNextAction(previewNextBtn);
 
       archiveRetryableFilter.addEventListener("change", async () => {
         await applyQueueControlMutation(
