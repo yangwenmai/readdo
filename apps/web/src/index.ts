@@ -2450,6 +2450,14 @@ const html = `<!doctype html>
         return Math.max(raw, 0);
       }
 
+      function normalizeBatchLimitInputValue() {
+        batchLimitInput.value = String(normalizedBatchLimit());
+      }
+
+      function normalizePreviewOffsetInputValue() {
+        previewOffsetInput.value = String(normalizedPreviewOffset());
+      }
+
       function resetPreviewOffset() {
         previewOffsetInput.value = String(controlDefaults.preview_offset);
         persistControls();
@@ -3213,16 +3221,12 @@ const html = `<!doctype html>
         {
           element: batchLimitInput,
           label: "Batch Limit",
-          beforeSync: () => {
-            batchLimitInput.value = String(normalizedBatchLimit());
-          },
+          beforeSync: normalizeBatchLimitInputValue,
         },
         {
           element: previewOffsetInput,
           label: "Preview Offset",
-          beforeSync: () => {
-            previewOffsetInput.value = String(normalizedPreviewOffset());
-          },
+          beforeSync: normalizePreviewOffsetInputValue,
           syncOptions: { resetOffset: false },
         },
       ];
