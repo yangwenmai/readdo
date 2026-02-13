@@ -1679,7 +1679,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     }
 
     const body = (request.body ?? {}) as Record<string, unknown>;
-    const modeRaw = String(body.mode ?? "PROCESS").toUpperCase();
+    if (body.mode !== undefined && typeof body.mode !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "mode must be PROCESS | RETRY | REGENERATE"));
+    }
+    const modeRaw = (typeof body.mode === "string" ? body.mode : "PROCESS").trim().toUpperCase();
     const allowedModes = ["PROCESS", "RETRY", "REGENERATE"] as const;
     const mode = allowedModes.includes(modeRaw as ProcessMode) ? (modeRaw as ProcessMode) : null;
     if (!mode) {

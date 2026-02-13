@@ -735,6 +735,7 @@ mode 枚举：
 * `REGENERATE`：重新生成新版本 artifacts（READY/ARCHIVED）
 
 > RETRY 会读取 item.failure.retryable；当达到重试上限时返回 `409 RETRY_LIMIT_REACHED`。
+> `mode` 若提供，必须是字符串；服务端会先做 `trim + upper-case` 后再按枚举校验。
 > `process_request_id` 若提供，必须是字符串。
 > 若同时提供 `Idempotency-Key` 与 `process_request_id`，两者必须一致；不一致返回 `400 VALIDATION_ERROR`。
 > 若 `Idempotency-Key` 被代理合并为逗号分隔值，服务端按“首个非空片段”解析。

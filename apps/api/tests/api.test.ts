@@ -1420,12 +1420,20 @@ test("process mode must match current status", async () => {
     assert.equal(invalidModeRes.statusCode, 409);
     assert.equal((invalidModeRes.json() as { error: { code: string } }).error.code, "PROCESS_NOT_ALLOWED");
 
+    const invalidModeTypeRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      payload: { mode: ["PROCESS"] },
+    });
+    assert.equal(invalidModeTypeRes.statusCode, 400);
+    assert.equal((invalidModeTypeRes.json() as { error: { code: string } }).error.code, "VALIDATION_ERROR");
+
     await app.runWorkerOnce();
 
     const regenerateRes = await app.inject({
       method: "POST",
       url: `/api/items/${itemId}/process`,
-      payload: { mode: "REGENERATE" },
+      payload: { mode: " regenerate " },
       headers: { "Idempotency-Key": "regen-key-1" },
     });
     assert.equal(regenerateRes.statusCode, 202);
