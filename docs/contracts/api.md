@@ -115,6 +115,7 @@ Artifacts payload 必须满足 `docs/contracts/schemas/*.schema.json`。
 * POST `/capture`
 * GET  `/items`
 * GET  `/items/{id}`
+* POST `/items/{id}/artifacts/{artifact_type}`（user edit -> new version）
 * POST `/items/{id}/process`
 * POST `/items/{id}/export`
 * POST `/items/{id}/archive`
@@ -268,6 +269,56 @@ Headers:
 
 ### 6.4 错误
 
+* 404 NOT_FOUND
+
+---
+
+## 6.5 POST /items/{id}/artifacts/{artifact_type}（人工编辑生成新版本）
+
+### 6.5.1 目的
+
+写入人工编辑后的 artifact 新版本（`created_by=user`），不覆盖 system 版本。
+
+### 6.5.2 路径参数
+
+* `artifact_type`：`summary | score | todos | card`（MVP）
+
+### 6.5.3 Request
+
+```json
+{
+  "payload": { },
+  "template_version": "user.todos.edit.v1"
+}
+```
+
+约束：
+
+* payload 必须通过对应 schema 校验
+* 未提供 template_version 时，服务端可自动生成默认值（如 `user.<type>.edit.v1`）
+
+### 6.5.4 Response 201
+
+```json
+{
+  "item": {
+    "id": "itm_...",
+    "status": "READY",
+    "updated_at": "..."
+  },
+  "artifact": {
+    "artifact_type": "todos",
+    "version": 3,
+    "created_by": "user",
+    "meta": { },
+    "payload": { }
+  }
+}
+```
+
+### 6.5.5 错误
+
+* 400 VALIDATION_ERROR（artifact_type 非法或 payload 不合法）
 * 404 NOT_FOUND
 
 ---
