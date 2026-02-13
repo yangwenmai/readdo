@@ -168,3 +168,85 @@ test("items endpoint supports status and query filtering", async () => {
     await app.close();
   }
 });
+
+test("user edit creates new artifact version and exposes history", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-edit-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20post%20explains%20how%20to%20convert%20reading%20into%20action%20with%20priority%2C%20tasks%20and%20delivery.",
+        title: "Artifact Editing",
+        domain: "example.edit",
+        source_type: "web",
+        intent_text: "I need editable TODO actions.",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const beforeRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}`,
+    });
+    assert.equal(beforeRes.statusCode, 200);
+    const before = beforeRes.json() as {
+      artifacts: {
+        todos: {
+          payload: {
+            todos: Array<{ title: string; eta: string; type?: string; why?: string }>;
+          };
+          version: number;
+        };
+      };
+    };
+    const editedTodos = structuredClone(before.artifacts.todos.payload);
+    editedTodos.todos[0].title = "Draft a concrete action checklist for this item";
+
+    const editRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/artifacts/todos`,
+      payload: {
+        payload: editedTodos,
+      },
+    });
+    assert.equal(editRes.statusCode, 201);
+
+    const afterRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}?include_history=true`,
+    });
+    assert.equal(afterRes.statusCode, 200);
+    const after = afterRes.json() as {
+      artifacts: {
+        todos: {
+          version: number;
+          created_by: string;
+          payload: {
+            todos: Array<{ title: string }>;
+          };
+        };
+      };
+      artifact_history: {
+        todos: Array<{ version: number; created_by: string }>;
+      };
+    };
+
+    assert.equal(after.artifacts.todos.created_by, "user");
+    assert.ok(after.artifacts.todos.version > before.artifacts.todos.version);
+    assert.equal(after.artifacts.todos.payload.todos[0].title, "Draft a concrete action checklist for this item");
+    assert.ok(after.artifact_history.todos.length >= 2);
+    assert.equal(after.artifact_history.todos[0].created_by, "user");
+  } finally {
+    await app.close();
+  }
+});

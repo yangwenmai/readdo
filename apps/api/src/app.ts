@@ -346,6 +346,40 @@ function latestArtifacts(db: DatabaseSync, itemId: string): Record<string, unkno
   }, {});
 }
 
+function allArtifactsHistory(db: DatabaseSync, itemId: string): Record<string, unknown[]> {
+  const rows = db
+    .prepare(
+      `
+      SELECT artifact_type, version, created_by, created_at, meta_json, payload_json
+      FROM artifacts
+      WHERE item_id = ?
+      ORDER BY artifact_type ASC, version DESC
+      `,
+    )
+    .all(itemId) as Array<{
+    artifact_type: string;
+    version: number;
+    created_by: string;
+    created_at: string;
+    meta_json: string;
+    payload_json: string;
+  }>;
+
+  return rows.reduce<Record<string, unknown[]>>((acc, row) => {
+    const current = acc[row.artifact_type] ?? [];
+    current.push({
+      artifact_type: row.artifact_type,
+      version: row.version,
+      created_by: row.created_by,
+      created_at: row.created_at,
+      meta: JSON.parse(row.meta_json),
+      payload: JSON.parse(row.payload_json),
+    });
+    acc[row.artifact_type] = current;
+    return acc;
+  }, {});
+}
+
 function writeArtifact(
   db: DatabaseSync,
   params: {
@@ -547,16 +581,77 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
   app.get("/api/items/:id", async (request, reply) => {
     const id = (request.params as { id: string }).id;
+    const includeHistory = String((request.query as Record<string, unknown>)?.include_history ?? "false") === "true";
     const item = db.prepare("SELECT * FROM items WHERE id = ?").get(id) as DbItemRow | undefined;
     if (!item) {
       return reply.status(404).send(failure("NOT_FOUND", "Item not found", { item_id: id }));
     }
 
-    return {
+    const response = {
       item: rowToItem(item),
       artifacts: latestArtifacts(db, id),
       failure: item.failure_json ? JSON.parse(item.failure_json) : undefined,
     };
+    if (includeHistory) {
+      return {
+        ...response,
+        artifact_history: allArtifactsHistory(db, id),
+      };
+    }
+    return response;
+  });
+
+  app.post("/api/items/:id/artifacts/:artifactType", async (request, reply) => {
+    const id = (request.params as { id: string }).id;
+    const artifactType = (request.params as { artifactType: string }).artifactType;
+    const editableTypes = ["summary", "score", "todos", "card"] as const;
+    if (!editableTypes.includes(artifactType as (typeof editableTypes)[number])) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "artifactType must be summary|score|todos|card"));
+    }
+
+    const item = db.prepare("SELECT * FROM items WHERE id = ?").get(id) as DbItemRow | undefined;
+    if (!item) {
+      return reply.status(404).send(failure("NOT_FOUND", "Item not found"));
+    }
+
+    const body = (request.body ?? {}) as { payload?: unknown; template_version?: unknown };
+    if (!body.payload || typeof body.payload !== "object") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "payload must be a JSON object"));
+    }
+
+    const templateVersion =
+      typeof body.template_version === "string" && body.template_version.trim()
+        ? body.template_version.trim()
+        : `user.${artifactType}.edit.v1`;
+    const runId = `run_user_${nanoid(10)}`;
+
+    try {
+      writeArtifact(db, {
+        itemId: id,
+        artifactType,
+        payload: body.payload as Record<string, unknown>,
+        runId,
+        engineVersion,
+        templateVersion,
+        createdBy: "user",
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return reply.status(400).send(failure("VALIDATION_ERROR", message));
+    }
+
+    const ts = nowIso();
+    db.prepare("UPDATE items SET updated_at = ?, failure_json = NULL WHERE id = ?").run(ts, id);
+
+    const latest = latestArtifacts(db, id)[artifactType];
+    return reply.status(201).send({
+      item: {
+        id,
+        status: item.status,
+        updated_at: ts,
+      },
+      artifact: latest,
+    });
   });
 
   app.post("/api/items/:id/process", async (request, reply) => {

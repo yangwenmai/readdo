@@ -30,6 +30,8 @@ const html = `<!doctype html>
       pre { background: #0b1020; color: #d1d5db; padding: 8px; border-radius: 8px; white-space: pre-wrap; word-break: break-all; font-size: 12px; }
       .empty { padding: 16px; border: 1px dashed #d1d5db; border-radius: 8px; color: #6b7280; text-align: center; }
       .error { color: #b91c1c; font-size: 13px; }
+      textarea { width: 100%; min-height: 180px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .editor-row { display: flex; gap: 8px; margin: 8px 0; align-items: center; flex-wrap: wrap; }
       @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
     </style>
   </head>
@@ -61,6 +63,7 @@ const html = `<!doctype html>
 
       let allItems = [];
       let selectedId = null;
+      let selectedDetail = null;
 
       function groupedItems(items) {
         const groups = {
@@ -205,7 +208,8 @@ const html = `<!doctype html>
 
       async function selectItem(id) {
         selectedId = id;
-        const detail = await request("/items/" + id);
+        const detail = await request("/items/" + id + "?include_history=true");
+        selectedDetail = detail;
         detailEl.innerHTML = "";
 
         const wrap = document.createElement("div");
@@ -221,10 +225,97 @@ const html = `<!doctype html>
           </div>
           <h3>Artifacts</h3>
           <pre>\${JSON.stringify(detail.artifacts || {}, null, 2)}</pre>
+          <h3>Artifact History</h3>
+          <pre>\${JSON.stringify(detail.artifact_history || {}, null, 2)}</pre>
           <h3>Failure</h3>
           <pre>\${JSON.stringify(detail.failure || null, null, 2)}</pre>
         \`;
         detailEl.appendChild(wrap);
+        renderArtifactEditor(detail);
+      }
+
+      function renderArtifactEditor(detail) {
+        const editableTypes = ["summary", "score", "todos", "card"].filter((type) => detail.artifacts?.[type]);
+        if (!editableTypes.length) {
+          return;
+        }
+
+        const card = document.createElement("div");
+        card.className = "item-card";
+        card.innerHTML = \`
+          <h3>Edit Artifact (Create User Version)</h3>
+          <div class="editor-row">
+            <label for="artifactTypeSelect">Artifact:</label>
+            <select id="artifactTypeSelect"></select>
+            <button id="loadHistoryBtn" type="button">Load History For Type</button>
+          </div>
+          <textarea id="artifactPayloadEditor"></textarea>
+          <div class="editor-row">
+            <button class="primary" id="saveArtifactBtn" type="button">Save User Version</button>
+          </div>
+          <div id="artifactEditorMsg" class="muted"></div>
+          <pre id="artifactTypeHistory" style="display:none;"></pre>
+        \`;
+
+        const selectEl = card.querySelector("#artifactTypeSelect");
+        const editorEl = card.querySelector("#artifactPayloadEditor");
+        const saveBtn = card.querySelector("#saveArtifactBtn");
+        const msgEl = card.querySelector("#artifactEditorMsg");
+        const historyBtn = card.querySelector("#loadHistoryBtn");
+        const historyEl = card.querySelector("#artifactTypeHistory");
+
+        for (const type of editableTypes) {
+          const option = document.createElement("option");
+          option.value = type;
+          option.textContent = type;
+          selectEl.appendChild(option);
+        }
+
+        function renderCurrentPayload() {
+          const type = selectEl.value;
+          const payload = detail.artifacts?.[type]?.payload ?? {};
+          editorEl.value = JSON.stringify(payload, null, 2);
+          msgEl.textContent = "Editing latest payload. Saving will create created_by=user new version.";
+          historyEl.style.display = "none";
+        }
+
+        selectEl.addEventListener("change", renderCurrentPayload);
+        renderCurrentPayload();
+
+        historyBtn.addEventListener("click", () => {
+          const type = selectEl.value;
+          const history = detail.artifact_history?.[type] ?? [];
+          historyEl.textContent = JSON.stringify(history, null, 2);
+          historyEl.style.display = "block";
+        });
+
+        saveBtn.addEventListener("click", async () => {
+          const type = selectEl.value;
+          let payload;
+          try {
+            payload = JSON.parse(editorEl.value);
+          } catch (err) {
+            msgEl.textContent = "Invalid JSON: " + String(err);
+            return;
+          }
+
+          try {
+            await request("/items/" + detail.item.id + "/artifacts/" + type, {
+              method: "POST",
+              body: JSON.stringify({
+                payload,
+                template_version: "user." + type + ".edit.v1"
+              })
+            });
+            msgEl.textContent = "Saved. Reloading latest detail...";
+            await loadItems();
+            await selectItem(detail.item.id);
+          } catch (err) {
+            msgEl.textContent = "Save failed: " + String(err);
+          }
+        });
+
+        detailEl.appendChild(card);
       }
 
       async function processItem(id, mode) {
