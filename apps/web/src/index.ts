@@ -21,6 +21,7 @@ const shortcutGuideItems = [
   { key: "G", label: "Edit Context Filters" },
   { key: "N", label: "Focus Recommended Item" },
   { key: "Z", label: "Focus Top Aha Item" },
+  { key: "Shift+N", label: "Focus Next Aha Candidate" },
   { key: "Shift+Z", label: "Focus 2nd Aha Candidate" },
   { key: "M", label: "Run Primary Item Action" },
   { key: "O", label: "Open Selected Source" },
@@ -69,6 +70,7 @@ const queueFlowRailNodeLabels = ["Catch", "Queue", "Process", "Ready", "Ship"];
 const queueSpotlightBadgeText = "Aha Now";
 const queueNudgeFocusLabel = "Focus Recommended Item";
 const queueNudgeFocusTopLabel = "Focus Top Aha (Z)";
+const queueNudgeFocusNextLabel = "Focus Next Aha (Shift+N)";
 const queueNudgeFocusSecondLabel = "Focus 2nd Aha (Shift+Z)";
 const queueNudgeCandidatesLabel = "Top Aha Candidates";
 const queueNudgeCandidateOpenLabel = "Open Candidate";
@@ -1548,6 +1550,7 @@ const html = `<!doctype html>
       const QUEUE_SPOTLIGHT_BADGE_TEXT = ${JSON.stringify(queueSpotlightBadgeText)};
       const QUEUE_NUDGE_FOCUS_LABEL = ${JSON.stringify(queueNudgeFocusLabel)};
       const QUEUE_NUDGE_FOCUS_TOP_LABEL = ${JSON.stringify(queueNudgeFocusTopLabel)};
+      const QUEUE_NUDGE_FOCUS_NEXT_LABEL = ${JSON.stringify(queueNudgeFocusNextLabel)};
       const QUEUE_NUDGE_FOCUS_SECOND_LABEL = ${JSON.stringify(queueNudgeFocusSecondLabel)};
       const QUEUE_NUDGE_CANDIDATES_LABEL = ${JSON.stringify(queueNudgeCandidatesLabel)};
       const QUEUE_NUDGE_CANDIDATE_OPEN_LABEL = ${JSON.stringify(queueNudgeCandidateOpenLabel)};
@@ -1703,6 +1706,7 @@ const html = `<!doctype html>
         context: "",
       };
       let queueNudgeState = { ...emptyQueueNudgeState };
+      let ahaCandidateCycleCursor = -1;
 
       function statusByFocusChip(focus) {
         if (focus === "ready") return "READY";
@@ -3628,6 +3632,16 @@ const html = `<!doctype html>
           });
           actionsEl.appendChild(focusTopBtn);
           if (ahaCandidates.length > 1) {
+            const focusNextBtn = document.createElement("button");
+            focusNextBtn.type = "button";
+            focusNextBtn.className = "secondary";
+            focusNextBtn.textContent = QUEUE_NUDGE_FOCUS_NEXT_LABEL;
+            focusNextBtn.addEventListener("click", async () => {
+              await runCycleAhaQueueAction(focusNextBtn);
+            });
+            actionsEl.appendChild(focusNextBtn);
+          }
+          if (ahaCandidates.length > 1) {
             const focusSecondBtn = document.createElement("button");
             focusSecondBtn.type = "button";
             focusSecondBtn.className = "secondary";
@@ -4255,6 +4269,7 @@ const html = `<!doctype html>
 
           const payload = await request("/items?" + params.toString());
           allItems = payload.items || [];
+          ahaCandidateCycleCursor = -1;
           updateSelectionHint();
           renderInbox(allItems);
           const retryableCount = allItems.filter((item) => isRetryableFailedItem(item)).length;
@@ -5281,6 +5296,44 @@ const html = `<!doctype html>
         await runFocusAhaCandidateByRank(1, button);
       }
 
+      async function runCycleAhaQueueAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_focus_next_aha_item",
+            label: "Focus Next Aha Candidate",
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const pool = visibleItems.length ? visibleItems : allItems;
+              if (!pool.length) {
+                errorEl.textContent = "No items available to focus.";
+                return;
+              }
+              const candidates = topAhaCandidates(pool, 5);
+              if (!candidates.length) {
+                errorEl.textContent = "No Aha candidates available right now.";
+                return;
+              }
+              ahaCandidateCycleCursor = (ahaCandidateCycleCursor + 1) % candidates.length;
+              const target = candidates[ahaCandidateCycleCursor];
+              await selectItem(target.id);
+              focusQueueItemCard(target.id, { revealCollapsed: true });
+              const meta = ahaIndexMetaForItem(target);
+              errorEl.textContent =
+                "Focused Aha candidate cycle " +
+                String(ahaCandidateCycleCursor + 1) +
+                "/" +
+                String(candidates.length) +
+                ": #" +
+                target.id +
+                " (" +
+                meta.value +
+                ").";
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
       async function runFocusSecondAhaQueueAction(button = null) {
         await runFocusAhaCandidateByRank(2, button);
       }
@@ -5312,6 +5365,7 @@ const html = `<!doctype html>
               await selectItem(target.id);
               focusQueueItemCard(target.id, { revealCollapsed: true });
               const meta = ahaIndexMetaForItem(target);
+              ahaCandidateCycleCursor = rankIndex;
               errorEl.textContent = "Focused Aha candidate #" + (rankIndex + 1) + ": item #" + target.id + " (" + meta.value + ").";
             },
           },
@@ -6355,6 +6409,7 @@ const html = `<!doctype html>
           return "alt+" + key;
         }
         if (event.shiftKey && key === "p") return "shift+p";
+        if (event.shiftKey && key === "n") return "shift+n";
         if (event.shiftKey && key === "g") return "shift+g";
         if (event.shiftKey && key === "z") return "shift+z";
         if (event.shiftKey && key === "c") return "shift+c";
@@ -6427,6 +6482,9 @@ const html = `<!doctype html>
         },
         z: () => {
           void runFocusTopAhaQueueAction();
+        },
+        "shift+n": () => {
+          void runCycleAhaQueueAction();
         },
         "shift+z": () => {
           void runFocusSecondAhaQueueAction();
