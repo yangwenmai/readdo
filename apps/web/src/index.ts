@@ -2913,6 +2913,10 @@ const html = `<!doctype html>
         });
       }
 
+      function bindListFilterChangeConfig(config) {
+        bindListFilterChange(config.element, config.label);
+      }
+
       function bindConfigList(configs, binder) {
         configs.forEach((config) => {
           binder(config);
@@ -3228,9 +3232,7 @@ const html = `<!doctype html>
         bindSearchInputActions(queryInput);
         bindFocusChipActions(focusChipsEl);
         bindDetailModeActions();
-        bindConfigList(listFilterChangeConfigs, (entry) => {
-          bindListFilterChange(entry.element, entry.label);
-        });
+        bindConfigList(listFilterChangeConfigs, bindListFilterChangeConfig);
       }
 
       function setupQueueShell() {
