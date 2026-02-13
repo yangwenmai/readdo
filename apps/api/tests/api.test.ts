@@ -2947,6 +2947,90 @@ test("single unarchive endpoint enforces archived state and regenerate option", 
   }
 });
 
+test("batch and unarchive endpoints validate boolean control flags", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-bool-flags-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const retryDryRunTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/items/retry-failed",
+      payload: { dry_run: "false" },
+    });
+    assert.equal(retryDryRunTypeRes.statusCode, 400);
+    const retryDryRunTypePayload = retryDryRunTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(retryDryRunTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(retryDryRunTypePayload.error.message, /dry_run must be a boolean/i);
+
+    const archiveDryRunTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/items/archive-failed",
+      payload: { dry_run: "false" },
+    });
+    assert.equal(archiveDryRunTypeRes.statusCode, 400);
+    const archiveDryRunTypePayload = archiveDryRunTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(archiveDryRunTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(archiveDryRunTypePayload.error.message, /dry_run must be a boolean/i);
+
+    const unarchiveBatchDryRunTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/items/unarchive-batch",
+      payload: { dry_run: "false", regenerate: false },
+    });
+    assert.equal(unarchiveBatchDryRunTypeRes.statusCode, 400);
+    const unarchiveBatchDryRunTypePayload = unarchiveBatchDryRunTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(unarchiveBatchDryRunTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(unarchiveBatchDryRunTypePayload.error.message, /dry_run must be a boolean/i);
+
+    const unarchiveBatchRegenerateTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/items/unarchive-batch",
+      payload: { dry_run: false, regenerate: "true" },
+    });
+    assert.equal(unarchiveBatchRegenerateTypeRes.statusCode, 400);
+    const unarchiveBatchRegenerateTypePayload = unarchiveBatchRegenerateTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(unarchiveBatchRegenerateTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(unarchiveBatchRegenerateTypePayload.error.message, /regenerate must be a boolean/i);
+
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20item%20is%20used%20for%20single%20unarchive%20boolean%20flag%20validation.",
+        title: "Unarchive Bool Validate",
+        domain: "example.unarchive.bool",
+        source_type: "web",
+        intent_text: "validate single unarchive regenerate type",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    const archiveRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/archive`,
+      payload: { reason: "prepare-single-unarchive-validate" },
+    });
+    assert.equal(archiveRes.statusCode, 200);
+
+    const singleUnarchiveTypeRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/unarchive`,
+      payload: { regenerate: "false" },
+    });
+    assert.equal(singleUnarchiveTypeRes.statusCode, 400);
+    const singleUnarchiveTypePayload = singleUnarchiveTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(singleUnarchiveTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(singleUnarchiveTypePayload.error.message, /regenerate must be a boolean/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("png-only export failure moves item to FAILED_EXPORT", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-fail-"));
   const app = await createApp({

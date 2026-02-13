@@ -830,13 +830,16 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     };
   });
 
-  app.post("/api/items/retry-failed", async (request) => {
+  app.post("/api/items/retry-failed", async (request, reply) => {
     const body = (request.body ?? {}) as Record<string, unknown>;
+    if (body.dry_run !== undefined && typeof body.dry_run !== "boolean") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "dry_run must be a boolean when provided"));
+    }
     const limitRaw = Number(body.limit ?? 20);
     const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 20;
     const offsetRaw = Number(body.offset ?? 0);
     const offset = Number.isInteger(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
-    const dryRun = Boolean(body.dry_run);
+    const dryRun = (body.dry_run as boolean | undefined) ?? false;
     const q = typeof body.q === "string" ? body.q.trim() : "";
     const failureStepRaw = typeof body.failure_step === "string" ? body.failure_step.trim().toLowerCase() : "";
     const failureStepFilter =
@@ -945,11 +948,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
   app.post("/api/items/archive-failed", async (request, reply) => {
     const body = (request.body ?? {}) as Record<string, unknown>;
+    if (body.dry_run !== undefined && typeof body.dry_run !== "boolean") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "dry_run must be a boolean when provided"));
+    }
     const limitRaw = Number(body.limit ?? 50);
     const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 50;
     const offsetRaw = Number(body.offset ?? 0);
     const offset = Number.isInteger(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
-    const dryRun = Boolean(body.dry_run);
+    const dryRun = (body.dry_run as boolean | undefined) ?? false;
     const q = typeof body.q === "string" ? body.q.trim() : "";
     const failureStepRaw = typeof body.failure_step === "string" ? body.failure_step.trim().toLowerCase() : "";
     const failureStepFilter =
@@ -1061,14 +1067,20 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     };
   });
 
-  app.post("/api/items/unarchive-batch", async (request) => {
+  app.post("/api/items/unarchive-batch", async (request, reply) => {
     const body = (request.body ?? {}) as Record<string, unknown>;
+    if (body.dry_run !== undefined && typeof body.dry_run !== "boolean") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "dry_run must be a boolean when provided"));
+    }
+    if (body.regenerate !== undefined && typeof body.regenerate !== "boolean") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "regenerate must be a boolean when provided"));
+    }
     const limitRaw = Number(body.limit ?? 50);
     const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 50;
     const offsetRaw = Number(body.offset ?? 0);
     const offset = Number.isInteger(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
-    const dryRun = Boolean(body.dry_run);
-    const regenerate = Boolean(body.regenerate);
+    const dryRun = (body.dry_run as boolean | undefined) ?? false;
+    const regenerate = (body.regenerate as boolean | undefined) ?? false;
     const q = typeof body.q === "string" ? body.q.trim() : "";
 
     const whereParts = ["status = 'ARCHIVED'"];
@@ -1426,7 +1438,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       return reply.status(400).send(failure("VALIDATION_ERROR", "regenerate must be a boolean when provided"));
     }
     const intentText = body.intent_text.trim();
-    const regenerate = body.regenerate ?? false;
+    const regenerate = (body.regenerate as boolean | undefined) ?? false;
     if (intentText.length < 3) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "intent_text must be at least 3 characters"));
     }
@@ -1890,7 +1902,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     }
 
     const body = (request.body ?? {}) as Record<string, unknown>;
-    const regenerate = Boolean(body.regenerate);
+    if (body.regenerate !== undefined && typeof body.regenerate !== "boolean") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "regenerate must be a boolean when provided"));
+    }
+    const regenerate = body.regenerate ?? false;
     const artifacts = latestArtifacts(db, id);
     const ready = isReadyFromArtifacts(artifacts);
     const targetStatus = regenerate || !ready ? "QUEUED" : "READY";

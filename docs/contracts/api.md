@@ -280,6 +280,7 @@ Headers:
 
 * `limit` 可选，范围建议 `1..200`，默认 20
 * `offset` 可选，默认 0，用于分页扫描批量候选（负值按 0 处理）
+* `dry_run` 若提供，必须为 boolean
 * `dry_run=true` 时仅返回预估结果，不会修改 item 状态或创建新 job
 * `failure_step` 可选：`extract | pipeline | export`（用于限制扫描范围）
 * `q` 可选，按 `title/domain/intent_text/url` 模糊过滤失败候选
@@ -336,6 +337,7 @@ Headers:
 
 * `limit` 可选，范围建议 `1..200`，默认 50
 * `offset` 可选，默认 0，用于分页扫描批量候选（负值按 0 处理）
+* `dry_run` 若提供，必须为 boolean
 * `dry_run=true` 时仅返回预估结果，不会修改 item 状态
 * `retryable` 可选：`true | false | null | "all"`（默认 `false`，即仅归档已达重试上限项）
 * `failure_step` 可选：`extract | pipeline | export`
@@ -392,6 +394,8 @@ Headers:
 
 * `limit` 可选，范围建议 `1..200`，默认 50
 * `offset` 可选，默认 0，用于分页扫描 archived 候选（负值按 0 处理）
+* `dry_run` 若提供，必须为 boolean
+* `regenerate` 若提供，必须为 boolean
 * `dry_run=true` 时仅返回预估结果，不会修改 item 状态
 * `regenerate=true` 时不走 READY 快速恢复，统一入队重跑
 * `q` 可选，按 `title/domain/intent_text/url` 模糊过滤 archived 候选
@@ -885,6 +889,10 @@ reason 枚举（MVP 建议）：
 * 若 artifacts 齐备 → READY
 * 若 artifacts 不齐或请求 regenerate → QUEUED
 
+约束：
+
+* `regenerate` 若提供，必须为 boolean
+
 ### 10.2 Request
 
 Body:
@@ -905,6 +913,7 @@ Body:
 
 ### 10.4 错误
 
+* 400 VALIDATION_ERROR
 * 404 NOT_FOUND
 * 409 STATE_CONFLICT（非 ARCHIVED 状态，或并发条件下状态在恢复前发生变化）
 
