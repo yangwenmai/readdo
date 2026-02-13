@@ -3113,9 +3113,6 @@ const html = `<!doctype html>
           errorPrefix: "Unarchive preview failed: ",
         },
       ];
-      previewActionConfigs.forEach((config) => {
-        bindPreviewAction(config);
-      });
 
       const batchActionConfigs = [
         {
@@ -3153,47 +3150,61 @@ const html = `<!doctype html>
           }),
         },
       ];
-      batchActionConfigs.forEach((config) => {
-        bindQueueBatchAction(config);
-      });
 
-      bindPreviewNextAction(previewNextBtn);
+      function setupQueueActionBindings() {
+        previewActionConfigs.forEach((config) => {
+          bindPreviewAction(config);
+        });
+        batchActionConfigs.forEach((config) => {
+          bindQueueBatchAction(config);
+        });
+        bindPreviewNextAction(previewNextBtn);
+      }
 
-      bindQueueControlChange({
-        element: archiveRetryableFilter,
-        label: "Archive Scope",
-        options: { refresh_worker_stats: true },
-      });
+      function setupQueueInteractionBindings() {
+        const queueControlChangeConfigs = [
+          {
+            element: archiveRetryableFilter,
+            label: "Archive Scope",
+            options: { refresh_worker_stats: true },
+          },
+          {
+            element: unarchiveModeFilter,
+            label: "Unarchive Mode",
+          },
+          {
+            element: batchLimitInput,
+            label: "Batch Limit",
+            beforeSync: () => {
+              batchLimitInput.value = String(normalizedBatchLimit());
+            },
+          },
+          {
+            element: previewOffsetInput,
+            label: "Preview Offset",
+            beforeSync: () => {
+              previewOffsetInput.value = String(normalizedPreviewOffset());
+            },
+            syncOptions: { resetOffset: false },
+          },
+        ];
+        queueControlChangeConfigs.forEach((config) => {
+          bindQueueControlChange(config);
+        });
+        bindSearchInputActions(queryInput);
+        bindFocusChipActions(focusChipsEl);
+        bindDetailModeActions();
+        [
+          { element: statusFilter, label: "Status Filter" },
+          { element: retryableFilter, label: "Retryable Filter" },
+          { element: failureStepFilter, label: "Failure Step Filter" },
+        ].forEach((entry) => {
+          bindListFilterChange(entry.element, entry.label);
+        });
+      }
 
-      bindQueueControlChange({
-        element: unarchiveModeFilter,
-        label: "Unarchive Mode",
-      });
-
-      bindQueueControlChange({
-        element: batchLimitInput,
-        label: "Batch Limit",
-        beforeSync: () => {
-          batchLimitInput.value = String(normalizedBatchLimit());
-        },
-      });
-
-      bindQueueControlChange({
-        element: previewOffsetInput,
-        label: "Preview Offset",
-        beforeSync: () => {
-          previewOffsetInput.value = String(normalizedPreviewOffset());
-        },
-        syncOptions: { resetOffset: false },
-      });
-
-      bindSearchInputActions(queryInput);
-      bindFocusChipActions(focusChipsEl);
-      bindDetailModeActions();
-
-      bindListFilterChange(statusFilter, "Status Filter");
-      bindListFilterChange(retryableFilter, "Retryable Filter");
-      bindListFilterChange(failureStepFilter, "Failure Step Filter");
+      setupQueueActionBindings();
+      setupQueueInteractionBindings();
       initializeQueueBootstrap();
 
       function setAutoRefresh(enabled) {
