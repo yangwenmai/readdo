@@ -492,6 +492,52 @@ test("capture accepts repeated idempotency header values by using first key", as
   }
 });
 
+test("capture accepts comma-joined idempotency header values by using first key", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-capture-idempotent-header-comma-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureKey = "extcap_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+    const firstCaptureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      headers: { "Idempotency-Key": `${captureKey}, ${captureKey}` },
+      payload: {
+        capture_id: captureKey,
+        url: "https://example.com/comma-header",
+        source_type: "web",
+        intent_text: "capture with comma-joined header values",
+      },
+    });
+    assert.equal(firstCaptureRes.statusCode, 201);
+    const firstPayload = firstCaptureRes.json() as { item: { id: string }; idempotent_replay: boolean };
+    assert.equal(firstPayload.idempotent_replay, false);
+
+    const replayCaptureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      headers: { "Idempotency-Key": captureKey },
+      payload: {
+        capture_id: captureKey,
+        url: "https://example.com/comma-header?utm_source=x",
+        source_type: "web",
+        intent_text: "capture with comma-joined header values",
+      },
+    });
+    assert.equal(replayCaptureRes.statusCode, 201);
+    const replayPayload = replayCaptureRes.json() as { item: { id: string }; idempotent_replay: boolean };
+    assert.equal(replayPayload.idempotent_replay, true);
+    assert.equal(replayPayload.item.id, firstPayload.item.id);
+  } finally {
+    await app.close();
+  }
+});
+
 test("export idempotency replays old export_key beyond recent window", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-idempotent-"));
   const app = await createApp({
@@ -733,6 +779,54 @@ test("export accepts repeated idempotency header values by using first key", asy
       url: `/api/items/${itemId}/export`,
       headers: { "Idempotency-Key": "export-header-array-key-1" },
       payload: { export_key: "export-header-array-key-1", formats: ["md"] },
+    });
+    assert.equal(replayRes.statusCode, 200);
+    const replayPayload = replayRes.json() as { idempotent_replay: boolean };
+    assert.equal(replayPayload.idempotent_replay, true);
+  } finally {
+    await app.close();
+  }
+});
+
+test("export accepts comma-joined idempotency header values by using first key", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-idempotent-header-comma-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20content%20verifies%20comma-joined%20header%20values%20for%20export%20idempotency.",
+        title: "Export Header Comma Replay",
+        domain: "example.export.header.comma",
+        source_type: "web",
+        intent_text: "verify comma-joined export idempotency header",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+    await app.runWorkerOnce();
+
+    const firstRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      headers: { "Idempotency-Key": "export-header-comma-key-1, export-header-comma-key-1" },
+      payload: { export_key: "export-header-comma-key-1", formats: ["md"] },
+    });
+    assert.equal(firstRes.statusCode, 200);
+    const firstPayload = firstRes.json() as { idempotent_replay: boolean };
+    assert.equal(firstPayload.idempotent_replay, false);
+
+    const replayRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      headers: { "Idempotency-Key": "export-header-comma-key-1" },
+      payload: { export_key: "export-header-comma-key-1", formats: ["md"] },
     });
     assert.equal(replayRes.statusCode, 200);
     const replayPayload = replayRes.json() as { idempotent_replay: boolean };
@@ -1040,6 +1134,55 @@ test("process accepts repeated idempotency header values by using first key", as
       url: `/api/items/${itemId}/process`,
       headers: { "Idempotency-Key": "process-header-array-key-1" },
       payload: { mode: "REGENERATE", process_request_id: "process-header-array-key-1" },
+    });
+    assert.equal(replayProcessRes.statusCode, 202);
+    const replayPayload = replayProcessRes.json() as { idempotent_replay: boolean };
+    assert.equal(replayPayload.idempotent_replay, true);
+  } finally {
+    await app.close();
+  }
+});
+
+test("process accepts comma-joined idempotency header values by using first key", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-idempotent-header-comma-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20content%20is%20used%20to%20verify%20comma-joined%20header%20values%20for%20process%20idempotency.",
+        title: "Process Header Comma Replay",
+        domain: "example.process.header.comma",
+        source_type: "web",
+        intent_text: "validate comma-joined process idempotency header",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const firstProcessRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      headers: { "Idempotency-Key": "process-header-comma-key-1, process-header-comma-key-1" },
+      payload: { mode: "REGENERATE", process_request_id: "process-header-comma-key-1" },
+    });
+    assert.equal(firstProcessRes.statusCode, 202);
+    const firstPayload = firstProcessRes.json() as { idempotent_replay: boolean };
+    assert.equal(firstPayload.idempotent_replay, false);
+
+    const replayProcessRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      headers: { "Idempotency-Key": "process-header-comma-key-1" },
+      payload: { mode: "REGENERATE", process_request_id: "process-header-comma-key-1" },
     });
     assert.equal(replayProcessRes.statusCode, 202);
     const replayPayload = replayProcessRes.json() as { idempotent_replay: boolean };
