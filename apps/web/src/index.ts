@@ -688,6 +688,11 @@ const html = `<!doctype html>
         color: #1e3a8a;
         box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
       }
+      .recovery-radar-trend .trend-focus-hint button[disabled] {
+        opacity: 0.55;
+        cursor: not-allowed;
+        box-shadow: none;
+      }
       .trend-delta.pos { color: #166534; font-weight: 700; }
       .trend-delta.neg { color: #b91c1c; font-weight: 700; }
       .trend-delta.zero { color: #475569; font-weight: 700; }
@@ -1787,6 +1792,7 @@ const html = `<!doctype html>
 
       function setRecoveryContextFocusMode(mode) {
         if (!isRecoveryContextFocusMode(mode)) return false;
+        if (recoveryContextFocusMode === mode) return false;
         recoveryContextFocusMode = mode;
         return true;
       }
@@ -1878,6 +1884,12 @@ const html = `<!doctype html>
           return { control: retryableFilter, label: "Retryable Filter" };
         }
         return baseTarget;
+      }
+
+      function recoveryContextActionLabel(step) {
+        if (!step) return QUEUE_RECOVERY_EDIT_CONTEXT_LABEL;
+        const target = recoveryContextTarget(step);
+        return QUEUE_RECOVERY_EDIT_CONTEXT_LABEL + " → " + target.label;
       }
 
       function focusRecoveryContextControl(step) {
@@ -2044,6 +2056,7 @@ const html = `<!doctype html>
         const trend = recoveryTrendVsPrevious(activeSummary);
         const stepFailedDelta = recoveryStepFailedDeltaVsPrevious(activeSummary);
         const trendStatus = recoveryTrendStatusByDelta(trend);
+        const hasActiveStepFocus = Boolean(activeStep);
         const focusContext = activeStep ? failedFilterContextSummary(activeStep) : "";
         const focusModeButtonsHtml = recoveryContextFocusModes()
           .map((mode) => {
@@ -2063,23 +2076,33 @@ const html = `<!doctype html>
             );
           })
           .join("");
-        const focusHintHtml = activeStep
-          ? '<div class="trend-focus-hint"><span>Step focus active: ' +
-            activeStep +
-            '</span><span class="trend-focus-meta">' +
-            QUEUE_RECOVERY_CONTEXT_LABEL +
-            ": " +
-            focusContext +
-            '</span><div class="trend-focus-mode-group"><span class="mode-prefix">' +
-            QUEUE_RECOVERY_FOCUS_MODE_PREFIX +
-            ":</span>" +
-            focusModeButtonsHtml +
-            '</div><button type="button" class="secondary" id="editTrendFocusContextBtn">' +
-            QUEUE_RECOVERY_EDIT_CONTEXT_LABEL +
-            '</button><button type="button" id="clearTrendStepFocusBtn">' +
-            (activeStep === "unknown" ? QUEUE_RECOVERY_CLEAR_FAILED_LABEL : QUEUE_RECOVERY_CLEAR_STEP_LABEL) +
-            "</button></div>"
-          : "";
+        const focusMetaText = hasActiveStepFocus
+          ? QUEUE_RECOVERY_CONTEXT_LABEL + ": " + focusContext
+          : "Choose a step delta to enable context jump.";
+        const editFocusLabel = recoveryContextActionLabel(activeStep);
+        const clearFocusLabel = hasActiveStepFocus
+          ? activeStep === "unknown"
+            ? QUEUE_RECOVERY_CLEAR_FAILED_LABEL
+            : QUEUE_RECOVERY_CLEAR_STEP_LABEL
+          : QUEUE_RECOVERY_CLEAR_STEP_LABEL;
+        const focusHintHtml =
+          '<div class="trend-focus-hint"><span>' +
+          (hasActiveStepFocus ? "Step focus active: " + activeStep : "Step focus inactive") +
+          '</span><span class="trend-focus-meta">' +
+          focusMetaText +
+          '</span><div class="trend-focus-mode-group"><span class="mode-prefix">' +
+          QUEUE_RECOVERY_FOCUS_MODE_PREFIX +
+          ":</span>" +
+          focusModeButtonsHtml +
+          '</div><button type="button" class="secondary" id="editTrendFocusContextBtn"' +
+          (hasActiveStepFocus ? "" : " disabled aria-disabled=\"true\"") +
+          ">" +
+          editFocusLabel +
+          '</button><button type="button" id="clearTrendStepFocusBtn"' +
+          (hasActiveStepFocus ? "" : " disabled aria-disabled=\"true\"") +
+          ">" +
+          clearFocusLabel +
+          "</button></div>";
         const trendHtml = trend
           ? '<div id="recoveryRadarTrend" class="recovery-radar-trend">' +
             '<div class="trend-head">Trend vs previous · ' +
@@ -2311,11 +2334,11 @@ const html = `<!doctype html>
         const editTrendFocusBtn = recoveryRadarEl.querySelector("#editTrendFocusContextBtn");
         editTrendFocusBtn?.addEventListener("click", async () => {
           if (!activeStep) return;
-          const target = recoveryContextTarget(activeStep);
+          const actionLabel = recoveryContextActionLabel(activeStep);
           await runActionWithFeedback(
             {
               id: "recovery_trend_edit_context",
-              label: QUEUE_RECOVERY_EDIT_CONTEXT_LABEL + " → " + target.label,
+              label: actionLabel,
               action: async () => {
                 const resolved = focusRecoveryContextControl(activeStep);
                 errorEl.textContent = "Focused control: " + resolved.label + ".";
@@ -2327,14 +2350,16 @@ const html = `<!doctype html>
         for (const focusMode of recoveryContextFocusModes()) {
           const focusModeBtn = recoveryRadarEl.querySelector("#" + focusMode.id);
           focusModeBtn?.addEventListener("click", async () => {
-            if (!activeStep) return;
             await runActionWithFeedback(
               {
                 id: "recovery_trend_focus_mode_" + focusMode.key,
                 label: QUEUE_RECOVERY_FOCUS_MODE_PREFIX + ": " + recoveryContextFocusModeLabel(focusMode.key),
                 action: async () => {
                   const changed = setRecoveryContextFocusMode(focusMode.key);
-                  if (!changed) return;
+                  if (!changed) {
+                    errorEl.textContent = "Context focus mode already: " + recoveryContextFocusModeLabel(focusMode.key) + ".";
+                    return;
+                  }
                   persistControls();
                   renderRecoveryRadar(activeSummary);
                   errorEl.textContent = "Context focus mode: " + recoveryContextFocusModeLabel(focusMode.key) + ".";
