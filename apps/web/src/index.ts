@@ -2757,24 +2757,33 @@ const html = `<!doctype html>
         return preview;
       }
 
-      previewArchiveBtn.addEventListener("click", async () => {
-        await runActionWithFeedback(
-          {
-            id: "queue_preview_archive",
-            label: "Preview Archive",
-            action: async () => {
-              try {
-                clearPreviewContinuation();
-                const previewOffset = normalizedPreviewOffset();
-                await loadAndRenderPreview("archive", previewOffset);
-              } catch (err) {
-                clearPreviewState();
-                throw new Error("Archive preview failed: " + String(err));
-              }
+      function bindPreviewAction(button, config) {
+        button.addEventListener("click", async () => {
+          await runActionWithFeedback(
+            {
+              id: config.id,
+              label: config.label,
+              action: async () => {
+                try {
+                  clearPreviewContinuation();
+                  const previewOffset = normalizedPreviewOffset();
+                  await loadAndRenderPreview(config.kind, previewOffset);
+                } catch (err) {
+                  clearPreviewState();
+                  throw new Error(config.errorPrefix + String(err));
+                }
+              },
             },
-          },
-          { button: previewArchiveBtn, localFeedbackEl: queueActionBannerEl },
-        );
+            { button, localFeedbackEl: queueActionBannerEl },
+          );
+        });
+      }
+
+      bindPreviewAction(previewArchiveBtn, {
+        id: "queue_preview_archive",
+        label: "Preview Archive",
+        kind: "archive",
+        errorPrefix: "Archive preview failed: ",
       });
 
       retryFailedBtn.addEventListener("click", async () => {
@@ -2846,24 +2855,11 @@ const html = `<!doctype html>
         );
       });
 
-      previewRetryBtn.addEventListener("click", async () => {
-        await runActionWithFeedback(
-          {
-            id: "queue_preview_retry",
-            label: "Preview Retry",
-            action: async () => {
-              try {
-                clearPreviewContinuation();
-                const previewOffset = normalizedPreviewOffset();
-                await loadAndRenderPreview("retry", previewOffset);
-              } catch (err) {
-                clearPreviewState();
-                throw new Error("Retry preview failed: " + String(err));
-              }
-            },
-          },
-          { button: previewRetryBtn, localFeedbackEl: queueActionBannerEl },
-        );
+      bindPreviewAction(previewRetryBtn, {
+        id: "queue_preview_retry",
+        label: "Preview Retry",
+        kind: "retry",
+        errorPrefix: "Retry preview failed: ",
       });
 
       archiveBlockedBtn.addEventListener("click", async () => {
@@ -2907,24 +2903,11 @@ const html = `<!doctype html>
         );
       });
 
-      previewUnarchiveBtn.addEventListener("click", async () => {
-        await runActionWithFeedback(
-          {
-            id: "queue_preview_unarchive",
-            label: "Preview Unarchive",
-            action: async () => {
-              try {
-                clearPreviewContinuation();
-                const previewOffset = normalizedPreviewOffset();
-                await loadAndRenderPreview("unarchive", previewOffset);
-              } catch (err) {
-                clearPreviewState();
-                throw new Error("Unarchive preview failed: " + String(err));
-              }
-            },
-          },
-          { button: previewUnarchiveBtn, localFeedbackEl: queueActionBannerEl },
-        );
+      bindPreviewAction(previewUnarchiveBtn, {
+        id: "queue_preview_unarchive",
+        label: "Preview Unarchive",
+        kind: "unarchive",
+        errorPrefix: "Unarchive preview failed: ",
       });
 
       previewNextBtn.addEventListener("click", async () => {
@@ -2943,7 +2926,7 @@ const html = `<!doctype html>
                 }
                 await loadAndRenderPreview(continuationKind, nextOffset);
               } catch (err) {
-                clearPreviewContinuation();
+                clearPreviewState();
                 throw new Error("Preview next failed: " + String(err));
               }
             },
