@@ -34,6 +34,7 @@ const queueBatchLabels = {
   unarchive: { trigger: "Unarchive Archived", action: "Unarchive Batch" },
 };
 const queueSpotlightBadgeText = "Aha Now";
+const queueNudgeFocusLabel = "Focus Recommended Item";
 
 const html = `<!doctype html>
 <html lang="en">
@@ -183,6 +184,7 @@ const html = `<!doctype html>
         box-shadow: 0 12px 26px rgba(59, 130, 246, 0.26);
         position: relative;
         overflow: hidden;
+        animation: spotlightGlow 2.4s ease-in-out infinite;
       }
       .item-card.is-spotlight::after {
         content: "";
@@ -220,6 +222,10 @@ const html = `<!doctype html>
         font-size: 11px;
         font-weight: 700;
         margin-right: 6px;
+        animation: spotlightBadgePulse 1.8s ease-in-out infinite;
+      }
+      .item-card.focus-flash {
+        animation: focusFlash 880ms ease-out;
       }
       .muted { color: #64748b; font-size: 12px; }
       .status { font-size: 11px; padding: 3px 9px; border-radius: 999px; letter-spacing: 0.03em; font-weight: 700; border: 1px solid transparent; }
@@ -283,6 +289,7 @@ const html = `<!doctype html>
         color: #1e3a8a;
         font-size: 12px;
         padding: 6px 8px;
+        animation: recommendationPulse 2.4s ease-in-out infinite;
       }
       .hero-recommendation strong {
         font-weight: 700;
@@ -476,6 +483,16 @@ const html = `<!doctype html>
         padding-top: 8px;
         border-top: 1px dashed rgba(148, 163, 184, 0.5);
       }
+      .aha-nudge .nudge-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .aha-nudge .nudge-actions .secondary {
+        border-color: #bfdbfe;
+        background: #f8fbff;
+        color: #1d4ed8;
+      }
       .aha-label { color: #1e3a8a; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
       .aha-value { color: #0f172a; font-size: 24px; font-weight: 800; line-height: 1; }
       .aha-meta { color: #475569; font-size: 12px; margin-top: 6px; }
@@ -647,6 +664,30 @@ const html = `<!doctype html>
       .diff-column h4 { margin: 0 0 6px; font-size: 12px; color: #374151; }
       .diff-column ul { margin: 0; padding-left: 16px; max-height: 160px; overflow: auto; }
       .diff-column li { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+      @keyframes spotlightGlow {
+        0%, 100% { box-shadow: 0 12px 26px rgba(59, 130, 246, 0.22); }
+        50% { box-shadow: 0 16px 34px rgba(37, 99, 235, 0.34); }
+      }
+      @keyframes spotlightBadgePulse {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-1px); }
+      }
+      @keyframes focusFlash {
+        0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.45); }
+        100% { box-shadow: 0 0 0 18px rgba(59, 130, 246, 0); }
+      }
+      @keyframes recommendationPulse {
+        0%, 100% { border-color: #93c5fd; }
+        50% { border-color: #60a5fa; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .item-card.is-spotlight,
+        .spotlight-note .spotlight-badge,
+        .hero-recommendation,
+        .item-card.focus-flash {
+          animation: none !important;
+        }
+      }
       @media (max-width: 1200px) {
         .aha-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
@@ -785,6 +826,7 @@ const html = `<!doctype html>
       const QUEUE_PREVIEW_LABELS = ${JSON.stringify(queuePreviewLabels)};
       const QUEUE_BATCH_LABELS = ${JSON.stringify(queueBatchLabels)};
       const QUEUE_SPOTLIGHT_BADGE_TEXT = ${JSON.stringify(queueSpotlightBadgeText)};
+      const QUEUE_NUDGE_FOCUS_LABEL = ${JSON.stringify(queueNudgeFocusLabel)};
       const inboxEl = document.getElementById("inbox");
       const detailEl = document.getElementById("detail");
       const detailModeChipsEl = document.getElementById("detailModeChips");
@@ -1163,6 +1205,31 @@ const html = `<!doctype html>
         };
       }
 
+      function queueItemCardById(itemId) {
+        if (itemId == null) return null;
+        const cards = inboxEl.querySelectorAll(".item-card.clickable[data-item-id]");
+        for (const card of cards) {
+          if (card instanceof HTMLElement && card.dataset.itemId === String(itemId)) {
+            return card;
+          }
+        }
+        return null;
+      }
+
+      function focusQueueItemCard(itemId) {
+        const card = queueItemCardById(itemId);
+        if (!card) return false;
+        card.scrollIntoView({ behavior: "smooth", block: "center" });
+        card.classList.remove("focus-flash");
+        // force reflow for repeat animation trigger
+        void card.offsetWidth;
+        card.classList.add("focus-flash");
+        window.setTimeout(() => {
+          card.classList.remove("focus-flash");
+        }, 900);
+        return true;
+      }
+
       function countItemsByStatus(items) {
         const counts = {
           CAPTURED: 0,
@@ -1353,6 +1420,8 @@ const html = `<!doctype html>
             context.textContent = QUEUE_SPOTLIGHT_BADGE_TEXT + ": " + nudgeContext;
             ahaNudgeEl.appendChild(context);
           }
+          const actionsEl = document.createElement("div");
+          actionsEl.className = "nudge-actions";
           const btn = document.createElement("button");
           btn.type = "button";
           btn.className = "primary";
@@ -1363,7 +1432,29 @@ const html = `<!doctype html>
               localFeedbackEl: queueActionBannerEl,
             });
           });
-          ahaNudgeEl.appendChild(btn);
+          actionsEl.appendChild(btn);
+          if (nudgeItemId != null) {
+            const focusBtn = document.createElement("button");
+            focusBtn.type = "button";
+            focusBtn.className = "secondary";
+            focusBtn.textContent = QUEUE_NUDGE_FOCUS_LABEL;
+            const focusOp = {
+              id: "nudge_focus_item",
+              label: QUEUE_NUDGE_FOCUS_LABEL,
+              action: async () => {
+                await selectItem(nudgeItemId);
+                focusQueueItemCard(nudgeItemId);
+              },
+            };
+            focusBtn.addEventListener("click", async () => {
+              await runActionWithFeedback(focusOp, {
+                button: focusBtn,
+                localFeedbackEl: queueActionBannerEl,
+              });
+            });
+            actionsEl.appendChild(focusBtn);
+          }
+          ahaNudgeEl.appendChild(actionsEl);
         } else {
           setActionFeedback(queueActionBannerEl, "", "No immediate CTA. Capture or process new items.");
         }
@@ -1612,6 +1703,7 @@ const html = `<!doctype html>
 
       function renderItem(item) {
         const card = document.createElement("div");
+        card.dataset.itemId = String(item.id);
         const isSelected = selectedId === item.id;
         const spotlight = queueNudgeForItem(item);
         card.className =
