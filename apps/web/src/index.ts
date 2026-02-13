@@ -208,6 +208,52 @@ const html = `<!doctype html>
       .failure-note { font-size: 12px; color: #991b1b; margin-top: 6px; }
       .file-row { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
       .file-path { flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #374151; }
+      .export-snapshot {
+        border: 1px solid #bfdbfe;
+        border-radius: 12px;
+        background: linear-gradient(145deg, #eff6ff, #ffffff);
+        padding: 10px;
+        margin: 8px 0 10px;
+      }
+      .export-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .export-kpi {
+        border: 1px solid #dbeafe;
+        border-radius: 10px;
+        background: #ffffff;
+        padding: 8px;
+      }
+      .export-kpi .label {
+        color: #1e3a8a;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .export-kpi .value {
+        margin-top: 4px;
+        font-size: 14px;
+        color: #0f172a;
+        font-weight: 700;
+        word-break: break-word;
+      }
+      .file-pills {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+      .file-pill {
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 11px;
+        border: 1px solid #bfdbfe;
+        background: #ffffff;
+        color: #1e3a8a;
+      }
+      .export-row { border-left: 4px solid #bfdbfe; }
       .diff-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
       .diff-column { border: 1px solid #e5e7eb; border-radius: 6px; padding: 6px; background: #fafafa; }
       .diff-column h4 { margin: 0 0 6px; font-size: 12px; color: #374151; }
@@ -218,12 +264,14 @@ const html = `<!doctype html>
       }
       @media (max-width: 900px) {
         .detail-aha-grid { grid-template-columns: 1fr; }
+        .export-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
       @media (max-width: 1100px) {
         main { grid-template-columns: 1fr; min-height: auto; }
       }
       @media (max-width: 700px) {
         .aha-strip { grid-template-columns: 1fr; }
+        .export-kpi-grid { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -947,6 +995,18 @@ const html = `<!doctype html>
 
         const status = detail.item.status;
         const failure = detail.failure || null;
+        const latestExport = exportHistory[0] ?? null;
+        const latestFiles = Array.isArray(latestExport?.payload?.files) ? latestExport.payload.files : [];
+        const latestFirstFile = latestFiles[0] ?? null;
+        const latestTheme = latestExport?.payload?.options?.theme || "AUTO";
+        const formatCounts = latestFiles.reduce((acc, file) => {
+          const type = String(file?.type || "unknown").toUpperCase();
+          acc[type] = (acc[type] || 0) + 1;
+          return acc;
+        }, {});
+        const formatPillsHtml = Object.entries(formatCounts)
+          .map(([type, count]) => '<span class="file-pill">' + type + " × " + count + "</span>")
+          .join("");
 
         let statusHint = "";
         if (status === "FAILED_EXPORT") {
@@ -962,21 +1022,67 @@ const html = `<!doctype html>
           <h3>Export Records</h3>
           <div class="muted">Current status: \${status}</div>
           \${statusHintHtml}
+          <div class="export-snapshot">
+            <div class="muted">Export Snapshot</div>
+            <div class="export-kpi-grid">
+              <div class="export-kpi">
+                <div class="label">Total Exports</div>
+                <div class="value">\${exportHistory.length}</div>
+              </div>
+              <div class="export-kpi">
+                <div class="label">Latest Version</div>
+                <div class="value">\${latestExport ? "v" + latestExport.version : "—"}</div>
+              </div>
+              <div class="export-kpi">
+                <div class="label">Latest Theme</div>
+                <div class="value">\${latestTheme}</div>
+              </div>
+              <div class="export-kpi">
+                <div class="label">Latest Created</div>
+                <div class="value">\${latestExport?.created_at || "—"}</div>
+              </div>
+            </div>
+            <div class="file-pills">\${formatPillsHtml || '<span class="muted">No latest files yet.</span>'}</div>
+            <div class="editor-row">
+              <button id="copyLatestPathsBtn" type="button" \${latestFiles.length ? "" : "disabled"}>Copy Latest Paths</button>
+              <button id="openLatestFileBtn" type="button" \${latestFirstFile ? "" : "disabled"}>Open Latest File</button>
+            </div>
+          </div>
           <div id="exportRecordList"></div>
           <div id="exportFailureHint"></div>
         \`;
 
         const listEl = panel.querySelector("#exportRecordList");
+        const copyLatestBtn = panel.querySelector("#copyLatestPathsBtn");
+        const openLatestBtn = panel.querySelector("#openLatestFileBtn");
+        if (copyLatestBtn) {
+          copyLatestBtn.addEventListener("click", async () => {
+            try {
+              await navigator.clipboard.writeText(latestFiles.map((file) => String(file.path || "")).filter(Boolean).join("\\n"));
+              errorEl.textContent = "Copied latest export file paths.";
+            } catch {
+              errorEl.textContent = "Copy latest paths failed.";
+            }
+          });
+        }
+        if (openLatestBtn) {
+          openLatestBtn.addEventListener("click", () => {
+            if (!latestFirstFile?.path) return;
+            const fileHref = "/" + String(latestFirstFile.path).replace(/^\/+/, "");
+            window.open(encodeURI(fileHref), "_blank", "noopener,noreferrer");
+          });
+        }
+
         if (!exportHistory.length) {
           listEl.innerHTML = '<div class="empty">No export artifacts yet.</div>';
         } else {
           for (const exp of exportHistory) {
             const card = document.createElement("div");
-            card.className = "item-card";
+            card.className = "item-card export-row";
             const files = exp?.payload?.files ?? [];
             card.innerHTML = \`
               <div class="item-head">
-                <span class="status">export v\${exp.version}</span>
+                <span class="status status-default">export v\${exp.version}</span>
                 <span class="muted">\${exp.created_by} · \${exp.created_at}</span>
               </div>
               <div class="muted">renderer: \${exp?.payload?.renderer?.name || "N/A"}</div>
@@ -989,7 +1095,7 @@ const html = `<!doctype html>
               row.className = "file-row";
               const fileHref = "/" + String(file.path || "").replace(/^\/+/, "");
               row.innerHTML = \`
-                <span class="status">\${file.type}</span>
+                <span class="status status-default">\${String(file.type || "file").toUpperCase()}</span>
                 <span class="file-path">\${file.path}</span>
                 <button type="button">Copy Path</button>
                 <a href="\${encodeURI(fileHref)}" target="_blank" rel="noopener noreferrer">Open</a>
