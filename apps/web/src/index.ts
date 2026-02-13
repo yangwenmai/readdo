@@ -1140,9 +1140,16 @@ const html = `<!doctype html>
         border-radius: 999px;
         padding: 4px 8px;
         font-size: 11px;
+        transition: all 120ms ease-in-out;
+      }
+      .aha-nudge .nudge-candidate-chip.is-top {
+        border-color: #93c5fd;
+        background: linear-gradient(135deg, #dbeafe, #eff6ff);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
       }
       .aha-nudge .nudge-candidate-chip:hover {
         border-color: #60a5fa;
+        transform: translateY(-1px);
       }
       .aha-label { color: #1e3a8a; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
       .aha-value { color: #0f172a; font-size: 24px; font-weight: 800; line-height: 1; }
@@ -2234,6 +2241,11 @@ const html = `<!doctype html>
             return Number(b.match_score ?? -1) - Number(a.match_score ?? -1);
           })
           .slice(0, Math.max(0, Number(limit) || 0));
+      }
+
+      function ahaCandidateChipLabel(item, rank) {
+        const meta = ahaIndexMetaForItem(item);
+        return "Aha #" + rank + " · #" + item.id + " · " + meta.value;
       }
 
       function setQueueNudgeState(state = {}) {
@@ -3637,9 +3649,19 @@ const html = `<!doctype html>
             const chip = document.createElement("button");
             chip.type = "button";
             chip.className = "nudge-candidate-chip";
-            const aha = ahaIndexMetaForItem(item);
-            chip.textContent =
-              QUEUE_NUDGE_CANDIDATE_OPEN_LABEL + " #" + item.id + " · " + aha.value;
+            const rank = ahaCandidates.indexOf(item) + 1;
+            if (rank === 1) {
+              chip.classList.add("is-top");
+            }
+            const primary = primaryActionForItem(item);
+            chip.textContent = QUEUE_NUDGE_CANDIDATE_OPEN_LABEL + " · " + ahaCandidateChipLabel(item, rank);
+            chip.title =
+              "Candidate #" +
+              rank +
+              " · " +
+              (item.title || item.domain || item.url || "Untitled") +
+              " · " +
+              (primary?.label || "No action");
             chip.addEventListener("click", async () => {
               await runActionWithFeedback(
                 {
