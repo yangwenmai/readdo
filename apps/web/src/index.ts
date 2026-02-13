@@ -26,6 +26,7 @@ const shortcutGuideItems = [
   { key: "Alt+3", label: "Focus Priority Step First" },
   { key: "C", label: "Clear Filters" },
   { key: "Shift+C", label: "Reset Controls" },
+  { key: "W", label: "Run Worker Once" },
   { key: "R", label: "Refresh" },
   { key: shortcutTriggerKey, label: "Show shortcuts" },
 ];
@@ -4492,6 +4493,20 @@ const html = `<!doctype html>
         );
       }
 
+      async function runWorkerOnceQueueAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_run_worker_once",
+            label: "Run Worker Once",
+            action: async () => {
+              await request("/system/worker/run-once", { method: "POST", body: JSON.stringify({}) });
+              await loadItems();
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
       refreshBtn.addEventListener("click", async () => {
         await runRefreshQueueAction(refreshBtn);
       });
@@ -4505,17 +4520,7 @@ const html = `<!doctype html>
       });
 
       runWorkerBtn.addEventListener("click", async () => {
-        await runActionWithFeedback(
-          {
-            id: "queue_run_worker_once",
-            label: "Run Worker Once",
-            action: async () => {
-              await request("/system/worker/run-once", { method: "POST", body: JSON.stringify({}) });
-              await loadItems();
-            },
-          },
-          { button: runWorkerBtn, localFeedbackEl: queueActionBannerEl },
-        );
+        await runWorkerOnceQueueAction(runWorkerBtn);
       });
 
       function retryFailedPayload(dryRun, offset = 0) {
@@ -5290,6 +5295,9 @@ const html = `<!doctype html>
         },
         "shift+c": () => {
           void runResetControlsAction();
+        },
+        w: () => {
+          void runWorkerOnceQueueAction();
         },
         escape: () => {
           clearRecoveryFocusFromShortcut({ silent_when_empty: true });

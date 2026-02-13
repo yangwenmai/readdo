@@ -42,9 +42,9 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Shortcuts \(\?\)/u);
     assert.match(text, /id="shortcutHintBtn"/u);
     assert.match(text, /aria-expanded="false"/u);
-    assert.match(text, /title="Shortcuts: \/ Search · F Focus Mode · A Advanced Panels · P Focus Priority · Shift\+P Focus Priority \(reverse\) · G Edit Context Filters · Shift\+G Clear Step Focus · Esc Clear Step Focus · 1 Focus extract step · 2 Focus pipeline step · 3 Focus export step · 0 Focus unknown step · Alt\+1 Focus Priority Smart · Alt\+2 Focus Priority Query First · Alt\+3 Focus Priority Step First · C Clear Filters · Shift\+C Reset Controls · R Refresh · \? Show shortcuts"/u);
-    assert.match(text, /aria-label="Shortcuts: \/ Search · F Focus Mode · A Advanced Panels · P Focus Priority · Shift\+P Focus Priority \(reverse\) · G Edit Context Filters · Shift\+G Clear Step Focus · Esc Clear Step Focus · 1 Focus extract step · 2 Focus pipeline step · 3 Focus export step · 0 Focus unknown step · Alt\+1 Focus Priority Smart · Alt\+2 Focus Priority Query First · Alt\+3 Focus Priority Step First · C Clear Filters · Shift\+C Reset Controls · R Refresh · \? Show shortcuts"/u);
-    assert.match(text, /Shortcuts: \/ Search · F Focus Mode · A Advanced Panels · P Focus Priority · Shift\+P Focus Priority \(reverse\) · G Edit Context Filters · Shift\+G Clear Step Focus · Esc Clear Step Focus · 1 Focus extract step · 2 Focus pipeline step · 3 Focus export step · 0 Focus unknown step · Alt\+1 Focus Priority Smart · Alt\+2 Focus Priority Query First · Alt\+3 Focus Priority Step First · C Clear Filters · Shift\+C Reset Controls · R Refresh · \? Show shortcuts/u);
+    assert.match(text, /title="Shortcuts: \/ Search · F Focus Mode · A Advanced Panels · P Focus Priority · Shift\+P Focus Priority \(reverse\) · G Edit Context Filters · Shift\+G Clear Step Focus · Esc Clear Step Focus · 1 Focus extract step · 2 Focus pipeline step · 3 Focus export step · 0 Focus unknown step · Alt\+1 Focus Priority Smart · Alt\+2 Focus Priority Query First · Alt\+3 Focus Priority Step First · C Clear Filters · Shift\+C Reset Controls · W Run Worker Once · R Refresh · \? Show shortcuts"/u);
+    assert.match(text, /aria-label="Shortcuts: \/ Search · F Focus Mode · A Advanced Panels · P Focus Priority · Shift\+P Focus Priority \(reverse\) · G Edit Context Filters · Shift\+G Clear Step Focus · Esc Clear Step Focus · 1 Focus extract step · 2 Focus pipeline step · 3 Focus export step · 0 Focus unknown step · Alt\+1 Focus Priority Smart · Alt\+2 Focus Priority Query First · Alt\+3 Focus Priority Step First · C Clear Filters · Shift\+C Reset Controls · W Run Worker Once · R Refresh · \? Show shortcuts"/u);
+    assert.match(text, /Shortcuts: \/ Search · F Focus Mode · A Advanced Panels · P Focus Priority · Shift\+P Focus Priority \(reverse\) · G Edit Context Filters · Shift\+G Clear Step Focus · Esc Clear Step Focus · 1 Focus extract step · 2 Focus pipeline step · 3 Focus export step · 0 Focus unknown step · Alt\+1 Focus Priority Smart · Alt\+2 Focus Priority Query First · Alt\+3 Focus Priority Step First · C Clear Filters · Shift\+C Reset Controls · W Run Worker Once · R Refresh · \? Show shortcuts/u);
     assert.match(text, /id="shortcutPanelBackdrop"/u);
     assert.match(text, /id="shortcutPanelCloseBtn"/u);
     assert.match(text, /Shortcut Guide/u);
@@ -65,6 +65,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /<kbd>Alt\+3<\/kbd><span>Focus Priority Step First<\/span>/u);
     assert.match(text, /<kbd>C<\/kbd><span>Clear Filters<\/span>/u);
     assert.match(text, /<kbd>Shift\+C<\/kbd><span>Reset Controls<\/span>/u);
+    assert.match(text, /<kbd>W<\/kbd><span>Run Worker Once<\/span>/u);
     assert.match(text, /id="queueHighlights"/u);
     assert.match(text, /id="queueFlowPulse"/u);
     assert.match(text, /Pipeline Pulse/u);
