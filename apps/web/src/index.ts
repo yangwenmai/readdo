@@ -391,6 +391,39 @@ const html = `<!doctype html>
         background: #f8fafc;
         color: #475569;
       }
+      .score-meter {
+        margin-top: 7px;
+        display: grid;
+        gap: 4px;
+      }
+      .score-meter-track {
+        height: 6px;
+        border-radius: 999px;
+        background: #e2e8f0;
+        overflow: hidden;
+      }
+      .score-meter-fill {
+        display: block;
+        height: 100%;
+        width: 0;
+        border-radius: inherit;
+        transition: width 160ms ease-in-out;
+      }
+      .score-meter-fill.score-high {
+        background: linear-gradient(90deg, #22c55e, #16a34a);
+      }
+      .score-meter-fill.score-medium {
+        background: linear-gradient(90deg, #3b82f6, #2563eb);
+      }
+      .score-meter-fill.score-low {
+        background: linear-gradient(90deg, #f59e0b, #f97316);
+      }
+      .score-meter-fill.score-unknown {
+        background: linear-gradient(90deg, #94a3b8, #64748b);
+      }
+      .score-meter-label {
+        font-size: 11px;
+      }
       .next-move-line {
         margin-top: 7px;
         display: inline-flex;
@@ -1902,6 +1935,36 @@ const html = `<!doctype html>
           '">' +
           urgencyMeta.label +
           "</span></div>"
+        );
+      }
+
+      function scoreMeterMeta(rawScore) {
+        const score = Number(rawScore);
+        if (!Number.isFinite(score)) {
+          return { value: 0, tone: "score-unknown", label: "Score: Unscored" };
+        }
+        const clamped = Math.min(Math.max(score, 0), 100);
+        if (clamped >= 80) {
+          return { value: clamped, tone: "score-high", label: "Score: " + clamped.toFixed(1) + " · High confidence" };
+        }
+        if (clamped >= 60) {
+          return { value: clamped, tone: "score-medium", label: "Score: " + clamped.toFixed(1) + " · Medium confidence" };
+        }
+        return { value: clamped, tone: "score-low", label: "Score: " + clamped.toFixed(1) + " · Needs review" };
+      }
+
+      function scoreMeterHtml(rawScore) {
+        const meta = scoreMeterMeta(rawScore);
+        return (
+          '<div class="score-meter" role="img" aria-label="' +
+          meta.label +
+          '"><div class="score-meter-track"><span class="score-meter-fill ' +
+          meta.tone +
+          '" style="width:' +
+          meta.value.toFixed(1) +
+          '%"></span></div><div class="score-meter-label muted">' +
+          meta.label +
+          "</div></div>"
         );
       }
 
@@ -3663,6 +3726,7 @@ const html = `<!doctype html>
         const ops = buttonsFor(item);
         const flowRailHtml = queueFlowRailHtml(item);
         const insightPillsHtml = queueInsightPillsHtml(item);
+        const scoreMeter = scoreMeterHtml(item.match_score);
         const nextMoveHtml = queueNextMoveHtml(item, ops, spotlight);
         card.innerHTML = \`
           <div class="item-head">
@@ -3672,6 +3736,7 @@ const html = `<!doctype html>
           <div class="intent">\${item.intent_text}</div>
           <div>\${title}</div>
           <div class="muted">\${item.domain || ""}</div>
+          \${scoreMeter}
           \${insightPillsHtml}
           \${flowRailHtml}
           \${nextMoveHtml}
@@ -4057,6 +4122,7 @@ const html = `<!doctype html>
         const wrap = document.createElement("div");
         const heroImpactMeta = impactMetaForItem(detail.item);
         const heroUrgencyMeta = urgencyMetaForItem(detail.item);
+        const heroScoreMeter = scoreMeterHtml(detail.item.match_score);
         wrap.innerHTML = \`
           <div class="item-card detail-hero \${detailHeroTone(detail.item.status)} priority-\${priorityTone(detail.item.priority)}">
             <div class="item-head">
@@ -4071,6 +4137,7 @@ const html = `<!doctype html>
               <span class="insight-pill \${heroImpactMeta.tone}">\${heroImpactMeta.label}</span>
               <span class="insight-pill \${heroUrgencyMeta.tone}">\${heroUrgencyMeta.label}</span>
             </div>
+            \${heroScoreMeter}
             <div class="intent">\${detail.item.intent_text}</div>
             <div>\${detail.item.title || detail.item.url}</div>
             <div class="muted">\${detail.item.domain || ""}</div>
