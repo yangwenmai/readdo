@@ -471,8 +471,8 @@ const html = `<!doctype html>
         <h2>Detail</h2>
         <p class="panel-subtitle">查看结构化工件、版本差异与导出记录，快速完成从想法到交付。</p>
         <div id="detailModeChips" class="focus-chips">
-          <button id="detailFocusModeBtn" type="button" class="focus-chip active">Focus Mode</button>
-          <button id="detailAdvancedModeBtn" type="button" class="focus-chip">Advanced Panels</button>
+          <button id="detailFocusModeBtn" type="button" class="focus-chip active">Focus Mode (F)</button>
+          <button id="detailAdvancedModeBtn" type="button" class="focus-chip">Advanced Panels (A)</button>
         </div>
         <div id="detailSectionNav" class="focus-chips" style="display:none;"></div>
         <div id="detail" class="empty">Select one item from the list.</div>
@@ -2836,6 +2836,23 @@ const html = `<!doctype html>
           event.preventDefault();
           queryInput.focus();
           queryInput.select();
+          return;
+        }
+        if (event.key.toLowerCase() === "f") {
+          event.preventDefault();
+          setDetailAdvancedEnabled(false);
+          return;
+        }
+        if (event.key.toLowerCase() === "a") {
+          event.preventDefault();
+          setDetailAdvancedEnabled(true);
+          return;
+        }
+        if (event.key.toLowerCase() === "r") {
+          event.preventDefault();
+          loadItems().catch((err) => {
+            errorEl.textContent = String(err);
+          });
         }
       });
     </script>
