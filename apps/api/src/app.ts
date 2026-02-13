@@ -200,6 +200,12 @@ function normalizeHostname(hostname: string): string {
     .replace(/\.+$/u, "");
 }
 
+function sanitizeUrlForStorage(parsedUrl: URL): string {
+  parsedUrl.username = "";
+  parsedUrl.password = "";
+  return parsedUrl.toString();
+}
+
 function hostMatchesDomain(host: string, domain: string): boolean {
   const normalizedHost = normalizeHostname(host);
   const normalizedDomain = normalizeHostname(domain);
@@ -1112,6 +1118,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const inferredDomain = isWebLikeUrl ? normalizeHostname(parsedUrl.hostname) : "";
     const normalizedProvidedDomain = normalizeHostname(providedDomain);
     const domain = isWebLikeUrl ? inferredDomain : normalizedProvidedDomain;
+    const sanitizedUrl = sanitizeUrlForStorage(parsedUrl);
 
     if (idempotencyKey) {
       const existing = db
@@ -1136,7 +1143,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       INSERT INTO items(id, url, title, domain, source_type, intent_text, status, created_at, updated_at, capture_key)
       VALUES(?, ?, ?, ?, ?, ?, 'CAPTURED', ?, ?, ?)
       `,
-    ).run(id, url, title, domain, sourceType, intentText, ts, ts, idempotencyKey || null);
+    ).run(id, sanitizedUrl, title, domain, sourceType, intentText, ts, ts, idempotencyKey || null);
 
     createProcessJob(db, id, `capture:${id}:${idempotencyKey || "default"}`);
 

@@ -2208,6 +2208,25 @@ test("capture validates url and source_type", async () => {
     };
     assert.equal(normalizedTrailingDotDomainDetail.item.domain, "example.com");
 
+    const credentialUrlRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://alice:secret@example.com/private?a=1",
+        source_type: "web",
+        intent_text: "strip URL credentials before storage",
+      },
+    });
+    assert.equal(credentialUrlRes.statusCode, 201);
+    const credentialUrlId = (credentialUrlRes.json() as { item: { id: string } }).item.id;
+    const credentialUrlDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${credentialUrlId}`,
+    });
+    assert.equal(credentialUrlDetailRes.statusCode, 200);
+    const credentialUrlDetail = credentialUrlDetailRes.json() as { item: { url: string } };
+    assert.equal(credentialUrlDetail.item.url, "https://example.com/private?a=1");
+
     const dataDomainRes = await app.inject({
       method: "POST",
       url: "/api/capture",
