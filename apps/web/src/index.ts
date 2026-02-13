@@ -74,6 +74,8 @@ const queueNudgeFocusNextLabel = "Focus Next Aha (Shift+N)";
 const queueNudgeFocusSecondLabel = "Focus 2nd Aha (Shift+Z)";
 const queueNudgeCandidatesLabel = "Top Aha Candidates";
 const queueNudgeCandidateOpenLabel = "Open Candidate";
+const queueNudgePoolPrefix = "Aha pool";
+const queueNudgeCycleHint = "Cycle with Shift+N";
 const queueRecoveryCopyLabel = "Copy Recovery Summary";
 const queueRecoveryClearLabel = "Clear Radar";
 const queueRecoveryDownloadLabel = "Download Summary";
@@ -1130,6 +1132,12 @@ const html = `<!doctype html>
         flex-wrap: wrap;
         align-items: center;
       }
+      .aha-nudge .nudge-pool {
+        margin-top: 8px;
+        border-top: 1px dashed rgba(148, 163, 184, 0.45);
+        padding-top: 8px;
+        font-size: 12px;
+      }
       .aha-nudge .nudge-candidates .label {
         font-size: 11px;
         color: #334155;
@@ -1554,6 +1562,8 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_FOCUS_SECOND_LABEL = ${JSON.stringify(queueNudgeFocusSecondLabel)};
       const QUEUE_NUDGE_CANDIDATES_LABEL = ${JSON.stringify(queueNudgeCandidatesLabel)};
       const QUEUE_NUDGE_CANDIDATE_OPEN_LABEL = ${JSON.stringify(queueNudgeCandidateOpenLabel)};
+      const QUEUE_NUDGE_POOL_PREFIX = ${JSON.stringify(queueNudgePoolPrefix)};
+      const QUEUE_NUDGE_CYCLE_HINT = ${JSON.stringify(queueNudgeCycleHint)};
       const QUEUE_RECOVERY_COPY_LABEL = ${JSON.stringify(queueRecoveryCopyLabel)};
       const QUEUE_RECOVERY_CLEAR_LABEL = ${JSON.stringify(queueRecoveryClearLabel)};
       const QUEUE_RECOVERY_DOWNLOAD_LABEL = ${JSON.stringify(queueRecoveryDownloadLabel)};
@@ -3606,7 +3616,8 @@ const html = `<!doctype html>
           actionLabel: ctaOp?.label || "",
           context: nudgeContext,
         });
-        const ahaCandidates = topAhaCandidates(items, 3);
+        const ahaPool = sortedAhaItems(items);
+        const ahaCandidates = ahaPool.slice(0, 3);
         ahaNudgeEl.className = "aha-nudge" + (nudgeTone ? " nudge-" + nudgeTone : "");
         ahaNudgeEl.innerHTML = '<h4>' + title + '</h4><span class="muted">' + message + "</span>";
         setActionFeedback(queueActionBannerEl, "", "Ready.");
@@ -3676,11 +3687,11 @@ const html = `<!doctype html>
           const candidatesEl = document.createElement("div");
           candidatesEl.className = "nudge-candidates";
           candidatesEl.innerHTML = '<span class="label">' + QUEUE_NUDGE_CANDIDATES_LABEL + "</span>";
-          for (const item of ahaCandidates) {
+          for (const [index, item] of ahaCandidates.entries()) {
             const chip = document.createElement("button");
             chip.type = "button";
             chip.className = "nudge-candidate-chip";
-            const rank = ahaCandidates.indexOf(item) + 1;
+            const rank = index + 1;
             if (rank === 1) {
               chip.classList.add("is-top");
             }
@@ -3709,6 +3720,20 @@ const html = `<!doctype html>
             candidatesEl.appendChild(chip);
           }
           ahaNudgeEl.appendChild(candidatesEl);
+        }
+        if (ahaPool.length > 0) {
+          const poolEl = document.createElement("div");
+          poolEl.className = "nudge-pool muted";
+          poolEl.textContent =
+            QUEUE_NUDGE_POOL_PREFIX +
+            ": showing " +
+            ahaCandidates.length +
+            "/" +
+            ahaPool.length +
+            " · " +
+            QUEUE_NUDGE_CYCLE_HINT +
+            ".";
+          ahaNudgeEl.appendChild(poolEl);
         }
       }
 
