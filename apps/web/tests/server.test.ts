@@ -121,6 +121,11 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /nudge-heat-chip/u);
     assert.match(text, /nudge-heat-delta/u);
     assert.match(text, /nudge-heat-momentum/u);
+    assert.match(text, /nudge-heat-trend/u);
+    assert.match(text, /trend-bars/u);
+    assert.match(text, /trend-bar/u);
+    assert.match(text, /Momentum Trend/u);
+    assert.match(text, /Hot\+Strong/u);
     assert.match(text, /nudge-story/u);
     assert.match(text, /Aha Storyline/u);
     assert.match(text, /Storyline:/u);
@@ -128,6 +133,9 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Momentum/u);
     assert.match(text, /Heating \+/u);
     assert.match(text, /Cooling -/u);
+    assert.match(text, /Rising \+/u);
+    assert.match(text, /Falling -/u);
+    assert.match(text, /Flat/u);
     assert.match(text, /Steady/u);
     assert.match(text, /Baseline/u);
     assert.match(text, /heat-up/u);

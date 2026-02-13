@@ -88,6 +88,8 @@ const queueNudgeCandidateOpenLabel = "Open Candidate";
 const queueNudgeHeatmapLabel = "Aha Heatmap";
 const queueNudgeHeatFocusLabel = "Focus";
 const queueNudgeHeatMomentumPrefix = "Momentum";
+const queueNudgeHeatTrendLabel = "Momentum Trend";
+const queueNudgeHeatTrendSeriesLabel = "Hot+Strong";
 const queueNudgeStoryLabel = "Aha Storyline";
 const detailStoryLabel = "Queue Storyline";
 const detailStoryOpenLeadPrefix = "Open Lead";
@@ -1228,6 +1230,39 @@ const html = `<!doctype html>
         color: #334155;
         font-weight: 700;
       }
+      .aha-nudge .nudge-heat-trend {
+        width: 100%;
+        display: grid;
+        gap: 6px;
+      }
+      .aha-nudge .nudge-heat-trend .meta {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        color: #334155;
+      }
+      .aha-nudge .nudge-heat-trend .trend-bars {
+        display: grid;
+        grid-template-columns: repeat(8, minmax(0, 1fr));
+        gap: 4px;
+        align-items: end;
+        min-height: 34px;
+      }
+      .aha-nudge .nudge-heat-trend .trend-bar {
+        border-radius: 6px 6px 4px 4px;
+        border: 1px solid #cbd5e1;
+        background: linear-gradient(180deg, #dbeafe, #eff6ff);
+        min-height: 8px;
+      }
+      .aha-nudge .nudge-heat-trend .trend-bar.peak {
+        border-color: #86efac;
+        background: linear-gradient(180deg, #bbf7d0, #ecfdf5);
+      }
+      .aha-nudge .nudge-heat-trend .trend-bar.low {
+        border-color: #d8b4fe;
+        background: linear-gradient(180deg, #ede9fe, #f5f3ff);
+      }
       .aha-nudge .nudge-heat-chip {
         border: 1px solid #cbd5e1;
         border-radius: 999px;
@@ -1749,6 +1784,8 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_HEATMAP_LABEL = ${JSON.stringify(queueNudgeHeatmapLabel)};
       const QUEUE_NUDGE_HEAT_FOCUS_LABEL = ${JSON.stringify(queueNudgeHeatFocusLabel)};
       const QUEUE_NUDGE_HEAT_MOMENTUM_PREFIX = ${JSON.stringify(queueNudgeHeatMomentumPrefix)};
+      const QUEUE_NUDGE_HEAT_TREND_LABEL = ${JSON.stringify(queueNudgeHeatTrendLabel)};
+      const QUEUE_NUDGE_HEAT_TREND_SERIES_LABEL = ${JSON.stringify(queueNudgeHeatTrendSeriesLabel)};
       const QUEUE_NUDGE_STORY_LABEL = ${JSON.stringify(queueNudgeStoryLabel)};
       const DETAIL_STORY_LABEL = ${JSON.stringify(detailStoryLabel)};
       const DETAIL_STORY_OPEN_LEAD_PREFIX = ${JSON.stringify(detailStoryOpenLeadPrefix)};
@@ -1911,6 +1948,8 @@ const html = `<!doctype html>
       let previousAhaRankMap = new Map();
       let currentAhaHeatMap = new Map();
       let previousAhaHeatMap = new Map();
+      let ahaHeatHistory = [];
+      const AHA_HEAT_HISTORY_LIMIT = 8;
       let latestAhaSnapshot = null;
 
       function statusByFocusChip(focus) {
@@ -2475,6 +2514,63 @@ const html = `<!doctype html>
           nextMap.set(bucket.key, Number(bucket.count || 0));
         }
         currentAhaHeatMap = nextMap;
+      }
+
+      function refreshAhaHeatHistory(items) {
+        const buckets = ahaHeatBuckets(items);
+        const hot = Number(buckets.find((bucket) => bucket.key === "hot")?.count || 0);
+        const strong = Number(buckets.find((bucket) => bucket.key === "strong")?.count || 0);
+        const point = { hot, strong, total: hot + strong };
+        ahaHeatHistory = [...ahaHeatHistory, point].slice(-AHA_HEAT_HISTORY_LIMIT);
+      }
+
+      function ahaHeatTrendPoints() {
+        return ahaHeatHistory.slice(-AHA_HEAT_HISTORY_LIMIT);
+      }
+
+      function ahaHeatTrendMeta(points = ahaHeatTrendPoints()) {
+        if (!points.length) {
+          return { label: "No trend", tone: "heat-flat" };
+        }
+        if (points.length < 2) {
+          return { label: "Baseline", tone: "heat-flat" };
+        }
+        const first = Number(points[0]?.total || 0);
+        const last = Number(points[points.length - 1]?.total || 0);
+        const delta = last - first;
+        if (delta > 0) {
+          return { label: "Rising +" + delta, tone: "heat-up" };
+        }
+        if (delta < 0) {
+          return { label: "Falling -" + Math.abs(delta), tone: "heat-down" };
+        }
+        return { label: "Flat", tone: "heat-flat" };
+      }
+
+      function ahaHeatTrendBarsHtml(points = ahaHeatTrendPoints()) {
+        if (!points.length) return "";
+        const values = points.map((point) => Number(point?.total || 0));
+        const maxValue = Math.max(...values, 1);
+        const minValue = Math.min(...values);
+        return points
+          .map((point, index) => {
+            const total = Number(point?.total || 0);
+            const height = Math.max(Math.round((total / maxValue) * 100), 18);
+            const tone =
+              total === maxValue ? " peak" : values.length > 1 && total === minValue && maxValue !== minValue ? " low" : "";
+            return (
+              '<span class="trend-bar' +
+              tone +
+              '" style="height:' +
+              height +
+              '%" title="t' +
+              (index + 1) +
+              ": " +
+              total +
+              '"></span>'
+            );
+          })
+          .join("");
       }
 
       function ahaHeatDeltaMeta(bucketKey, currentCount) {
@@ -4236,6 +4332,25 @@ const html = `<!doctype html>
           momentumEl.className = "nudge-heat-momentum " + momentum.tone;
           momentumEl.textContent = QUEUE_NUDGE_HEAT_MOMENTUM_PREFIX + ": " + momentum.label;
           heatmapEl.appendChild(momentumEl);
+          const trendPoints = ahaHeatTrendPoints();
+          if (trendPoints.length) {
+            const trendMeta = ahaHeatTrendMeta(trendPoints);
+            const trendEl = document.createElement("div");
+            trendEl.className = "nudge-heat-trend";
+            trendEl.innerHTML =
+              '<div class="meta"><span class="label">' +
+              QUEUE_NUDGE_HEAT_TREND_LABEL +
+              '</span><span class="nudge-heat-momentum ' +
+              trendMeta.tone +
+              '">' +
+              QUEUE_NUDGE_HEAT_TREND_SERIES_LABEL +
+              " · " +
+              trendMeta.label +
+              '</span></div><div class="trend-bars">' +
+              ahaHeatTrendBarsHtml(trendPoints) +
+              "</div>";
+            heatmapEl.appendChild(trendEl);
+          }
           for (const bucket of buckets) {
             const chip = document.createElement("span");
             chip.className = "nudge-heat-chip " + bucket.tone;
@@ -4838,6 +4953,7 @@ const html = `<!doctype html>
         inboxEl.innerHTML = "";
         refreshAhaRankMap(items);
         refreshAhaHeatMap(items);
+        refreshAhaHeatHistory(items);
         refreshAhaSnapshot(items);
         renderQueueHighlights(items);
         renderStatusLegend(items);
