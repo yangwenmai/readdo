@@ -56,6 +56,7 @@ Last Updated: 2026-02-13
 - `Preview Retry`（dry-run）：调用 `/items/retry-failed` 且 `dry_run=true`，仅展示可重试规模与分类，不改状态。
   - 建议 UI 展示可重试 item_id 列表（pipeline/export 分开），便于用户确认后执行。
   - 建议显示 `scanned/scanned_total` 与 `scan_truncated`，提示是否被 `limit` 截断。
+  - 建议提供可调 `Batch Limit` 输入（如 1..200）。
 - `Retry Failed`（批量）：调用 `/items/retry-failed` 批量重试 `FAILED_EXTRACTION/FAILED_AI` 的可重试项；
   `FAILED_EXPORT` 仍应单独走 export 重试。
   - 若 UI 已选择 `failure_step` 筛选，建议把该值透传给 `/items/retry-failed` 以保持“所见即所重试”。
@@ -66,11 +67,13 @@ Last Updated: 2026-02-13
 - `Preview Archive`（dry-run）：调用 `/items/archive-failed` 且 `dry_run=true`，建议展示 `eligible_item_ids` 供用户核对。
   - 可选增加 `Archive Scope`（`blocked/retryable/all`）下拉，对应 `retryable=false/true/null`。
   - 建议显示 `scanned/scanned_total` 与 `scan_truncated`，提示是否仅预览了部分候选。
+  - 建议与 Retry 共享同一个 `Batch Limit` 控件。
 - `Preview Unarchive`（dry-run）：调用 `/items/unarchive-batch` 且 `dry_run=true`，建议展示 `eligible_ready_item_ids / eligible_queued_item_ids`。
 - `Unarchive Archived`（批量）：调用 `/items/unarchive-batch` 执行取消归档；
   - 可选增加 `Unarchive Mode`（`smart/regenerate`），对应 `regenerate=false/true`。
   - 可透传当前搜索词 `q`，仅恢复匹配的 archived 项（所见即所执行）。
   - 同样建议显示 `scanned/scanned_total` 与 `scan_truncated`。
+  - 建议同样受 `Batch Limit` 控件控制。
 
 ### 1.2 Shipped
 包含状态：

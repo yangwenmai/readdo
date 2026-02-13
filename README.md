@@ -60,6 +60,7 @@ Web Inbox 还支持 `Failure Step` 下拉筛选（extract/pipeline/export），�
 点击 `Preview Unarchive` / `Unarchive Archived` 可批量恢复归档项，并支持 smart/regenerate 模式。
 若输入搜索关键词，Unarchive 预览/执行会仅作用于匹配关键词的 archived 项。
 批量预览会显示 `scanned/scanned_total` 与 `truncated`，用于识别是否被 limit 截断。
+可通过 `Batch Limit` 输入框控制每次批量预览/执行扫描的最大条数（1..200）。
 
 ### 4) Load Chrome Extension
 

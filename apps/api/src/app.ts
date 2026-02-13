@@ -703,7 +703,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   app.post("/api/items/retry-failed", async (request) => {
     const body = (request.body ?? {}) as Record<string, unknown>;
     const limitRaw = Number(body.limit ?? 20);
-    const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 100) : 20;
+    const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 20;
     const dryRun = Boolean(body.dry_run);
     const q = typeof body.q === "string" ? body.q.trim() : "";
     const failureStepRaw = typeof body.failure_step === "string" ? body.failure_step.trim().toLowerCase() : "";

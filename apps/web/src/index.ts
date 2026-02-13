@@ -99,6 +99,10 @@ const html = `<!doctype html>
           <option value="smart">Unarchive Mode: smart</option>
           <option value="regenerate">Unarchive Mode: regenerate</option>
         </select>
+        <label class="muted" style="display:flex;align-items:center;gap:4px;">
+          Batch Limit
+          <input id="batchLimitInput" type="number" min="1" max="200" step="1" value="100" style="width:72px;" />
+        </label>
         <button class="primary" id="refreshBtn">Refresh</button>
       </div>
     </header>
@@ -136,6 +140,7 @@ const html = `<!doctype html>
       const unarchiveBatchBtn = document.getElementById("unarchiveBatchBtn");
       const autoRefreshToggle = document.getElementById("autoRefreshToggle");
       const unarchiveModeFilter = document.getElementById("unarchiveModeFilter");
+      const batchLimitInput = document.getElementById("batchLimitInput");
 
       let allItems = [];
       let selectedId = null;
@@ -978,7 +983,7 @@ const html = `<!doctype html>
       });
 
       function retryFailedPayload(dryRun) {
-        const payload = { limit: 100, dry_run: dryRun };
+        const payload = { limit: normalizedBatchLimit(), dry_run: dryRun };
         const q = queryInput.value.trim();
         if (q) {
           Object.assign(payload, { q });
@@ -992,7 +997,7 @@ const html = `<!doctype html>
       function archiveBlockedPayload(dryRun) {
         const retryableValue = archiveRetryableFilter.value;
         const retryableFilter = retryableValue === "true" ? true : retryableValue === "false" ? false : null;
-        const payload = { limit: 100, dry_run: dryRun, retryable: retryableFilter };
+        const payload = { limit: normalizedBatchLimit(), dry_run: dryRun, retryable: retryableFilter };
         const q = queryInput.value.trim();
         if (q) {
           Object.assign(payload, { q });
@@ -1005,12 +1010,18 @@ const html = `<!doctype html>
 
       function unarchiveBatchPayload(dryRun) {
         const regenerate = unarchiveModeFilter.value === "regenerate";
-        const payload = { limit: 100, dry_run: dryRun, regenerate };
+        const payload = { limit: normalizedBatchLimit(), dry_run: dryRun, regenerate };
         const q = queryInput.value.trim();
         if (q) {
           return { ...payload, q };
         }
         return payload;
+      }
+
+      function normalizedBatchLimit() {
+        const raw = Number(batchLimitInput.value);
+        if (!Number.isInteger(raw)) return 100;
+        return Math.min(Math.max(raw, 1), 200);
       }
 
       previewArchiveBtn.addEventListener("click", async () => {
@@ -1025,6 +1036,8 @@ const html = `<!doctype html>
             (preview.scanned ?? 0) +
             "/" +
             (preview.scanned_total ?? preview.scanned ?? 0) +
+            ", limit=" +
+            (preview.requested_limit ?? normalizedBatchLimit()) +
             ", retryable=" +
             (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
             ", q=" +
@@ -1103,6 +1116,8 @@ const html = `<!doctype html>
             (batchRes.scanned ?? 0) +
             "/" +
             (batchRes.scanned_total ?? batchRes.scanned ?? 0) +
+            ", limit=" +
+            (batchRes.requested_limit ?? normalizedBatchLimit()) +
             ", q=" +
             (batchRes.q_filter || "all") +
             ", truncated=" +
@@ -1134,6 +1149,8 @@ const html = `<!doctype html>
             (preview.scanned ?? 0) +
             "/" +
             (preview.scanned_total ?? preview.scanned ?? 0) +
+            ", limit=" +
+            (preview.requested_limit ?? normalizedBatchLimit()) +
             ", q=" +
             (preview.q_filter || "all") +
             ", filter=" +
@@ -1245,6 +1262,8 @@ const html = `<!doctype html>
             (preview.scanned ?? 0) +
             "/" +
             (preview.scanned_total ?? preview.scanned ?? 0) +
+            ", limit=" +
+            (preview.requested_limit ?? normalizedBatchLimit()) +
             ", mode=" +
             (preview.regenerate ? "regenerate" : "smart") +
             ", q=" +
