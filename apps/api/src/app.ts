@@ -890,10 +890,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     if (body.failure_step !== undefined && typeof body.failure_step !== "string") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "failure_step must be a string when provided"));
     }
-    const limitRaw = Number(body.limit ?? 20);
-    const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 20;
-    const offsetRaw = Number(body.offset ?? 0);
-    const offset = Number.isInteger(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
+    if (body.limit !== undefined && (typeof body.limit !== "number" || !Number.isInteger(body.limit))) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "limit must be an integer when provided"));
+    }
+    if (body.offset !== undefined && (typeof body.offset !== "number" || !Number.isInteger(body.offset))) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "offset must be an integer when provided"));
+    }
+    const limit = typeof body.limit === "number" ? Math.min(Math.max(body.limit, 1), 200) : 20;
+    const offset = typeof body.offset === "number" ? Math.max(body.offset, 0) : 0;
     const dryRun = (body.dry_run as boolean | undefined) ?? false;
     const q = typeof body.q === "string" ? body.q.trim() : "";
     const failureStepRaw = typeof body.failure_step === "string" ? body.failure_step.trim().toLowerCase() : "";
@@ -1026,10 +1030,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     if (body.failure_step !== undefined && typeof body.failure_step !== "string") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "failure_step must be a string when provided"));
     }
-    const limitRaw = Number(body.limit ?? 50);
-    const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 50;
-    const offsetRaw = Number(body.offset ?? 0);
-    const offset = Number.isInteger(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
+    if (body.limit !== undefined && (typeof body.limit !== "number" || !Number.isInteger(body.limit))) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "limit must be an integer when provided"));
+    }
+    if (body.offset !== undefined && (typeof body.offset !== "number" || !Number.isInteger(body.offset))) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "offset must be an integer when provided"));
+    }
+    const limit = typeof body.limit === "number" ? Math.min(Math.max(body.limit, 1), 200) : 50;
+    const offset = typeof body.offset === "number" ? Math.max(body.offset, 0) : 0;
     const dryRun = (body.dry_run as boolean | undefined) ?? false;
     const q = typeof body.q === "string" ? body.q.trim() : "";
     const failureStepRaw = typeof body.failure_step === "string" ? body.failure_step.trim().toLowerCase() : "";
@@ -1163,10 +1171,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     if (body.q !== undefined && typeof body.q !== "string") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "q must be a string when provided"));
     }
-    const limitRaw = Number(body.limit ?? 50);
-    const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 50;
-    const offsetRaw = Number(body.offset ?? 0);
-    const offset = Number.isInteger(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
+    if (body.limit !== undefined && (typeof body.limit !== "number" || !Number.isInteger(body.limit))) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "limit must be an integer when provided"));
+    }
+    if (body.offset !== undefined && (typeof body.offset !== "number" || !Number.isInteger(body.offset))) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "offset must be an integer when provided"));
+    }
+    const limit = typeof body.limit === "number" ? Math.min(Math.max(body.limit, 1), 200) : 50;
+    const offset = typeof body.offset === "number" ? Math.max(body.offset, 0) : 0;
     const dryRun = (body.dry_run as boolean | undefined) ?? false;
     const regenerate = (body.regenerate as boolean | undefined) ?? false;
     const q = typeof body.q === "string" ? body.q.trim() : "";

@@ -3965,6 +3965,26 @@ test("batch and unarchive endpoints validate boolean control flags", async () =>
     assert.equal(retryQTypePayload.error.code, "VALIDATION_ERROR");
     assert.match(retryQTypePayload.error.message, /q must be a string/i);
 
+    const retryLimitTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/items/retry-failed",
+      payload: { limit: "20" },
+    });
+    assert.equal(retryLimitTypeRes.statusCode, 400);
+    const retryLimitTypePayload = retryLimitTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(retryLimitTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(retryLimitTypePayload.error.message, /limit must be an integer/i);
+
+    const retryOffsetTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/items/retry-failed",
+      payload: { offset: 1.5 },
+    });
+    assert.equal(retryOffsetTypeRes.statusCode, 400);
+    const retryOffsetTypePayload = retryOffsetTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(retryOffsetTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(retryOffsetTypePayload.error.message, /offset must be an integer/i);
+
     const retryFailureStepTypeRes = await app.inject({
       method: "POST",
       url: "/api/items/retry-failed",
@@ -4004,6 +4024,26 @@ test("batch and unarchive endpoints validate boolean control flags", async () =>
     const archiveQTypePayload = archiveQTypeRes.json() as { error: { code: string; message: string } };
     assert.equal(archiveQTypePayload.error.code, "VALIDATION_ERROR");
     assert.match(archiveQTypePayload.error.message, /q must be a string/i);
+
+    const archiveLimitTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/items/archive-failed",
+      payload: { limit: "50" },
+    });
+    assert.equal(archiveLimitTypeRes.statusCode, 400);
+    const archiveLimitTypePayload = archiveLimitTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(archiveLimitTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(archiveLimitTypePayload.error.message, /limit must be an integer/i);
+
+    const archiveOffsetTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/items/archive-failed",
+      payload: { offset: 2.2 },
+    });
+    assert.equal(archiveOffsetTypeRes.statusCode, 400);
+    const archiveOffsetTypePayload = archiveOffsetTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(archiveOffsetTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(archiveOffsetTypePayload.error.message, /offset must be an integer/i);
 
     const archiveFailureStepTypeRes = await app.inject({
       method: "POST",
@@ -4074,6 +4114,26 @@ test("batch and unarchive endpoints validate boolean control flags", async () =>
     const unarchiveBatchQTypePayload = unarchiveBatchQTypeRes.json() as { error: { code: string; message: string } };
     assert.equal(unarchiveBatchQTypePayload.error.code, "VALIDATION_ERROR");
     assert.match(unarchiveBatchQTypePayload.error.message, /q must be a string/i);
+
+    const unarchiveBatchLimitTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/items/unarchive-batch",
+      payload: { limit: "50" },
+    });
+    assert.equal(unarchiveBatchLimitTypeRes.statusCode, 400);
+    const unarchiveBatchLimitTypePayload = unarchiveBatchLimitTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(unarchiveBatchLimitTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(unarchiveBatchLimitTypePayload.error.message, /limit must be an integer/i);
+
+    const unarchiveBatchOffsetTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/items/unarchive-batch",
+      payload: { offset: 1.25 },
+    });
+    assert.equal(unarchiveBatchOffsetTypeRes.statusCode, 400);
+    const unarchiveBatchOffsetTypePayload = unarchiveBatchOffsetTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(unarchiveBatchOffsetTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(unarchiveBatchOffsetTypePayload.error.message, /offset must be an integer/i);
 
     const unarchiveBatchBodyTypeRes = await app.inject({
       method: "POST",

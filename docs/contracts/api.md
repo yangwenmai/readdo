@@ -294,8 +294,8 @@ Headers:
 
 * body 若提供，必须是对象
 * body 当前仅支持键：`limit`、`offset`、`dry_run`、`failure_step`、`q`
-* `limit` 可选，范围建议 `1..200`，默认 20
-* `offset` 可选，默认 0，用于分页扫描批量候选（负值按 0 处理）
+* `limit` 可选，必须为整数，范围建议 `1..200`，默认 20
+* `offset` 可选，必须为整数，默认 0，用于分页扫描批量候选（负值按 0 处理）
 * `dry_run` 若提供，必须为 boolean
 * `dry_run=true` 时仅返回预估结果，不会修改 item 状态或创建新 job
 * `failure_step` 若提供，必须为字符串，且可选值：`extract | pipeline | export`（用于限制扫描范围；其他值返回 `400 VALIDATION_ERROR`）
@@ -353,8 +353,8 @@ Headers:
 
 * body 若提供，必须是对象
 * body 当前仅支持键：`limit`、`offset`、`dry_run`、`retryable`、`failure_step`、`q`
-* `limit` 可选，范围建议 `1..200`，默认 50
-* `offset` 可选，默认 0，用于分页扫描批量候选（负值按 0 处理）
+* `limit` 可选，必须为整数，范围建议 `1..200`，默认 50
+* `offset` 可选，必须为整数，默认 0，用于分页扫描批量候选（负值按 0 处理）
 * `dry_run` 若提供，必须为 boolean
 * `dry_run=true` 时仅返回预估结果，不会修改 item 状态
 * `retryable` 可选：`true | false | null | "all"`（默认 `false`，即仅归档已达重试上限项）
@@ -412,8 +412,8 @@ Headers:
 
 * body 若提供，必须是对象
 * body 当前仅支持键：`limit`、`offset`、`dry_run`、`regenerate`、`q`
-* `limit` 可选，范围建议 `1..200`，默认 50
-* `offset` 可选，默认 0，用于分页扫描 archived 候选（负值按 0 处理）
+* `limit` 可选，必须为整数，范围建议 `1..200`，默认 50
+* `offset` 可选，必须为整数，默认 0，用于分页扫描 archived 候选（负值按 0 处理）
 * `dry_run` 若提供，必须为 boolean
 * `regenerate` 若提供，必须为 boolean
 * `dry_run=true` 时仅返回预估结果，不会修改 item 状态
