@@ -1182,17 +1182,10 @@ const html = `<!doctype html>
           }
           btn.disabled = Boolean(op.disabled);
           btn.addEventListener("click", async () => {
-            if (op.disabled) return;
-            const previousDisabled = btn.disabled;
-            btn.disabled = true;
-            try {
-              errorEl.textContent = "";
-              await op.action();
-            } catch (err) {
-              errorEl.textContent = String(err);
-            } finally {
-              btn.disabled = previousDisabled;
-            }
+            await runActionWithFeedback(op, {
+              button: btn,
+              localFeedbackEl: queueActionBannerEl,
+            });
           });
           actionEl.appendChild(btn);
         }
