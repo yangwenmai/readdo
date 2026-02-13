@@ -2644,6 +2644,15 @@ test("items endpoint supports status and query filtering", async () => {
     const searchItems = (searchRes.json() as { items: Array<{ title?: string }> }).items;
     assert.ok(searchItems.some((x) => (x.title ?? "").toLowerCase().includes("creator")));
 
+    const blankSearchRes = await app.inject({
+      method: "GET",
+      url: "/api/items?q=%20%20%20",
+    });
+    assert.equal(blankSearchRes.statusCode, 400);
+    const blankSearchPayload = blankSearchRes.json() as { error: { code: string; message: string } };
+    assert.equal(blankSearchPayload.error.code, "VALIDATION_ERROR");
+    assert.match(blankSearchPayload.error.message, /q must be a non-empty string when provided/i);
+
     const sourceTypeRes = await app.inject({
       method: "GET",
       url: "/api/items?source_type=YOUTUBE",

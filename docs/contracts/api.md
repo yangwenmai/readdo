@@ -461,7 +461,7 @@ Headers:
 * `source_type`（可重复）：web, youtube, newsletter, other（大小写不敏感；必须至少包含一个非空值；包含非法值返回 `400 VALIDATION_ERROR`）
 * `retryable`：`true | false`（仅对 FAILED_* 生效；用于筛选可重试/不可重试失败项；必须为非空字符串；其他值返回 `400 VALIDATION_ERROR`）
 * `failure_step`：`extract | pipeline | export`（仅对 FAILED_* 生效；按失败阶段筛选；必须为非空字符串；其他值返回 `400 VALIDATION_ERROR`）
-* `q`：搜索（MVP 可仅 title/domain/intent_text）
+* `q`：搜索（MVP 可仅 title/domain/intent_text；若提供必须为非空字符串）
 * `sort`：`priority_score_desc | created_desc | updated_desc`（必须为非空字符串）
 
   * 默认：`priority_score_desc`

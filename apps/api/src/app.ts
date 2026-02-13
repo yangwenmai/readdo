@@ -1504,7 +1504,13 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     }
     const failureStepFilter =
       ["extract", "pipeline", "export"].includes(failureStepQuery) ? (failureStepQuery as "extract" | "pipeline" | "export") : null;
+    if (query.q !== undefined && typeof query.q !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "q must be a non-empty string when provided"));
+    }
     const q = typeof query.q === "string" ? query.q.trim() : "";
+    if (query.q !== undefined && !q) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "q must be a non-empty string when provided"));
+    }
     if (query.sort !== undefined && typeof query.sort !== "string") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "sort must be priority_score_desc|created_desc|updated_desc"));
     }
