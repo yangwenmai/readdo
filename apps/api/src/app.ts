@@ -125,9 +125,11 @@ function parseProcessJobOptions(rawValue: string | null): ProcessJobOptions | un
   }
   const templateProfileValue = parsed.template_profile;
   const forceRegenerateValue = parsed.force_regenerate;
+  const normalizedTemplateProfile =
+    typeof templateProfileValue === "string" ? templateProfileValue.trim().toLowerCase() : undefined;
   const templateProfile =
-    typeof templateProfileValue === "string" && ["engineer", "creator", "manager"].includes(templateProfileValue)
-      ? (templateProfileValue as ProcessTemplateProfile)
+    typeof normalizedTemplateProfile === "string" && ["engineer", "creator", "manager"].includes(normalizedTemplateProfile)
+      ? (normalizedTemplateProfile as ProcessTemplateProfile)
       : undefined;
   const forceRegenerate = typeof forceRegenerateValue === "boolean" ? forceRegenerateValue : undefined;
   if (!templateProfile && forceRegenerate === undefined) {

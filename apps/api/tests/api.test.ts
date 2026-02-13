@@ -1894,6 +1894,74 @@ test("process options template_profile overrides engine profile for regeneration
   }
 });
 
+test("worker normalizes legacy template_profile in queued job options_json", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-options-legacy-normalize-"));
+  const dbPath = join(dbDir, "readdo.db");
+  const app = await createApp({
+    dbPath,
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20item%20is%20used%20to%20verify%20legacy%20job%20options%20template_profile%20normalization%20behavior%20in%20the%20worker.",
+        title: "Process Legacy Options Normalize",
+        domain: "example.process.legacy.options.normalize",
+        source_type: "web",
+        intent_text: "validate legacy job options template_profile normalization",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const queueRegenerateRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      payload: {
+        mode: "REGENERATE",
+        options: {
+          template_profile: "engineer",
+        },
+      },
+    });
+    assert.equal(queueRegenerateRes.statusCode, 202);
+
+    const db = new DatabaseSync(dbPath);
+    try {
+      const rewriteResult = db
+        .prepare("UPDATE jobs SET options_json = ? WHERE item_id = ? AND status = 'QUEUED' AND kind = 'PROCESS'")
+        .run(JSON.stringify({ template_profile: " Creator " }), itemId) as { changes: number };
+      assert.equal(rewriteResult.changes, 1);
+    } finally {
+      db.close();
+    }
+
+    await app.runWorkerOnce();
+
+    const detailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}?include_history=true`,
+    });
+    assert.equal(detailRes.statusCode, 200);
+    const detailPayload = detailRes.json() as {
+      artifacts: {
+        summary: {
+          meta: { template_version: string };
+        };
+      };
+    };
+    assert.equal(detailPayload.artifacts.summary.meta.template_version, "summary.creator.v1");
+  } finally {
+    await app.close();
+  }
+});
+
 test("process retry reuses cached extraction unless force_regenerate is true", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-force-regenerate-"));
   const dbPath = join(dbDir, "readdo.db");
