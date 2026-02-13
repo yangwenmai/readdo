@@ -40,6 +40,17 @@ const html = `<!doctype html>
       <h1>Read→Do Inbox</h1>
       <div class="controls">
         <span class="muted">API: ${apiBase}</span>
+        <input id="queryInput" placeholder="Search title/domain/intent" />
+        <select id="statusFilter">
+          <option value="">All Status</option>
+          <option value="CAPTURED">CAPTURED</option>
+          <option value="QUEUED">QUEUED</option>
+          <option value="PROCESSING">PROCESSING</option>
+          <option value="READY">READY</option>
+          <option value="FAILED_EXTRACTION,FAILED_AI,FAILED_EXPORT">FAILED_*</option>
+          <option value="SHIPPED">SHIPPED</option>
+          <option value="ARCHIVED">ARCHIVED</option>
+        </select>
         <button class="primary" id="refreshBtn">Refresh</button>
       </div>
     </header>
@@ -60,6 +71,8 @@ const html = `<!doctype html>
       const detailEl = document.getElementById("detail");
       const errorEl = document.getElementById("error");
       const refreshBtn = document.getElementById("refreshBtn");
+      const queryInput = document.getElementById("queryInput");
+      const statusFilter = document.getElementById("statusFilter");
 
       let allItems = [];
       let selectedId = null;
@@ -198,7 +211,16 @@ const html = `<!doctype html>
       }
 
       async function loadItems() {
-        const payload = await request("/items?sort=priority_score_desc&limit=100");
+        const query = queryInput.value.trim();
+        const status = statusFilter.value;
+        const params = new URLSearchParams({
+          sort: "priority_score_desc",
+          limit: "100"
+        });
+        if (query) params.set("q", query);
+        if (status) params.set("status", status);
+
+        const payload = await request("/items?" + params.toString());
         allItems = payload.items || [];
         renderInbox(allItems);
         if (selectedId) {
@@ -411,6 +433,25 @@ const html = `<!doctype html>
       }
 
       refreshBtn.addEventListener("click", async () => {
+        try {
+          errorEl.textContent = "";
+          await loadItems();
+        } catch (err) {
+          errorEl.textContent = String(err);
+        }
+      });
+
+      queryInput.addEventListener("keydown", async (event) => {
+        if (event.key !== "Enter") return;
+        try {
+          errorEl.textContent = "";
+          await loadItems();
+        } catch (err) {
+          errorEl.textContent = String(err);
+        }
+      });
+
+      statusFilter.addEventListener("change", async () => {
         try {
           errorEl.textContent = "";
           await loadItems();
