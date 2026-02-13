@@ -401,6 +401,28 @@ const html = `<!doctype html>
         background: #f8fafc;
         color: #475569;
       }
+      .aha-rank-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        padding: 3px 8px;
+      }
+      .aha-rank-chip.rank-top {
+        border-color: #93c5fd;
+        background: #eff6ff;
+        color: #1e3a8a;
+      }
+      .aha-rank-chip.rank-strong {
+        border-color: #c4b5fd;
+        background: #f5f3ff;
+        color: #5b21b6;
+      }
       .score-meter {
         margin-top: 7px;
         display: grid;
@@ -1717,6 +1739,7 @@ const html = `<!doctype html>
       };
       let queueNudgeState = { ...emptyQueueNudgeState };
       let ahaCandidateCycleCursor = -1;
+      let currentAhaRankMap = new Map();
 
       function statusByFocusChip(focus) {
         if (focus === "ready") return "READY";
@@ -2272,6 +2295,26 @@ const html = `<!doctype html>
           total: ranked.length,
           value: meta.value,
         };
+      }
+
+      function refreshAhaRankMap(items) {
+        const nextMap = new Map();
+        const ranked = sortedAhaItems(items);
+        for (let index = 0; index < ranked.length; index += 1) {
+          const item = ranked[index];
+          const meta = ahaIndexMetaForItem(item);
+          nextMap.set(String(item.id), {
+            rank: index + 1,
+            total: ranked.length,
+            value: meta.value,
+          });
+        }
+        currentAhaRankMap = nextMap;
+      }
+
+      function ahaRankFromMap(item) {
+        if (!item) return null;
+        return currentAhaRankMap.get(String(item.id)) || null;
       }
 
       function ahaCandidateChipLabel(item, rank) {
@@ -4059,13 +4102,20 @@ const html = `<!doctype html>
         const ops = buttonsFor(item);
         const flowRailHtml = queueFlowRailHtml(item);
         const insightPillsHtml = queueInsightPillsHtml(item);
+        const ahaRank = ahaRankFromMap(item);
+        const ahaRankTone =
+          ahaRank?.rank === 1 ? " rank-top" : ahaRank?.rank && ahaRank.rank <= 3 ? " rank-strong" : "";
+        const ahaRankHtml = ahaRank ? '<span class="aha-rank-chip' + ahaRankTone + '">Aha #' + ahaRank.rank + "</span>" : "";
         const scoreMeter = scoreMeterHtml(item.match_score);
         const freshnessChip = freshnessChipHtml(item.updated_at);
         const ahaIndex = ahaIndexHtml(item);
         const nextMoveHtml = queueNextMoveHtml(item, ops, spotlight);
         card.innerHTML = \`
           <div class="item-head">
-            <span class="status status-\${statusTone(item.status)}">\${item.status}</span>
+            <div class="status-cluster">
+              <span class="status status-\${statusTone(item.status)}">\${item.status}</span>
+              \${ahaRankHtml}
+            </div>
             <span class="muted">\${item.priority || "N/A"} · \${score}</span>
           </div>
           <div class="intent">\${item.intent_text}</div>
@@ -4273,6 +4323,7 @@ const html = `<!doctype html>
 
       function renderInbox(items) {
         inboxEl.innerHTML = "";
+        refreshAhaRankMap(items);
         renderQueueHighlights(items);
         renderStatusLegend(items);
         if (!items.length) {
@@ -4460,6 +4511,12 @@ const html = `<!doctype html>
         const wrap = document.createElement("div");
         const heroImpactMeta = impactMetaForItem(detail.item);
         const heroUrgencyMeta = urgencyMetaForItem(detail.item);
+        const heroAhaRank = ahaRankFromMap(detail.item) || ahaRankForItem(detail.item);
+        const heroAhaRankTone =
+          heroAhaRank?.rank === 1 ? " rank-top" : heroAhaRank?.rank && heroAhaRank.rank <= 3 ? " rank-strong" : "";
+        const heroAhaRankHtml = heroAhaRank
+          ? '<span class="aha-rank-chip' + heroAhaRankTone + '">Aha Rank #' + heroAhaRank.rank + "/" + heroAhaRank.total + "</span>"
+          : '<span class="aha-rank-chip">Aha Rank —</span>';
         const heroScoreMeter = scoreMeterHtml(detail.item.match_score);
         const heroFreshnessChip = freshnessChipHtml(detail.item.updated_at);
         const heroAhaIndex = ahaIndexHtml(detail.item);
@@ -4476,6 +4533,7 @@ const html = `<!doctype html>
             <div class="insight-pills">
               <span class="insight-pill \${heroImpactMeta.tone}">\${heroImpactMeta.label}</span>
               <span class="insight-pill \${heroUrgencyMeta.tone}">\${heroUrgencyMeta.label}</span>
+              \${heroAhaRankHtml}
             </div>
             \${heroScoreMeter}
             \${heroFreshnessChip}
