@@ -1658,7 +1658,7 @@ const html = `<!doctype html>
         <span class="muted">API: ${apiBase}</span>
         <span class="muted" id="workerStats">Queue: -</span>
         <span class="muted" id="selectionHint">Selected: none</span>
-        <button id="ahaPulseBtn" type="button" title="Aha Pulse: waiting for items.">Aha Pulse: —</button>
+        <button id="ahaPulseBtn" type="button" title="Aha Pulse: waiting for items. Click focus lead. Shift+Click run lead action. Alt+Click focus #2.">Aha Pulse: —</button>
         <button id="runWorkerBtn" type="button">Run Worker Once</button>
         <button id="previewRetryBtn" type="button">${queuePreviewLabels.retry}</button>
         <button id="previewNextBtn" type="button" style="display:none;">${queuePreviewLabels.next}</button>
@@ -6421,10 +6421,11 @@ const html = `<!doctype html>
       function updateAhaPulseHint(items = allItems) {
         if (!ahaPulseBtn) return;
         ahaPulseBtn.classList.remove("heat-up", "heat-down", "heat-flat");
+        const clickHint = "Click focus lead · Shift+Click run lead action · Alt+Click focus #2.";
         const ranked = sortedAhaItems(items);
         if (!ranked.length) {
           ahaPulseBtn.textContent = "Aha Pulse: —";
-          ahaPulseBtn.title = "Aha Pulse: no active candidates.";
+          ahaPulseBtn.title = "Aha Pulse: no active candidates. " + clickHint;
           ahaPulseBtn.disabled = true;
           return;
         }
@@ -6442,7 +6443,9 @@ const html = `<!doctype html>
           " · " +
           (topPrimary?.label || "No action") +
           " · " +
-          (story || "No storyline available.");
+          (story || "No storyline available.") +
+          " · " +
+          clickHint;
       }
 
       async function runSelectedPrimaryItemAction(button = null) {
@@ -7357,7 +7360,15 @@ const html = `<!doctype html>
 
       function bindAhaPulseAction(button) {
         if (!button) return;
-        button.addEventListener("click", async () => {
+        button.addEventListener("click", async (event) => {
+          if (event.altKey) {
+            await runFocusSecondAhaQueueAction(button);
+            return;
+          }
+          if (event.shiftKey) {
+            await runTopAhaPrimaryAction(button);
+            return;
+          }
           await runFocusTopAhaQueueAction(button);
         });
       }
