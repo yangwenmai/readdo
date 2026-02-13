@@ -47,6 +47,7 @@ Last Updated: 2026-02-13
 - failure_step=ALL（可选切换 `extract/pipeline/export`，用于按失败阶段聚焦处理）
 - 建议持久化用户筛选偏好（本地存储），避免刷新后丢失上下文
 - 建议提供 `Reset Controls` 一键恢复默认筛选与批量参数
+- 建议在筛选条件变化时清空旧 preview 结果，避免“跨上下文预览”误导
 
 头部统计建议展示：
 - Queue（QUEUED/LEASED）

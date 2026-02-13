@@ -177,6 +177,11 @@ const html = `<!doctype html>
         previewNextBtn.disabled = false;
       }
 
+      function clearPreviewOutput() {
+        retryPreviewOutputEl.style.display = "none";
+        retryPreviewOutputEl.textContent = "";
+      }
+
       function setPreviewContinuation(kind, nextOffset) {
         if (nextOffset == null) {
           clearPreviewContinuation();
@@ -1061,6 +1066,7 @@ const html = `<!doctype html>
         try {
           errorEl.textContent = "";
           clearPreviewContinuation();
+          clearPreviewOutput();
           await loadItems();
         } catch (err) {
           errorEl.textContent = String(err);
@@ -1070,6 +1076,7 @@ const html = `<!doctype html>
       resetControlsBtn.addEventListener("click", async () => {
         try {
           clearPreviewContinuation();
+          clearPreviewOutput();
           applyControlDefaults();
           localStorage.removeItem(controlsStorageKey);
           setAutoRefresh(false);
@@ -1214,8 +1221,7 @@ const html = `<!doctype html>
           return;
         }
         clearPreviewContinuation();
-        retryPreviewOutputEl.style.display = "none";
-        retryPreviewOutputEl.textContent = "";
+        clearPreviewOutput();
         retryFailedBtn.disabled = true;
         let exportSuccess = 0;
         let exportFailed = 0;
@@ -1340,6 +1346,7 @@ const html = `<!doctype html>
         archiveBlockedBtn.disabled = true;
         try {
           clearPreviewContinuation();
+          clearPreviewOutput();
           const previewOffset = normalizedPreviewOffset();
           const preview = await request("/items/archive-failed", {
             method: "POST",
@@ -1630,6 +1637,7 @@ const html = `<!doctype html>
         unarchiveBatchBtn.disabled = true;
         try {
           clearPreviewContinuation();
+          clearPreviewOutput();
           const previewOffset = normalizedPreviewOffset();
           const preview = await request("/items/unarchive-batch", {
             method: "POST",
@@ -1677,24 +1685,28 @@ const html = `<!doctype html>
       archiveRetryableFilter.addEventListener("change", async () => {
         persistControls();
         clearPreviewContinuation();
+        clearPreviewOutput();
         await loadWorkerStats();
       });
 
       unarchiveModeFilter.addEventListener("change", () => {
         persistControls();
         clearPreviewContinuation();
+        clearPreviewOutput();
       });
 
       batchLimitInput.addEventListener("change", () => {
         batchLimitInput.value = String(normalizedBatchLimit());
         persistControls();
         clearPreviewContinuation();
+        clearPreviewOutput();
       });
 
       previewOffsetInput.addEventListener("change", () => {
         previewOffsetInput.value = String(normalizedPreviewOffset());
         persistControls();
         clearPreviewContinuation();
+        clearPreviewOutput();
       });
 
       queryInput.addEventListener("keydown", async (event) => {
@@ -1703,6 +1715,7 @@ const html = `<!doctype html>
           errorEl.textContent = "";
           persistControls();
           clearPreviewContinuation();
+          clearPreviewOutput();
           await loadItems();
         } catch (err) {
           errorEl.textContent = String(err);
@@ -1714,6 +1727,7 @@ const html = `<!doctype html>
           errorEl.textContent = "";
           persistControls();
           clearPreviewContinuation();
+          clearPreviewOutput();
           await loadItems();
         } catch (err) {
           errorEl.textContent = String(err);
@@ -1725,6 +1739,7 @@ const html = `<!doctype html>
           errorEl.textContent = "";
           persistControls();
           clearPreviewContinuation();
+          clearPreviewOutput();
           await loadItems();
         } catch (err) {
           errorEl.textContent = String(err);
@@ -1736,6 +1751,7 @@ const html = `<!doctype html>
           errorEl.textContent = "";
           persistControls();
           clearPreviewContinuation();
+          clearPreviewOutput();
           await loadItems();
         } catch (err) {
           errorEl.textContent = String(err);
