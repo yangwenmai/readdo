@@ -652,6 +652,19 @@ const html = `<!doctype html>
           unarchive: { id: "queue_unarchive_batch", label: "Unarchive Batch" },
         },
       };
+      const queueFilterMeta = {
+        controls: {
+          archive_scope: "Archive Scope",
+          unarchive_mode: "Unarchive Mode",
+          batch_limit: "Batch Limit",
+          preview_offset: "Preview Offset",
+        },
+        list: {
+          status: "Status Filter",
+          retryable: "Retryable Filter",
+          failure_step: "Failure Step Filter",
+        },
+      };
 
       function statusByFocusChip(focus) {
         if (focus === "ready") return "READY";
@@ -3311,23 +3324,23 @@ const html = `<!doctype html>
       ];
 
       const queueControlChangeConfigs = [
-        createQueueControlChangeConfig(archiveRetryableFilter, "Archive Scope", {
+        createQueueControlChangeConfig(archiveRetryableFilter, queueFilterMeta.controls.archive_scope, {
           options: { refresh_worker_stats: true },
         }),
-        createQueueControlChangeConfig(unarchiveModeFilter, "Unarchive Mode"),
-        createQueueControlChangeConfig(batchLimitInput, "Batch Limit", {
+        createQueueControlChangeConfig(unarchiveModeFilter, queueFilterMeta.controls.unarchive_mode),
+        createQueueControlChangeConfig(batchLimitInput, queueFilterMeta.controls.batch_limit, {
           beforeSync: normalizeBatchLimitInputValue,
         }),
-        createQueueControlChangeConfig(previewOffsetInput, "Preview Offset", {
+        createQueueControlChangeConfig(previewOffsetInput, queueFilterMeta.controls.preview_offset, {
           beforeSync: normalizePreviewOffsetInputValue,
           syncOptions: { resetOffset: false },
         }),
       ];
 
       const listFilterChangeConfigs = [
-        createListFilterChangeConfig(statusFilter, "Status Filter"),
-        createListFilterChangeConfig(retryableFilter, "Retryable Filter"),
-        createListFilterChangeConfig(failureStepFilter, "Failure Step Filter"),
+        createListFilterChangeConfig(statusFilter, queueFilterMeta.list.status),
+        createListFilterChangeConfig(retryableFilter, queueFilterMeta.list.retryable),
+        createListFilterChangeConfig(failureStepFilter, queueFilterMeta.list.failure_step),
       ];
 
       function setupQueueActionBindings() {
