@@ -145,6 +145,11 @@ curl "http://localhost:8787/api/items?status=FAILED_EXTRACTION,FAILED_AI,FAILED_
 curl -X POST "http://localhost:8787/api/items/retry-failed" \
   -H "content-type: application/json" \
   -d '{"limit":20}'
+
+# Dry-run preview for batch retry (no state changes)
+curl -X POST "http://localhost:8787/api/items/retry-failed" \
+  -H "content-type: application/json" \
+  -d '{"limit":20,"dry_run":true}'
 ```
 
 ---

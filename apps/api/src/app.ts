@@ -669,6 +669,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const body = (request.body ?? {}) as Record<string, unknown>;
     const limitRaw = Number(body.limit ?? 20);
     const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 100) : 20;
+    const dryRun = Boolean(body.dry_run);
     const failedItems = db
       .prepare(
         `
@@ -683,6 +684,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     let queued = 0;
     let skippedNonRetryable = 0;
     let skippedUnsupported = 0;
+    let eligiblePipeline = 0;
+    let eligibleExport = 0;
+    const eligiblePipelineItemIds: string[] = [];
+    const eligibleExportItemIds: string[] = [];
     const queuedItemIds: string[] = [];
     const ts = nowIso();
 
@@ -701,10 +706,20 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
         continue;
       }
       if (!["FAILED_EXTRACTION", "FAILED_AI"].includes(item.status)) {
-        skippedUnsupported += 1;
+        if (item.status === "FAILED_EXPORT") {
+          eligibleExport += 1;
+          eligibleExportItemIds.push(item.id);
+        } else {
+          skippedUnsupported += 1;
+        }
         continue;
       }
+      eligiblePipeline += 1;
+      eligiblePipelineItemIds.push(item.id);
 
+      if (dryRun) {
+        continue;
+      }
       createProcessJob(db, item.id, `batch-retry:${item.id}:${nanoid(8)}`);
       const updateRes = db
         .prepare("UPDATE items SET status = 'QUEUED', updated_at = ?, failure_json = NULL WHERE id = ? AND status = ?")
@@ -717,9 +732,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
     return {
       requested_limit: limit,
+      dry_run: dryRun,
       scanned: failedItems.length,
       queued,
       queued_item_ids: queuedItemIds,
+      eligible_pipeline: eligiblePipeline,
+      eligible_pipeline_item_ids: eligiblePipelineItemIds,
+      eligible_export: eligibleExport,
+      eligible_export_item_ids: eligibleExportItemIds,
       skipped_non_retryable: skippedNonRetryable,
       skipped_unsupported_status: skippedUnsupported,
       timestamp: nowIso(),

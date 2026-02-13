@@ -248,13 +248,15 @@ Headers:
 
 ```json
 {
-  "limit": 20
+  "limit": 20,
+  "dry_run": false
 }
 ```
 
 约束：
 
 * `limit` 可选，范围建议 `1..100`，默认 20
+* `dry_run=true` 时仅返回预估结果，不会修改 item 状态或创建新 job
 * `FAILED_EXPORT` 当前不会被该接口处理（计入 `skipped_unsupported_status`）
 
 ### 4.8.3 Response 200
@@ -262,9 +264,14 @@ Headers:
 ```json
 {
   "requested_limit": 20,
+  "dry_run": false,
   "scanned": 5,
   "queued": 3,
   "queued_item_ids": ["itm_a", "itm_b", "itm_c"],
+  "eligible_pipeline": 3,
+  "eligible_pipeline_item_ids": ["itm_a", "itm_b", "itm_c"],
+  "eligible_export": 1,
+  "eligible_export_item_ids": ["itm_d"],
   "skipped_non_retryable": 1,
   "skipped_unsupported_status": 1,
   "timestamp": "2026-02-13T12:00:00Z"

@@ -58,6 +58,7 @@ const html = `<!doctype html>
         <span class="muted">API: ${apiBase}</span>
         <span class="muted" id="workerStats">Queue: -</span>
         <button id="runWorkerBtn" type="button">Run Worker Once</button>
+        <button id="previewRetryBtn" type="button">Preview Retry</button>
         <button id="retryFailedBtn" type="button">Retry Failed</button>
         <label class="muted" style="display:flex;align-items:center;gap:4px;">
           <input id="autoRefreshToggle" type="checkbox" />
@@ -98,6 +99,7 @@ const html = `<!doctype html>
       const statusFilter = document.getElementById("statusFilter");
       const workerStatsEl = document.getElementById("workerStats");
       const runWorkerBtn = document.getElementById("runWorkerBtn");
+      const previewRetryBtn = document.getElementById("previewRetryBtn");
       const retryFailedBtn = document.getElementById("retryFailedBtn");
       const autoRefreshToggle = document.getElementById("autoRefreshToggle");
 
@@ -958,6 +960,30 @@ const html = `<!doctype html>
         } finally {
           retryFailedBtn.disabled = false;
           await loadItems();
+        }
+      });
+
+      previewRetryBtn.addEventListener("click", async () => {
+        previewRetryBtn.disabled = true;
+        try {
+          const preview = await request("/items/retry-failed", {
+            method: "POST",
+            body: JSON.stringify({ limit: 100, dry_run: true })
+          });
+          errorEl.textContent =
+            "Retry preview: scanned=" +
+            (preview.scanned ?? 0) +
+            ", eligible_pipeline=" +
+            (preview.eligible_pipeline ?? 0) +
+            ", eligible_export=" +
+            (preview.eligible_export ?? 0) +
+            ", skipped_non_retryable=" +
+            (preview.skipped_non_retryable ?? 0) +
+            ".";
+        } catch (err) {
+          errorEl.textContent = "Retry preview failed: " + String(err);
+        } finally {
+          previewRetryBtn.disabled = false;
         }
       });
 

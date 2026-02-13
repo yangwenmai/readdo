@@ -436,22 +436,56 @@ test("retry-failed endpoint queues retryable pipeline failures only", async () =
     const retryFailedRes = await app.inject({
       method: "POST",
       url: "/api/items/retry-failed",
-      payload: { limit: 10 },
+      payload: { limit: 10, dry_run: true },
     });
     assert.equal(retryFailedRes.statusCode, 200);
-    const retryPayload = retryFailedRes.json() as {
+    const dryRunPayload = retryFailedRes.json() as {
+      dry_run: boolean;
+      scanned: number;
+      queued: number;
+      eligible_pipeline: number;
+      eligible_export: number;
+      eligible_pipeline_item_ids: string[];
+      eligible_export_item_ids: string[];
+    };
+    assert.equal(dryRunPayload.dry_run, true);
+    assert.equal(dryRunPayload.queued, 0);
+    assert.equal(dryRunPayload.eligible_pipeline, 2);
+    assert.equal(dryRunPayload.eligible_export, 1);
+    assert.ok(dryRunPayload.eligible_pipeline_item_ids.includes(failOneId));
+    assert.ok(dryRunPayload.eligible_pipeline_item_ids.includes(failTwoId));
+    assert.ok(dryRunPayload.eligible_export_item_ids.includes(exportFailId));
+
+    const dryRunFailOne = await app.inject({ method: "GET", url: `/api/items/${failOneId}` });
+    const dryRunFailTwo = await app.inject({ method: "GET", url: `/api/items/${failTwoId}` });
+    assert.equal((dryRunFailOne.json() as { item: { status: string } }).item.status, "FAILED_EXTRACTION");
+    assert.equal((dryRunFailTwo.json() as { item: { status: string } }).item.status, "FAILED_EXTRACTION");
+
+    const retryRunRes = await app.inject({
+      method: "POST",
+      url: "/api/items/retry-failed",
+      payload: { limit: 10 },
+    });
+    assert.equal(retryRunRes.statusCode, 200);
+    const retryPayload = retryRunRes.json() as {
+      dry_run: boolean;
       scanned: number;
       queued: number;
       queued_item_ids: string[];
+      eligible_pipeline: number;
+      eligible_export: number;
       skipped_non_retryable: number;
       skipped_unsupported_status: number;
     };
+    assert.equal(retryPayload.dry_run, false);
     assert.equal(retryPayload.queued, 2);
+    assert.equal(retryPayload.eligible_pipeline, 2);
+    assert.equal(retryPayload.eligible_export, 1);
     assert.ok(retryPayload.scanned >= 3);
     assert.ok(retryPayload.queued_item_ids.includes(failOneId));
     assert.ok(retryPayload.queued_item_ids.includes(failTwoId));
     assert.equal(retryPayload.skipped_non_retryable, 0);
-    assert.ok(retryPayload.skipped_unsupported_status >= 1);
+    assert.equal(retryPayload.skipped_unsupported_status, 0);
 
     const failOneDetail = await app.inject({ method: "GET", url: `/api/items/${failOneId}` });
     const failTwoDetail = await app.inject({ method: "GET", url: `/api/items/${failTwoId}` });
