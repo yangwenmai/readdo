@@ -1212,6 +1212,46 @@ test("export rejects unsupported formats without mutating item status", async ()
 
     await app.runWorkerOnce();
 
+    const invalidOptionsShapeRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: "invalid-export-options-key-1", options: [] },
+    });
+    assert.equal(invalidOptionsShapeRes.statusCode, 400);
+    const invalidOptionsShapePayload = invalidOptionsShapeRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidOptionsShapePayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidOptionsShapePayload.error.message, /options must be an object when provided/i);
+
+    const invalidOptionsUnknownKeyRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: "invalid-export-options-key-2", options: { palette: "dark" } },
+    });
+    assert.equal(invalidOptionsUnknownKeyRes.statusCode, 400);
+    const invalidOptionsUnknownKeyPayload = invalidOptionsUnknownKeyRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidOptionsUnknownKeyPayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidOptionsUnknownKeyPayload.error.message, /options supports only theme/i);
+
+    const invalidThemeTypeRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: "invalid-export-options-key-3", options: { theme: 1234 } },
+    });
+    assert.equal(invalidThemeTypeRes.statusCode, 400);
+    const invalidThemeTypePayload = invalidThemeTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidThemeTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidThemeTypePayload.error.message, /options.theme must be LIGHT\|DARK/i);
+
+    const invalidThemeValueRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: "invalid-export-options-key-4", options: { theme: "blue" } },
+    });
+    assert.equal(invalidThemeValueRes.statusCode, 400);
+    const invalidThemeValuePayload = invalidThemeValueRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidThemeValuePayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidThemeValuePayload.error.message, /options.theme must be LIGHT\|DARK/i);
+
     const invalidFormatsTypeRes = await app.inject({
       method: "POST",
       url: `/api/items/${itemId}/export`,
@@ -1263,6 +1303,62 @@ test("export rejects unsupported formats without mutating item status", async ()
     };
     assert.equal(itemAfterInvalid.item.status, "READY");
     assert.equal(itemAfterInvalid.failure, undefined);
+  } finally {
+    await app.close();
+  }
+});
+
+test("export accepts options.theme and persists normalized value", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-theme-options-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+    disablePngRender: true,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20request%20verifies%20export%20theme%20options%20normalization%20and%20persistence.",
+        title: "Export Theme Option",
+        domain: "example.export.theme.options",
+        source_type: "web",
+        intent_text: "verify export theme options are validated and persisted",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const exportRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: {
+        export_key: "export-theme-options-key-1",
+        formats: ["md"],
+        options: { theme: " dark " },
+      },
+    });
+    assert.equal(exportRes.statusCode, 200);
+    const exportPayload = exportRes.json() as {
+      export: {
+        payload: {
+          options?: { theme?: string };
+          files: Array<{ type: string }>;
+        };
+      };
+      idempotent_replay: boolean;
+    };
+    assert.equal(exportPayload.idempotent_replay, false);
+    assert.equal(exportPayload.export.payload.options?.theme, "DARK");
+    assert.deepEqual(
+      exportPayload.export.payload.files.map((x) => x.type),
+      ["md"],
+    );
   } finally {
     await app.close();
   }

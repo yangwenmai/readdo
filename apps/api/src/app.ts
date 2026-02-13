@@ -1874,6 +1874,27 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     ) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "formats must be a string or an array of strings when provided"));
     }
+    if (body.options !== undefined && !isObjectRecord(body.options)) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "options must be an object when provided"));
+    }
+    const exportOptionsPayload = isObjectRecord(body.options) ? body.options : undefined;
+    if (exportOptionsPayload) {
+      const unknownOptionKey = Object.keys(exportOptionsPayload).find((key) => !["theme"].includes(key));
+      if (unknownOptionKey) {
+        return reply.status(400).send(failure("VALIDATION_ERROR", "options supports only theme"));
+      }
+    }
+    if (exportOptionsPayload?.theme !== undefined && typeof exportOptionsPayload.theme !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "options.theme must be LIGHT|DARK"));
+    }
+    const exportThemeRaw = typeof exportOptionsPayload?.theme === "string" ? exportOptionsPayload.theme.trim().toUpperCase() : undefined;
+    if (exportOptionsPayload?.theme !== undefined && !exportThemeRaw) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "options.theme must be LIGHT|DARK"));
+    }
+    if (exportThemeRaw && !["LIGHT", "DARK"].includes(exportThemeRaw)) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "options.theme must be LIGHT|DARK"));
+    }
+    const exportTheme = exportThemeRaw as "LIGHT" | "DARK" | undefined;
     const requestedCardVersion = typeof body.card_version === "number" ? body.card_version : undefined;
     const headerExportRaw = request.headers["idempotency-key"];
     const headerExportKey = normalizeIdempotencyHeaderKey(headerExportRaw);
@@ -1990,9 +2011,18 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     };
     const files: Array<{ type: "png" | "md" | "caption"; path: string; created_at: string }> = [];
     let pngErrorMessage: string | undefined;
+    const cardForRender = exportTheme
+      ? {
+          ...card,
+          render_spec: {
+            ...(card.render_spec ?? {}),
+            theme: exportTheme,
+          },
+        }
+      : card;
 
     if (formats.includes("png")) {
-      const pngResult = await tryRenderPngFromCard(root, id, card, { disabled: disablePngRender });
+      const pngResult = await tryRenderPngFromCard(root, id, cardForRender, { disabled: disablePngRender });
       if (pngResult.path) {
         files.push({ type: "png", path: pngResult.path, created_at: nowIso() });
       } else {
@@ -2064,6 +2094,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       files,
       export_key: exportKey,
       ...(usedCardVersion ? { card_version: usedCardVersion } : {}),
+      ...(exportTheme ? { options: { theme: exportTheme } } : {}),
       renderer: {
         name: files.some((x) => x.type === "png") ? "playwright-html-v1" : "markdown-caption-fallback",
         version: "0.1.0",

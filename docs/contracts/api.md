@@ -816,6 +816,8 @@ Headers:
 * `export_key` 若提供，必须是字符串
 * `formats` 若提供，必须是逗号分隔字符串，或“全部元素均为字符串”的数组；并且值仅能为 `png | md | caption`，为空或包含其他值返回 `400 VALIDATION_ERROR`
 * `card_version` 若提供，必须为整数且 `>=1`；若指定版本不存在返回 `404 NOT_FOUND`
+* `options` 若提供，必须是对象；当前仅支持 `theme` 键
+* `options.theme` 若提供，必须是字符串；服务端按 `trim + upper-case` 后校验 `LIGHT|DARK`
 * 若指定 `card_version` 对应 payload 损坏（非法或非对象），返回 `500 DATA_CORRUPTION`
 * 若同时提供 `Idempotency-Key` 与 `export_key`，两者必须一致；不一致返回 `400 VALIDATION_ERROR`
 * 若 `Idempotency-Key` 被代理合并为逗号分隔值，服务端按“首个非空片段”解析
@@ -830,6 +832,7 @@ Headers:
     "version": 1,
     "payload": {
       "card_version": 1,
+      "options": { "theme": "DARK" },
       "files": [
         { "type": "png", "path": "exports/itm_.../card_v1.png" },
         { "type": "md", "path": "exports/itm_.../card_v1.md" },
