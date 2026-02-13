@@ -3890,6 +3890,81 @@ test("item artifact reads degrade malformed artifact meta_json to empty object",
   }
 });
 
+test("export falls back to previous valid card when latest card payload is malformed", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-card-fallback-"));
+  const dbPath = join(dbDir, "readdo.db");
+  const app = await createApp({
+    dbPath,
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20content%20is%20used%20to%20verify%20export%20fallback%20when%20latest%20card%20payload%20is%20malformed.",
+        title: "Export Card Fallback",
+        domain: "example.export.card.fallback",
+        source_type: "web",
+        intent_text: "verify export can fallback to previous valid card payload",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const detailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}`,
+    });
+    assert.equal(detailRes.statusCode, 200);
+    const detailPayload = detailRes.json() as {
+      artifacts: {
+        card: {
+          payload: Record<string, unknown>;
+        };
+      };
+    };
+
+    const duplicateCardRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/artifacts/card`,
+      payload: { payload: detailPayload.artifacts.card.payload },
+    });
+    assert.equal(duplicateCardRes.statusCode, 201);
+
+    const db = new DatabaseSync(dbPath);
+    try {
+      db.prepare("UPDATE artifacts SET payload_json = ? WHERE item_id = ? AND artifact_type = 'card' AND version = 2").run(
+        "{bad-json",
+        itemId,
+      );
+    } finally {
+      db.close();
+    }
+
+    const exportRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: "exp-card-fallback", formats: ["md"] },
+    });
+    assert.equal(exportRes.statusCode, 200);
+    const exportPayload = exportRes.json() as {
+      item: { status: string };
+      idempotent_replay: boolean;
+      export: { payload: { files: Array<{ type: string }> } };
+    };
+    assert.equal(exportPayload.item.status, "SHIPPED");
+    assert.equal(exportPayload.idempotent_replay, false);
+    assert.ok(exportPayload.export.payload.files.some((x) => x.type === "md"));
+  } finally {
+    await app.close();
+  }
+});
+
 test("items endpoints tolerate malformed legacy failure_json payloads", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-legacy-failure-json-"));
   const dbPath = join(dbDir, "readdo.db");
