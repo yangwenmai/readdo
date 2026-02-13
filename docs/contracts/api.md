@@ -782,11 +782,13 @@ Headers:
         { "type": "caption", "path": "exports/itm_.../caption_v1.txt" }
       ]
     }
-  }
+  },
+  "idempotent_replay": false
 }
 ```
 
 > `path` 为本地文件路径（MVP）；未来可扩展为 blob/url。
+> 若命中历史 `export_key` 重放，则 `idempotent_replay=true` 且返回历史导出 payload，不创建新版本。
 
 ### 8.5 错误
 

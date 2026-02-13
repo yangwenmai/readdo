@@ -1520,6 +1520,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
               artifact_type: "export",
               payload,
             },
+            idempotent_replay: true,
           };
         }
       } catch {
@@ -1640,6 +1641,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
         artifact_type: "export",
         payload: exportPayload,
       },
+      idempotent_replay: false,
     };
   });
 

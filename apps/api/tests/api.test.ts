@@ -56,10 +56,49 @@ test("capture -> worker -> ready -> export", async () => {
     const exportBody = exportRes.json() as {
       item: { status: string };
       export: { payload: { files: Array<{ type: string }> } };
+      idempotent_replay: boolean;
     };
     assert.equal(exportBody.item.status, "SHIPPED");
+    assert.equal(exportBody.idempotent_replay, false);
     assert.ok(exportBody.export.payload.files.some((x) => x.type === "md"));
     assert.ok(exportBody.export.payload.files.some((x) => x.type === "caption"));
+
+    const historyBeforeReplayRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${captureBody.item.id}?include_history=true`,
+    });
+    assert.equal(historyBeforeReplayRes.statusCode, 200);
+    const historyBeforeReplay = historyBeforeReplayRes.json() as {
+      artifact_history: {
+        export: Array<{ version: number }>;
+      };
+    };
+    const exportVersionCountBeforeReplay = historyBeforeReplay.artifact_history.export.length;
+
+    const replayRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${captureBody.item.id}/export`,
+      payload: { export_key: "exp-key-1", formats: ["png", "md", "caption"] },
+    });
+    assert.equal(replayRes.statusCode, 200);
+    const replayBody = replayRes.json() as {
+      idempotent_replay: boolean;
+      export: { payload: { export_key: string } };
+    };
+    assert.equal(replayBody.idempotent_replay, true);
+    assert.equal(replayBody.export.payload.export_key, "exp-key-1");
+
+    const historyAfterReplayRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${captureBody.item.id}?include_history=true`,
+    });
+    assert.equal(historyAfterReplayRes.statusCode, 200);
+    const historyAfterReplay = historyAfterReplayRes.json() as {
+      artifact_history: {
+        export: Array<{ version: number }>;
+      };
+    };
+    assert.equal(historyAfterReplay.artifact_history.export.length, exportVersionCountBeforeReplay);
   } finally {
     await app.close();
   }
