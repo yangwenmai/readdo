@@ -1516,9 +1516,11 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     if (!["priority_score_desc", "created_desc", "updated_desc"].includes(sort)) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "sort must be priority_score_desc|created_desc|updated_desc"));
     }
-    const limitRaw = Number(query.limit ?? 20);
+    const limitRaw =
+      typeof query.limit === "string" ? (query.limit.trim() ? Number(query.limit.trim()) : Number.NaN) : Number(query.limit ?? 20);
     const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 100) : 20;
-    const offsetRaw = Number(query.offset ?? 0);
+    const offsetRaw =
+      typeof query.offset === "string" ? (query.offset.trim() ? Number(query.offset.trim()) : Number.NaN) : Number(query.offset ?? 0);
     const requestedOffset = Number.isInteger(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
     const whereParts: string[] = [];
     const params: Array<string | number | null> = [];

@@ -2750,6 +2750,14 @@ test("items endpoint supports status and query filtering", async () => {
     const limitInvalidItems = (limitInvalidRes.json() as { items: Array<{ id: string }> }).items;
     assert.ok(limitInvalidItems.length >= 2);
 
+    const limitBlankRes = await app.inject({
+      method: "GET",
+      url: "/api/items?limit=%20%20%20",
+    });
+    assert.equal(limitBlankRes.statusCode, 200);
+    const limitBlankItems = (limitBlankRes.json() as { items: Array<{ id: string }> }).items;
+    assert.ok(limitBlankItems.length >= 2);
+
     const limitFloatRes = await app.inject({
       method: "GET",
       url: "/api/items?limit=1.5",

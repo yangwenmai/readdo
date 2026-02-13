@@ -466,9 +466,9 @@ Headers:
 
   * 默认：`priority_score_desc`
   * 非法值返回 `400 VALIDATION_ERROR`
-* `offset`：可选，默认 0；负值或非法值按 0 处理
+* `offset`：可选，默认 0；负值、空白值或非法值按 0 处理
 * `cursor`：分页游标（可选）
-* `limit`：默认 20，范围 `1..100`；非法值回退为默认值 20
+* `limit`：默认 20，范围 `1..100`；空白值或非法值回退为默认值 20
 
 > `retryable` / `failure_step` 过滤在返回前生效（不会因为默认排序与 limit 截断而漏掉匹配项）。
 
