@@ -35,6 +35,8 @@ const queueBatchLabels = {
 };
 const queueSpotlightBadgeText = "Aha Now";
 const queueNudgeFocusLabel = "Focus Recommended Item";
+const queueRecoveryCopyLabel = "Copy Recovery Summary";
+const queueRecoveryClearLabel = "Clear Radar";
 
 const html = `<!doctype html>
 <html lang="en">
@@ -529,6 +531,17 @@ const html = `<!doctype html>
         background: #ffffff;
         color: #334155;
       }
+      .recovery-radar-actions {
+        margin-top: 8px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .recovery-radar-actions button.secondary {
+        border-color: #dbe2ea;
+        background: #ffffff;
+        color: #334155;
+      }
       .legend-item {
         border: 1px solid #dbe2ea;
         border-radius: 999px;
@@ -946,6 +959,10 @@ const html = `<!doctype html>
             <h4>Recovery Radar</h4>
             <span class="muted">No recovery runs yet.</span>
           </div>
+          <div class="recovery-radar-actions">
+            <button type="button" disabled>${queueRecoveryCopyLabel}</button>
+            <button type="button" class="secondary" disabled>${queueRecoveryClearLabel}</button>
+          </div>
         </div>
         <div id="focusChips" class="focus-chips">
           <button type="button" class="focus-chip active" data-focus="all">All</button>
@@ -977,6 +994,8 @@ const html = `<!doctype html>
       const QUEUE_BATCH_LABELS = ${JSON.stringify(queueBatchLabels)};
       const QUEUE_SPOTLIGHT_BADGE_TEXT = ${JSON.stringify(queueSpotlightBadgeText)};
       const QUEUE_NUDGE_FOCUS_LABEL = ${JSON.stringify(queueNudgeFocusLabel)};
+      const QUEUE_RECOVERY_COPY_LABEL = ${JSON.stringify(queueRecoveryCopyLabel)};
+      const QUEUE_RECOVERY_CLEAR_LABEL = ${JSON.stringify(queueRecoveryClearLabel)};
       const inboxEl = document.getElementById("inbox");
       const detailEl = document.getElementById("detail");
       const detailModeChipsEl = document.getElementById("detailModeChips");
@@ -1024,6 +1043,7 @@ const html = `<!doctype html>
       let autoRefreshTimer = null;
       let previewContinuation = null;
       let detailAdvancedEnabled = false;
+      let latestRecoverySummary = null;
       const controlsStorageKey = "readdo.web.controls.v1";
       const defaultCollapsedGroups = {
         read_next: false,
@@ -1400,11 +1420,29 @@ const html = `<!doctype html>
         list.push(normalized);
       }
 
+      async function copyRecoverySummary(summary) {
+        if (!summary) return false;
+        try {
+          await navigator.clipboard.writeText(JSON.stringify(summary, null, 2));
+          errorEl.textContent = "Copied recovery summary.";
+          return true;
+        } catch {
+          errorEl.textContent = "Copy recovery summary failed.";
+          return false;
+        }
+      }
+
       function renderRecoveryRadar(summary = null) {
         if (!recoveryRadarEl) return;
         if (!summary) {
           recoveryRadarEl.innerHTML =
-            '<div class="recovery-radar-head"><h4>Recovery Radar</h4><span class="muted">No recovery runs yet.</span></div>';
+            '<div class="recovery-radar-head"><h4>Recovery Radar</h4><span class="muted">No recovery runs yet.</span></div>' +
+            '<div class="recovery-radar-actions">' +
+            '<button type="button" disabled>' +
+            QUEUE_RECOVERY_COPY_LABEL +
+            '</button><button type="button" class="secondary" disabled>' +
+            QUEUE_RECOVERY_CLEAR_LABEL +
+            "</button></div>";
           return;
         }
         const totals = summary.totals || {};
@@ -1425,7 +1463,13 @@ const html = `<!doctype html>
           '</div></div>' +
           '<div class="cell"><div class="label">Failed</div><div class="value">' +
           (totals.failed ?? 0) +
-          "</div></div></div>";
+          "</div></div></div>" +
+          '<div class="recovery-radar-actions">' +
+          '<button type="button" id="copyRecoverySummaryBtn">' +
+          QUEUE_RECOVERY_COPY_LABEL +
+          '</button><button type="button" class="secondary" id="clearRecoverySummaryBtn">' +
+          QUEUE_RECOVERY_CLEAR_LABEL +
+          "</button></div>";
 
         const stepDefs = [
           { key: "extract", label: "extract" },
@@ -1491,6 +1535,20 @@ const html = `<!doctype html>
           stepGrid.appendChild(cell);
         }
         recoveryRadarEl.appendChild(stepGrid);
+        const copyBtn = recoveryRadarEl.querySelector("#copyRecoverySummaryBtn");
+        copyBtn?.addEventListener("click", async () => {
+          await copyRecoverySummary(summary);
+        });
+        const clearBtn = recoveryRadarEl.querySelector("#clearRecoverySummaryBtn");
+        clearBtn?.addEventListener("click", () => {
+          latestRecoverySummary = null;
+          renderRecoveryRadar(null);
+        });
+      }
+
+      function setLatestRecoverySummary(summary) {
+        latestRecoverySummary = summary;
+        renderRecoveryRadar(summary);
       }
 
       function lastAttemptRetryCandidates(items) {
@@ -1757,7 +1815,7 @@ const html = `<!doctype html>
                 ", failed=" +
                 result.failed +
                 ".";
-              renderRecoveryRadar({
+              setLatestRecoverySummary({
                 label: "Rescue Last Retry",
                 totals: {
                   targeted: result.targeted ?? candidates.length,
@@ -3949,7 +4007,7 @@ const html = `<!doctype html>
           afterExecute: async (batchRes) => {
             const exportSummary = await exportItemsForRetry(batchRes.eligible_export_item_ids);
             renderRetryBatchDoneOutput(batchRes, exportSummary);
-            renderRecoveryRadar({
+            setLatestRecoverySummary({
               label: "Batch Retry Flow",
               totals: {
                 targeted: Number(batchRes.eligible_pipeline ?? 0) + Number(batchRes.eligible_export ?? 0),
