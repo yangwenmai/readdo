@@ -259,13 +259,21 @@ function normalizeIdempotencyKey(rawValue: unknown): string {
 }
 
 function normalizeIdempotencyHeaderKey(rawValue: unknown): string {
-  const key = normalizeIdempotencyKey(rawValue);
-  if (!key.includes(",")) return key;
-  const segments = key
+  if (Array.isArray(rawValue)) {
+    for (const entry of rawValue) {
+      if (entry == null) continue;
+      const segments = String(entry)
+        .split(",")
+        .map((segment) => segment.trim())
+        .filter(Boolean);
+      if (segments[0]) return segments[0];
+    }
+    return "";
+  }
+  return String(rawValue ?? "")
     .split(",")
     .map((segment) => segment.trim())
-    .filter(Boolean);
-  return segments[0] ?? "";
+    .filter(Boolean)[0] ?? "";
 }
 
 function normalizeCaptureIdempotencyKey(rawValue: unknown, fromHeader = false): string {

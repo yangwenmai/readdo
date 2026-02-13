@@ -538,6 +538,50 @@ test("capture accepts comma-joined idempotency header values by using first key"
   }
 });
 
+test("capture uses first non-empty key from idempotency header array entries", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-capture-idempotent-header-array-fallback-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureKey = "capture-header-array-fallback-key-1";
+
+    const firstCaptureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      headers: { "Idempotency-Key": [",", captureKey] },
+      payload: {
+        url: "https://example.com/header-array-fallback",
+        source_type: "web",
+        intent_text: "capture using non-empty header fallback",
+      },
+    });
+    assert.equal(firstCaptureRes.statusCode, 201);
+    const firstPayload = firstCaptureRes.json() as { item: { id: string }; idempotent_replay: boolean };
+    assert.equal(firstPayload.idempotent_replay, false);
+
+    const replayCaptureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      headers: { "Idempotency-Key": captureKey },
+      payload: {
+        url: "https://example.com/header-array-fallback?utm_source=changed",
+        source_type: "web",
+        intent_text: "a different intent should still replay because header key is explicit",
+      },
+    });
+    assert.equal(replayCaptureRes.statusCode, 201);
+    const replayPayload = replayCaptureRes.json() as { item: { id: string }; idempotent_replay: boolean };
+    assert.equal(replayPayload.idempotent_replay, true);
+    assert.equal(replayPayload.item.id, firstPayload.item.id);
+  } finally {
+    await app.close();
+  }
+});
+
 test("export idempotency replays old export_key beyond recent window", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-idempotent-"));
   const app = await createApp({
@@ -827,6 +871,55 @@ test("export accepts comma-joined idempotency header values by using first key",
       url: `/api/items/${itemId}/export`,
       headers: { "Idempotency-Key": "export-header-comma-key-1" },
       payload: { export_key: "export-header-comma-key-1", formats: ["md"] },
+    });
+    assert.equal(replayRes.statusCode, 200);
+    const replayPayload = replayRes.json() as { idempotent_replay: boolean };
+    assert.equal(replayPayload.idempotent_replay, true);
+  } finally {
+    await app.close();
+  }
+});
+
+test("export uses first non-empty key from idempotency header array entries", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-idempotent-header-array-fallback-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20content%20verifies%20header-array%20fallback%20for%20export%20idempotency.",
+        title: "Export Header Array Fallback",
+        domain: "example.export.header.array.fallback",
+        source_type: "web",
+        intent_text: "verify export header array fallback behavior",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+    await app.runWorkerOnce();
+
+    const exportKey = "export-header-array-fallback-key-1";
+    const firstRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      headers: { "Idempotency-Key": [",", exportKey] },
+      payload: { formats: ["md"] },
+    });
+    assert.equal(firstRes.statusCode, 200);
+    const firstPayload = firstRes.json() as { idempotent_replay: boolean };
+    assert.equal(firstPayload.idempotent_replay, false);
+
+    const replayRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      headers: { "Idempotency-Key": exportKey },
+      payload: { formats: ["md"] },
     });
     assert.equal(replayRes.statusCode, 200);
     const replayPayload = replayRes.json() as { idempotent_replay: boolean };
@@ -1183,6 +1276,56 @@ test("process accepts comma-joined idempotency header values by using first key"
       url: `/api/items/${itemId}/process`,
       headers: { "Idempotency-Key": "process-header-comma-key-1" },
       payload: { mode: "REGENERATE", process_request_id: "process-header-comma-key-1" },
+    });
+    assert.equal(replayProcessRes.statusCode, 202);
+    const replayPayload = replayProcessRes.json() as { idempotent_replay: boolean };
+    assert.equal(replayPayload.idempotent_replay, true);
+  } finally {
+    await app.close();
+  }
+});
+
+test("process uses first non-empty key from idempotency header array entries", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-idempotent-header-array-fallback-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20content%20is%20used%20to%20verify%20header-array%20fallback%20for%20process%20idempotency.",
+        title: "Process Header Array Fallback",
+        domain: "example.process.header.array.fallback",
+        source_type: "web",
+        intent_text: "validate process header array fallback behavior",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const processKey = "process-header-array-fallback-key-1";
+    const firstProcessRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      headers: { "Idempotency-Key": [",", processKey] },
+      payload: { mode: "REGENERATE" },
+    });
+    assert.equal(firstProcessRes.statusCode, 202);
+    const firstPayload = firstProcessRes.json() as { idempotent_replay: boolean };
+    assert.equal(firstPayload.idempotent_replay, false);
+
+    const replayProcessRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      headers: { "Idempotency-Key": processKey },
+      payload: { mode: "REGENERATE" },
     });
     assert.equal(replayProcessRes.statusCode, 202);
     const replayPayload = replayProcessRes.json() as { idempotent_replay: boolean };

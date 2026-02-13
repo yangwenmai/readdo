@@ -93,6 +93,7 @@ UI 提供 `Preview Next` 按钮，可直接基于 `next_offset` 连续翻页预�
 > API 在 capture 入库前也会做 URL 规范化（移除 credentials/hash/常见跟踪参数、移除默认端口和 hostname 尾点、稳定排序 query），用于统一存储形态。
 > 即使调用方未显式提供 `Idempotency-Key/capture_id`，API 也会基于“规范化 url + 规范化 intent_text”推导稳定 capture key（与 extension `stableCaptureKey` 格式对齐），减少重复 capture。
 > 对 `extcap_` 形态的 capture 幂等键，API 会按大小写不敏感处理，减少跨调用方大小写差异导致的重复请求。
+> 当 `Idempotency-Key` 被代理合并为逗号分隔值（含前导空片段）时，API 会按首个非空片段解析，确保 capture/process/export 的幂等语义一致。
 > 为避免无效请求，扩展仅允许在 `http/https` 页面发起捕获（`chrome://`、`file://` 等会在前端直接提示不支持）。
 > API 层仍允许 `data:` URL（主要用于本地测试与回归用例），因此自动化测试中会看到 `data:text/plain,...` 的捕获样例。
 
