@@ -135,6 +135,14 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Aha Storyline/u);
     assert.match(text, /Storyline:/u);
     assert.match(text, /Lead #/u);
+    assert.match(text, /nudge-duel/u);
+    assert.match(text, /Aha Duel/u);
+    assert.match(text, /Duel:/u);
+    assert.match(text, /Open Rival/u);
+    assert.match(text, /Copy Duel/u);
+    assert.match(text, /gap /u);
+    assert.match(text, /lead→/u);
+    assert.match(text, /rival→/u);
     assert.match(text, /Momentum/u);
     assert.match(text, /Heating \+/u);
     assert.match(text, /Cooling -/u);

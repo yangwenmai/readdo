@@ -91,6 +91,9 @@ const queueNudgeHeatMomentumPrefix = "Momentum";
 const queueNudgeHeatTrendLabel = "Momentum Trend";
 const queueNudgeHeatTrendSeriesLabel = "Hot+Strong";
 const queueNudgeStoryLabel = "Aha Storyline";
+const queueNudgeDuelLabel = "Aha Duel";
+const queueNudgeOpenRivalLabel = "Open Rival";
+const queueNudgeCopyDuelLabel = "Copy Duel";
 const queueLeadGapLabelPrefix = "Lead Gap";
 const detailStoryLabel = "Queue Storyline";
 const detailStoryOpenLeadPrefix = "Open Lead";
@@ -1389,6 +1392,26 @@ const html = `<!doctype html>
         color: #334155;
         font-weight: 700;
       }
+      .aha-nudge .nudge-duel {
+        margin-top: 8px;
+        border-top: 1px dashed rgba(148, 163, 184, 0.45);
+        padding-top: 8px;
+        display: grid;
+        gap: 6px;
+      }
+      .aha-nudge .nudge-duel .label {
+        font-size: 11px;
+        color: #334155;
+        font-weight: 700;
+      }
+      .aha-nudge .nudge-duel .body {
+        font-size: 12px;
+        color: #1e293b;
+        line-height: 1.42;
+      }
+      .aha-nudge .nudge-duel .actions {
+        margin-top: 0;
+      }
       .aha-nudge .nudge-heat-chip.tone-hot {
         border-color: #86efac;
         background: #ecfdf5;
@@ -1852,6 +1875,9 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_HEAT_TREND_LABEL = ${JSON.stringify(queueNudgeHeatTrendLabel)};
       const QUEUE_NUDGE_HEAT_TREND_SERIES_LABEL = ${JSON.stringify(queueNudgeHeatTrendSeriesLabel)};
       const QUEUE_NUDGE_STORY_LABEL = ${JSON.stringify(queueNudgeStoryLabel)};
+      const QUEUE_NUDGE_DUEL_LABEL = ${JSON.stringify(queueNudgeDuelLabel)};
+      const QUEUE_NUDGE_OPEN_RIVAL_LABEL = ${JSON.stringify(queueNudgeOpenRivalLabel)};
+      const QUEUE_NUDGE_COPY_DUEL_LABEL = ${JSON.stringify(queueNudgeCopyDuelLabel)};
       const QUEUE_LEAD_GAP_LABEL_PREFIX = ${JSON.stringify(queueLeadGapLabelPrefix)};
       const DETAIL_STORY_LABEL = ${JSON.stringify(detailStoryLabel)};
       const DETAIL_STORY_OPEN_LEAD_PREFIX = ${JSON.stringify(detailStoryOpenLeadPrefix)};
@@ -2746,6 +2772,39 @@ const html = `<!doctype html>
           );
         }
         return "Current item is outside the active Aha pool. Lead is #" + top.id + " (" + topMeta.value + "). " + story;
+      }
+
+      function ahaDuelText(poolItems) {
+        const ranked = sortedAhaItems(poolItems);
+        if (ranked.length < 2) return "";
+        const lead = ranked[0];
+        const rival = ranked[1];
+        const leadMeta = ahaIndexMetaForItem(lead);
+        const rivalMeta = ahaIndexMetaForItem(rival);
+        const gap = Math.max(leadMeta.value - rivalMeta.value, 0);
+        const leadAction = primaryActionForItem(lead)?.label || "No action";
+        const rivalAction = primaryActionForItem(rival)?.label || "No action";
+        return (
+          "Duel: #" +
+          lead.id +
+          " (" +
+          leadMeta.value +
+          ", " +
+          leadMeta.note +
+          ") vs #" +
+          rival.id +
+          " (" +
+          rivalMeta.value +
+          ", " +
+          rivalMeta.note +
+          ") · gap " +
+          gap +
+          " · lead→" +
+          leadAction +
+          " · rival→" +
+          rivalAction +
+          "."
+        );
       }
 
       function ahaRankForItem(item, poolItems = null) {
@@ -4507,6 +4566,34 @@ const html = `<!doctype html>
             storyEl.appendChild(storyBodyEl);
             ahaNudgeEl.appendChild(storyEl);
           }
+          if (ahaPool.length > 1) {
+            const duelText = ahaDuelText(ahaPool);
+            if (duelText) {
+              const duelEl = document.createElement("div");
+              duelEl.className = "nudge-duel";
+              duelEl.innerHTML = '<span class="label">' + QUEUE_NUDGE_DUEL_LABEL + '</span><span class="body">' + duelText + "</span>";
+              const actionsEl = document.createElement("div");
+              actionsEl.className = "actions";
+              const openRivalBtn = document.createElement("button");
+              openRivalBtn.type = "button";
+              openRivalBtn.className = "secondary";
+              openRivalBtn.textContent = QUEUE_NUDGE_OPEN_RIVAL_LABEL;
+              openRivalBtn.addEventListener("click", async () => {
+                await runOpenAhaRivalAction(openRivalBtn);
+              });
+              actionsEl.appendChild(openRivalBtn);
+              const copyDuelBtn = document.createElement("button");
+              copyDuelBtn.type = "button";
+              copyDuelBtn.className = "secondary";
+              copyDuelBtn.textContent = QUEUE_NUDGE_COPY_DUEL_LABEL;
+              copyDuelBtn.addEventListener("click", async () => {
+                await runCopyAhaDuelAction(copyDuelBtn);
+              });
+              actionsEl.appendChild(copyDuelBtn);
+              duelEl.appendChild(actionsEl);
+              ahaNudgeEl.appendChild(duelEl);
+            }
+          }
           const poolEl = document.createElement("div");
           poolEl.className = "nudge-pool muted";
           poolEl.textContent =
@@ -6261,6 +6348,55 @@ const html = `<!doctype html>
               if (!copied) {
                 throw new Error("Copy Aha story failed.");
               }
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
+      async function runCopyAhaDuelAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_copy_aha_duel",
+            label: "Copy Aha Duel",
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const pool = visibleItems.length ? visibleItems : allItems;
+              const duel = ahaDuelText(pool);
+              if (!duel) {
+                errorEl.textContent = "Aha duel is unavailable under current filters.";
+                return;
+              }
+              const copied = await copyTextToClipboard(duel, {
+                success: "Copied Aha duel.",
+                failure: "Copy Aha duel failed.",
+              });
+              if (!copied) {
+                throw new Error("Copy Aha duel failed.");
+              }
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
+      async function runOpenAhaRivalAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_open_aha_rival",
+            label: "Open Aha Rival",
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const pool = visibleItems.length ? visibleItems : allItems;
+              const rival = topAhaCandidates(pool, 2)[1] || null;
+              if (!rival) {
+                errorEl.textContent = "No rival candidate available.";
+                return;
+              }
+              await selectItem(rival.id);
+              focusQueueItemCard(rival.id, { revealCollapsed: true });
+              const meta = ahaIndexMetaForItem(rival);
+              errorEl.textContent = "Opened rival candidate #" + rival.id + " (" + meta.value + ").";
             },
           },
           { button, localFeedbackEl: queueActionBannerEl },
