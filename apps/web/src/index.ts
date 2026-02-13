@@ -2875,6 +2875,22 @@ const html = `<!doctype html>
         }
       }
 
+      function bindQueueBatchAction(config) {
+        const button = config.button;
+        button.addEventListener("click", async () => {
+          await runQueueBatchAction(
+            {
+              id: config.id,
+              label: config.label,
+              action: async () => {
+                await withActionError(config.errorPrefix, config.run);
+              },
+            },
+            button,
+          );
+        });
+      }
+
       [
         {
           button: previewArchiveBtn,
@@ -2901,58 +2917,48 @@ const html = `<!doctype html>
         bindPreviewAction(config);
       });
 
-      retryFailedBtn.addEventListener("click", async () => {
-        await runQueueBatchAction(
-          {
-            id: "queue_retry_failed",
-            label: "Retry Failed Batch",
-            action: async () => {
-              await withActionError("Retry failed batch action failed: ", async () => {
-                clearPreviewState();
-                const previewRes = await loadBatchPreview("retry");
-                const eligiblePipeline = Number(previewRes.eligible_pipeline ?? 0);
-                const eligibleExport = Number(previewRes.eligible_export ?? 0);
-                if (eligiblePipeline <= 0 && eligibleExport <= 0) {
-                  renderRetryNoEligibleOutput(previewRes);
-                  return;
-                }
-                const confirmed = confirm(buildRetryBatchConfirmMessage(previewRes, eligiblePipeline, eligibleExport));
-                if (!handleBatchConfirmation(confirmed, "Retry failed action cancelled.")) return;
-                errorEl.textContent = "Retrying failed items...";
-                const batchRes = await executeBatchByKind("retry");
-                const exportSummary = await exportItemsForRetry(batchRes.eligible_export_item_ids);
-                renderRetryBatchDoneOutput(batchRes, exportSummary);
-              });
-            },
-          },
-          retryFailedBtn,
-        );
+      bindQueueBatchAction({
+        button: retryFailedBtn,
+        id: "queue_retry_failed",
+        label: "Retry Failed Batch",
+        errorPrefix: "Retry failed batch action failed: ",
+        run: async () => {
+          clearPreviewState();
+          const previewRes = await loadBatchPreview("retry");
+          const eligiblePipeline = Number(previewRes.eligible_pipeline ?? 0);
+          const eligibleExport = Number(previewRes.eligible_export ?? 0);
+          if (eligiblePipeline <= 0 && eligibleExport <= 0) {
+            renderRetryNoEligibleOutput(previewRes);
+            return;
+          }
+          const confirmed = confirm(buildRetryBatchConfirmMessage(previewRes, eligiblePipeline, eligibleExport));
+          if (!handleBatchConfirmation(confirmed, "Retry failed action cancelled.")) return;
+          errorEl.textContent = "Retrying failed items...";
+          const batchRes = await executeBatchByKind("retry");
+          const exportSummary = await exportItemsForRetry(batchRes.eligible_export_item_ids);
+          renderRetryBatchDoneOutput(batchRes, exportSummary);
+        },
       });
 
-      archiveBlockedBtn.addEventListener("click", async () => {
-        await runQueueBatchAction(
-          {
-            id: "queue_archive_failed",
-            label: "Archive Failed Batch",
-            action: async () => {
-              await withActionError("Archive blocked failed: ", async () => {
-                clearPreviewState();
-                const preview = await loadBatchPreview("archive");
-                const eligible = Number(preview.eligible ?? 0);
-                if (!eligible) {
-                  renderArchiveNoEligibleOutput(preview);
-                  return;
-                }
-                renderArchivePreviewOutput(preview);
-                const confirmed = confirm(buildArchiveBatchConfirmMessage(preview, eligible));
-                if (!handleBatchConfirmation(confirmed, "Archive blocked action cancelled.")) return;
-                const result = await executeBatchByKind("archive");
-                renderArchiveBatchDoneOutput(result);
-              });
-            },
-          },
-          archiveBlockedBtn,
-        );
+      bindQueueBatchAction({
+        button: archiveBlockedBtn,
+        id: "queue_archive_failed",
+        label: "Archive Failed Batch",
+        errorPrefix: "Archive blocked failed: ",
+        run: async () => {
+          clearPreviewState();
+          const preview = await loadBatchPreview("archive");
+          const eligible = Number(preview.eligible ?? 0);
+          if (!eligible) {
+            renderArchiveNoEligibleOutput(preview);
+            return;
+          }
+          renderArchivePreviewOutput(preview);
+          const confirmed = confirm(buildArchiveBatchConfirmMessage(preview, eligible));
+          if (!handleBatchConfirmation(confirmed, "Archive blocked action cancelled.")) return;
+          const result = await executeBatchByKind("archive");
+          renderArchiveBatchDoneOutput(result);
+        },
       });
 
       previewNextBtn.addEventListener("click", async () => {
@@ -2983,29 +2989,24 @@ const html = `<!doctype html>
         );
       });
 
-      unarchiveBatchBtn.addEventListener("click", async () => {
-        await runQueueBatchAction(
-          {
-            id: "queue_unarchive_batch",
-            label: "Unarchive Batch",
-            action: async () => {
-              await withActionError("Unarchive batch failed: ", async () => {
-                clearPreviewState();
-                const preview = await loadBatchPreview("unarchive");
-                const eligible = Number(preview.eligible ?? 0);
-                if (!eligible) {
-                  renderUnarchiveNoEligibleOutput(preview);
-                  return;
-                }
-                const confirmed = confirm(buildUnarchiveBatchConfirmMessage(preview, eligible));
-                if (!handleBatchConfirmation(confirmed, "Unarchive action cancelled.")) return;
-                const result = await executeBatchByKind("unarchive");
-                renderUnarchiveBatchDoneOutput(result);
-              });
-            },
-          },
-          unarchiveBatchBtn,
-        );
+      bindQueueBatchAction({
+        button: unarchiveBatchBtn,
+        id: "queue_unarchive_batch",
+        label: "Unarchive Batch",
+        errorPrefix: "Unarchive batch failed: ",
+        run: async () => {
+          clearPreviewState();
+          const preview = await loadBatchPreview("unarchive");
+          const eligible = Number(preview.eligible ?? 0);
+          if (!eligible) {
+            renderUnarchiveNoEligibleOutput(preview);
+            return;
+          }
+          const confirmed = confirm(buildUnarchiveBatchConfirmMessage(preview, eligible));
+          if (!handleBatchConfirmation(confirmed, "Unarchive action cancelled.")) return;
+          const result = await executeBatchByKind("unarchive");
+          renderUnarchiveBatchDoneOutput(result);
+        },
       });
 
       archiveRetryableFilter.addEventListener("change", async () => {
