@@ -77,6 +77,13 @@ test("extractApiErrorMessage falls back to status code when body empty", () => {
   assert.equal(extractApiErrorMessage("", 500), "Capture failed: 500");
 });
 
+test("extractApiErrorMessage truncates long plain text responses", () => {
+  const longBody = "x".repeat(500);
+  const message = extractApiErrorMessage(longBody, 500);
+  assert.equal(message.length, "Capture failed: ".length + 200);
+  assert.match(message, /^Capture failed: x+$/);
+});
+
 test("stableCaptureKey is deterministic for same input", async () => {
   const a = await stableCaptureKey("https://example.com/path", "keep this");
   const b = await stableCaptureKey("https://example.com/path", "keep this");
