@@ -85,6 +85,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Click again to clear failed filter/u);
     assert.match(text, /Clear Step Focus/u);
     assert.match(text, /Clear Failed Filter/u);
+    assert.match(text, /Filter Context/u);
     assert.match(text, /aria-pressed=/u);
     assert.match(text, /id="recoveryRadarTimeline"/u);
     assert.match(text, /History keeps last 5 recovery runs/u);

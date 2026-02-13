@@ -44,6 +44,7 @@ const queueRecoveryNextLabel = "Next Run";
 const queueRecoveryLatestLabel = "Latest Run";
 const queueRecoveryClearStepLabel = "Clear Step Focus";
 const queueRecoveryClearFailedLabel = "Clear Failed Filter";
+const queueRecoveryContextLabel = "Filter Context";
 
 const html = `<!doctype html>
 <html lang="en">
@@ -641,6 +642,10 @@ const html = `<!doctype html>
         gap: 8px;
         flex-wrap: wrap;
       }
+      .recovery-radar-trend .trend-focus-hint .trend-focus-meta {
+        width: 100%;
+        color: #64748b;
+      }
       .recovery-radar-trend .trend-focus-hint button {
         padding: 3px 8px;
         border-radius: 8px;
@@ -1140,6 +1145,7 @@ const html = `<!doctype html>
       const QUEUE_RECOVERY_LATEST_LABEL = ${JSON.stringify(queueRecoveryLatestLabel)};
       const QUEUE_RECOVERY_CLEAR_STEP_LABEL = ${JSON.stringify(queueRecoveryClearStepLabel)};
       const QUEUE_RECOVERY_CLEAR_FAILED_LABEL = ${JSON.stringify(queueRecoveryClearFailedLabel)};
+      const QUEUE_RECOVERY_CONTEXT_LABEL = ${JSON.stringify(queueRecoveryContextLabel)};
       const RECOVERY_HISTORY_LIMIT = 5;
       const inboxEl = document.getElementById("inbox");
       const detailEl = document.getElementById("detail");
@@ -1732,6 +1738,20 @@ const html = `<!doctype html>
         return "Filter failed items by " + step + " step";
       }
 
+      function failedFilterContextSummary(step) {
+        const stepLabel = step === "unknown" ? "all" : step;
+        const retryableLabel = retryableFilter.value || "all";
+        const queryLabel = queryInput.value.trim() || "all";
+        return (
+          "status=FAILED_* · step=" +
+          stepLabel +
+          " · retryable=" +
+          retryableLabel +
+          " · q=" +
+          queryLabel
+        );
+      }
+
       function failedStepOfItem(item) {
         const rawStep = String(item?.failure?.failed_step || "").toLowerCase();
         if (rawStep === "extract" || rawStep === "pipeline" || rawStep === "export") return rawStep;
@@ -1868,9 +1888,14 @@ const html = `<!doctype html>
         const trend = recoveryTrendVsPrevious(activeSummary);
         const stepFailedDelta = recoveryStepFailedDeltaVsPrevious(activeSummary);
         const trendStatus = recoveryTrendStatusByDelta(trend);
+        const focusContext = activeStep ? failedFilterContextSummary(activeStep) : "";
         const focusHintHtml = activeStep
           ? '<div class="trend-focus-hint"><span>Step focus active: ' +
             activeStep +
+            '</span><span class="trend-focus-meta">' +
+            QUEUE_RECOVERY_CONTEXT_LABEL +
+            ": " +
+            focusContext +
             '</span><button type="button" id="clearTrendStepFocusBtn">' +
             (activeStep === "unknown" ? QUEUE_RECOVERY_CLEAR_FAILED_LABEL : QUEUE_RECOVERY_CLEAR_STEP_LABEL) +
             "</button></div>"
