@@ -1,5 +1,6 @@
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { validateSchema } from "@readdo/contracts";
 import { EngineProfile, runEngine } from "@readdo/core";
 import { PRIORITIES } from "@readdo/shared";
@@ -58,8 +59,7 @@ type CliOptions = {
   profile: EngineProfile;
 };
 
-function parseCliOptions(): CliOptions {
-  const args = process.argv.slice(2);
+export function parseCliOptions(args: string[] = process.argv.slice(2)): CliOptions {
   const values = new Map<string, string>();
   for (let i = 0; i < args.length; i += 1) {
     const current = args[i];
@@ -321,4 +321,7 @@ async function main(): Promise<void> {
   }
 }
 
-void main();
+const isEntrypoint = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+if (isEntrypoint) {
+  void main();
+}
