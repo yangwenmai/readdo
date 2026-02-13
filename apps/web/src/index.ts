@@ -2877,7 +2877,7 @@ const html = `<!doctype html>
         return { success, failed, replayed };
       }
 
-      async function runSimpleBatchFlow(config) {
+      async function runBatchFlow(config) {
         clearPreviewState();
         const preview = await loadBatchPreview(config.kind);
         const eligible = Number(
@@ -2892,25 +2892,45 @@ const html = `<!doctype html>
         }
         const confirmed = confirm(config.buildConfirm(preview, eligible));
         if (!handleBatchConfirmation(confirmed, config.cancelledMessage)) return;
+        if (typeof config.beforeExecute === "function") {
+          await config.beforeExecute(preview, eligible);
+        }
         const result = await executeBatchByKind(config.kind);
-        config.renderDone(result);
+        if (typeof config.afterExecute === "function") {
+          await config.afterExecute(result, preview, eligible);
+          return;
+        }
+        if (typeof config.renderDone === "function") {
+          config.renderDone(result);
+        }
+      }
+
+      function retryEligibleCounts(preview) {
+        const pipelineEligible = Number(preview.eligible_pipeline ?? 0);
+        const exportEligible = Number(preview.eligible_export ?? 0);
+        return { pipeline: pipelineEligible, exportable: exportEligible, total: pipelineEligible + exportEligible };
       }
 
       async function runRetryBatchFlow() {
-        clearPreviewState();
-        const previewRes = await loadBatchPreview("retry");
-        const eligiblePipeline = Number(previewRes.eligible_pipeline ?? 0);
-        const eligibleExport = Number(previewRes.eligible_export ?? 0);
-        if (eligiblePipeline <= 0 && eligibleExport <= 0) {
-          renderRetryNoEligibleOutput(previewRes);
-          return;
-        }
-        const confirmed = confirm(buildRetryBatchConfirmMessage(previewRes, eligiblePipeline, eligibleExport));
-        if (!handleBatchConfirmation(confirmed, queueActionCopy.batch_cancelled.retry)) return;
-        errorEl.textContent = "Retrying failed items...";
-        const batchRes = await executeBatchByKind("retry");
-        const exportSummary = await exportItemsForRetry(batchRes.eligible_export_item_ids);
-        renderRetryBatchDoneOutput(batchRes, exportSummary);
+        await runBatchFlow({
+          kind: "retry",
+          selectEligible: (preview) => {
+            return retryEligibleCounts(preview).total;
+          },
+          renderNoEligible: renderRetryNoEligibleOutput,
+          buildConfirm: (preview) => {
+            const eligible = retryEligibleCounts(preview);
+            return buildRetryBatchConfirmMessage(preview, eligible.pipeline, eligible.exportable);
+          },
+          cancelledMessage: queueActionCopy.batch_cancelled.retry,
+          beforeExecute: () => {
+            errorEl.textContent = "Retrying failed items...";
+          },
+          afterExecute: async (batchRes) => {
+            const exportSummary = await exportItemsForRetry(batchRes.eligible_export_item_ids);
+            renderRetryBatchDoneOutput(batchRes, exportSummary);
+          },
+        });
       }
 
       async function runQueueAction(op, options = {}) {
@@ -3137,9 +3157,7 @@ const html = `<!doctype html>
       }
 
       function createSimpleBatchRunner(config) {
-        return async () => {
-          await runSimpleBatchFlow(config);
-        };
+        return () => runBatchFlow(config);
       }
 
       function resolvePreviewContinuation() {
