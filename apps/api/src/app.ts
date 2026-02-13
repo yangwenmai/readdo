@@ -210,25 +210,26 @@ function sanitizeUrlForStorage(parsedUrl: URL): string {
   parsedUrl.username = "";
   parsedUrl.password = "";
   parsedUrl.hash = "";
-  if ((parsedUrl.protocol === "https:" && parsedUrl.port === "443") || (parsedUrl.protocol === "http:" && parsedUrl.port === "80")) {
+  const isWebLike = parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
+  if (isWebLike && ((parsedUrl.protocol === "https:" && parsedUrl.port === "443") || (parsedUrl.protocol === "http:" && parsedUrl.port === "80"))) {
     parsedUrl.port = "";
   }
-  if (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") {
+  if (isWebLike) {
     parsedUrl.hostname = normalizeHostname(parsedUrl.hostname);
-  }
-  for (const key of Array.from(parsedUrl.searchParams.keys())) {
-    if (shouldStripTrackingQueryKey(key)) {
-      parsedUrl.searchParams.delete(key);
+    for (const key of Array.from(parsedUrl.searchParams.keys())) {
+      if (shouldStripTrackingQueryKey(key)) {
+        parsedUrl.searchParams.delete(key);
+      }
     }
-  }
-  const sortedEntries = Array.from(parsedUrl.searchParams.entries()).sort(([aKey, aValue], [bKey, bValue]) => {
-    const keyCmp = aKey.localeCompare(bKey);
-    if (keyCmp !== 0) return keyCmp;
-    return aValue.localeCompare(bValue);
-  });
-  parsedUrl.search = "";
-  for (const [key, value] of sortedEntries) {
-    parsedUrl.searchParams.append(key, value);
+    const sortedEntries = Array.from(parsedUrl.searchParams.entries()).sort(([aKey, aValue], [bKey, bValue]) => {
+      const keyCmp = aKey.localeCompare(bKey);
+      if (keyCmp !== 0) return keyCmp;
+      return aValue.localeCompare(bValue);
+    });
+    parsedUrl.search = "";
+    for (const [key, value] of sortedEntries) {
+      parsedUrl.searchParams.append(key, value);
+    }
   }
   return parsedUrl.toString();
 }

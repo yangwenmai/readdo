@@ -2341,6 +2341,25 @@ test("capture validates url and source_type", async () => {
     assert.equal(dataHashUrlDetailRes.statusCode, 200);
     const dataHashUrlDetail = dataHashUrlDetailRes.json() as { item: { url: string } };
     assert.equal(dataHashUrlDetail.item.url, "data:text/plain,hash-fragment");
+
+    const dataTrackingUrlRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,query-kept?utm_source=x&b=1#part",
+        source_type: "web",
+        intent_text: "keep data query parameters while stripping hash",
+      },
+    });
+    assert.equal(dataTrackingUrlRes.statusCode, 201);
+    const dataTrackingUrlId = (dataTrackingUrlRes.json() as { item: { id: string } }).item.id;
+    const dataTrackingUrlDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${dataTrackingUrlId}`,
+    });
+    assert.equal(dataTrackingUrlDetailRes.statusCode, 200);
+    const dataTrackingUrlDetail = dataTrackingUrlDetailRes.json() as { item: { url: string } };
+    assert.equal(dataTrackingUrlDetail.item.url, "data:text/plain,query-kept?utm_source=x&b=1");
   } finally {
     await app.close();
   }
