@@ -391,6 +391,46 @@ const html = `<!doctype html>
         background: #f8fafc;
         color: #475569;
       }
+      .next-move-line {
+        margin-top: 7px;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border-radius: 999px;
+        border: 1px solid #bfdbfe;
+        background: #eff6ff;
+        color: #1e3a8a;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 4px 9px;
+      }
+      .next-move-line .next-move-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        background: #1d4ed8;
+        color: #ffffff;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        padding: 2px 7px;
+      }
+      .next-move-line.tone-ship {
+        border-color: #86efac;
+        background: #ecfdf5;
+        color: #166534;
+      }
+      .next-move-line.tone-ship .next-move-chip {
+        background: #16a34a;
+      }
+      .next-move-line.tone-recover {
+        border-color: #fca5a5;
+        background: #fff1f2;
+        color: #9f1239;
+      }
+      .next-move-line.tone-recover .next-move-chip {
+        background: #e11d48;
+      }
       .actions { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
       .actions button:disabled { cursor: not-allowed; opacity: 0.6; transform: none; box-shadow: none; }
       .quick-action-grid {
@@ -1862,6 +1902,28 @@ const html = `<!doctype html>
           '">' +
           urgencyMeta.label +
           "</span></div>"
+        );
+      }
+
+      function queueNextMoveHtml(item, ops, spotlight = null) {
+        if (!Array.isArray(ops) || !ops.length) return "";
+        const primaryOp = ops.find((op) => op.is_primary) || ops[0];
+        if (!primaryOp) return "";
+        let tone = "tone-act";
+        if (primaryOp.id === "export" || primaryOp.id === "reexport") {
+          tone = "tone-ship";
+        } else if (String(item?.status || "").startsWith("FAILED_")) {
+          tone = "tone-recover";
+        }
+        const chipLabel = spotlight ? "Aha Pick" : "Next Move";
+        return (
+          '<div class="next-move-line ' +
+          tone +
+          '"><span class="next-move-chip">' +
+          chipLabel +
+          "</span>" +
+          primaryOp.label +
+          '<span class="muted">· press M</span></div>'
         );
       }
 
@@ -3598,8 +3660,10 @@ const html = `<!doctype html>
             failureNoteHtml = '<div class="failure-note">retry limit reached (' + retry.retryAttempts + "/" + retry.retryLimit + ")</div>";
           }
         }
+        const ops = buttonsFor(item);
         const flowRailHtml = queueFlowRailHtml(item);
         const insightPillsHtml = queueInsightPillsHtml(item);
+        const nextMoveHtml = queueNextMoveHtml(item, ops, spotlight);
         card.innerHTML = \`
           <div class="item-head">
             <span class="status status-\${statusTone(item.status)}">\${item.status}</span>
@@ -3610,12 +3674,12 @@ const html = `<!doctype html>
           <div class="muted">\${item.domain || ""}</div>
           \${insightPillsHtml}
           \${flowRailHtml}
+          \${nextMoveHtml}
           \${spotlightNoteHtml}
           \${failureNoteHtml}
           <div class="actions"></div>
         \`;
         const actionEl = card.querySelector(".actions");
-        const ops = buttonsFor(item);
         card.addEventListener("click", (event) => {
           const target = event.target;
           if (target instanceof HTMLElement && (target.closest("button") || target.closest("a"))) {
