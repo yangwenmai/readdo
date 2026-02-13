@@ -12,7 +12,7 @@ test("detectSourceType identifies known source types", () => {
 test("isSupportedCaptureUrl validates capture-safe protocols", () => {
   assert.equal(isSupportedCaptureUrl("https://example.com/read"), true);
   assert.equal(isSupportedCaptureUrl("http://example.com/read"), true);
-  assert.equal(isSupportedCaptureUrl("data:text/plain,hello"), true);
+  assert.equal(isSupportedCaptureUrl("data:text/plain,hello"), false);
   assert.equal(isSupportedCaptureUrl("file:///tmp/a.txt"), false);
   assert.equal(isSupportedCaptureUrl("chrome://extensions"), false);
   assert.equal(isSupportedCaptureUrl("not a valid url"), false);
