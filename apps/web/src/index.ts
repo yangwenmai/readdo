@@ -26,6 +26,7 @@ const shortcutGuideItems = [
   { key: "Alt+3", label: "Focus Priority Step First" },
   { key: "C", label: "Clear Filters" },
   { key: "Shift+C", label: "Reset Controls" },
+  { key: "T", label: "Toggle Auto Refresh" },
   { key: "W", label: "Run Worker Once" },
   { key: "R", label: "Refresh" },
   { key: shortcutTriggerKey, label: "Show shortcuts" },
@@ -4507,6 +4508,22 @@ const html = `<!doctype html>
         );
       }
 
+      async function runToggleAutoRefreshAction() {
+        await runActionWithFeedback(
+          {
+            id: "queue_toggle_auto_refresh",
+            label: "Toggle Auto Refresh",
+            action: async () => {
+              autoRefreshToggle.checked = !Boolean(autoRefreshToggle.checked);
+              persistControls();
+              setAutoRefresh(Boolean(autoRefreshToggle.checked));
+              errorEl.textContent = "Auto refresh: " + (autoRefreshToggle.checked ? "on." : "off.");
+            },
+          },
+          { localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
       refreshBtn.addEventListener("click", async () => {
         await runRefreshQueueAction(refreshBtn);
       });
@@ -5295,6 +5312,9 @@ const html = `<!doctype html>
         },
         "shift+c": () => {
           void runResetControlsAction();
+        },
+        t: () => {
+          void runToggleAutoRefreshAction();
         },
         w: () => {
           void runWorkerOnceQueueAction();
