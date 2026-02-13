@@ -1861,6 +1861,18 @@ test("capture validates url and source_type", async () => {
     assert.equal(invalidProtocolRes.statusCode, 400);
     assert.match((invalidProtocolRes.json() as { error: { message: string } }).error.message, /url protocol must be http\/https\/data/i);
 
+    const ftpProtocolRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "ftp://example.com/file.txt",
+        source_type: "web",
+        intent_text: "unsupported ftp protocol",
+      },
+    });
+    assert.equal(ftpProtocolRes.statusCode, 400);
+    assert.match((ftpProtocolRes.json() as { error: { message: string } }).error.message, /url protocol must be http\/https\/data/i);
+
     const dataUrlRes = await app.inject({
       method: "POST",
       url: "/api/capture",
