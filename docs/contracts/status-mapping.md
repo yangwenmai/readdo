@@ -60,6 +60,7 @@ Last Updated: 2026-02-13
   - 建议提供可调 `Batch Limit` 输入（如 1..200）。
   - 可选支持 `offset` 翻页（根据 `next_offset` 连续预览）。
   - 可在 UI 提供统一的 `Preview Next` 按钮串联分页预览。
+  - 也可提供 `Preview Offset` 输入框，允许从任意偏移量开始预览。
 - `Retry Failed`（批量）：调用 `/items/retry-failed` 批量重试 `FAILED_EXTRACTION/FAILED_AI` 的可重试项；
   `FAILED_EXPORT` 仍应单独走 export 重试。
   - 若 UI 已选择 `failure_step` 筛选，建议把该值透传给 `/items/retry-failed` 以保持“所见即所重试”。
@@ -73,6 +74,7 @@ Last Updated: 2026-02-13
   - 建议与 Retry 共享同一个 `Batch Limit` 控件。
   - 可选支持 `offset` 翻页（根据 `next_offset` 连续预览）。
   - 可在 UI 复用同一个 `Preview Next` 按钮。
+  - 可复用同一个 `Preview Offset` 输入框。
 - `Preview Unarchive`（dry-run）：调用 `/items/unarchive-batch` 且 `dry_run=true`，建议展示 `eligible_ready_item_ids / eligible_queued_item_ids`。
 - `Unarchive Archived`（批量）：调用 `/items/unarchive-batch` 执行取消归档；
   - 可选增加 `Unarchive Mode`（`smart/regenerate`），对应 `regenerate=false/true`。
@@ -81,6 +83,7 @@ Last Updated: 2026-02-13
   - 建议同样受 `Batch Limit` 控件控制。
   - 可选支持 `offset` 翻页（根据 `next_offset` 连续预览）。
   - 可在 UI 复用同一个 `Preview Next` 按钮。
+  - 可复用同一个 `Preview Offset` 输入框。
 
 ### 1.2 Shipped
 包含状态：

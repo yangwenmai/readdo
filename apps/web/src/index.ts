@@ -104,6 +104,10 @@ const html = `<!doctype html>
           Batch Limit
           <input id="batchLimitInput" type="number" min="1" max="200" step="1" value="100" style="width:72px;" />
         </label>
+        <label class="muted" style="display:flex;align-items:center;gap:4px;">
+          Preview Offset
+          <input id="previewOffsetInput" type="number" min="0" step="1" value="0" style="width:72px;" />
+        </label>
         <button class="primary" id="refreshBtn">Refresh</button>
       </div>
     </header>
@@ -143,6 +147,7 @@ const html = `<!doctype html>
       const autoRefreshToggle = document.getElementById("autoRefreshToggle");
       const unarchiveModeFilter = document.getElementById("unarchiveModeFilter");
       const batchLimitInput = document.getElementById("batchLimitInput");
+      const previewOffsetInput = document.getElementById("previewOffsetInput");
 
       let allItems = [];
       let selectedId = null;
@@ -167,6 +172,8 @@ const html = `<!doctype html>
         previewContinuation = { kind, next_offset: Number(nextOffset) };
         previewNextBtn.style.display = "inline-block";
         previewNextBtn.textContent = "Preview Next (" + nextOffset + ")";
+        previewOffsetInput.value = String(nextOffset);
+        persistControls();
       }
 
       function persistControls() {
@@ -179,6 +186,7 @@ const html = `<!doctype html>
             archive_retryable: archiveRetryableFilter.value || "false",
             unarchive_mode: unarchiveModeFilter.value || "smart",
             batch_limit: normalizedBatchLimit(),
+            preview_offset: normalizedPreviewOffset(),
             auto_refresh: Boolean(autoRefreshToggle.checked),
           };
           localStorage.setItem(controlsStorageKey, JSON.stringify(payload));
@@ -200,6 +208,9 @@ const html = `<!doctype html>
           if (typeof payload?.unarchive_mode === "string") unarchiveModeFilter.value = payload.unarchive_mode;
           if (Number.isInteger(Number(payload?.batch_limit))) {
             batchLimitInput.value = String(Math.min(Math.max(Number(payload.batch_limit), 1), 200));
+          }
+          if (Number.isInteger(Number(payload?.preview_offset))) {
+            previewOffsetInput.value = String(Math.max(Number(payload.preview_offset), 0));
           }
           autoRefreshToggle.checked = Boolean(payload?.auto_refresh);
         } catch {
@@ -1085,13 +1096,20 @@ const html = `<!doctype html>
         return Math.min(Math.max(raw, 1), 200);
       }
 
+      function normalizedPreviewOffset() {
+        const raw = Number(previewOffsetInput.value);
+        if (!Number.isInteger(raw)) return 0;
+        return Math.max(raw, 0);
+      }
+
       previewArchiveBtn.addEventListener("click", async () => {
         previewArchiveBtn.disabled = true;
         try {
           clearPreviewContinuation();
+          const previewOffset = normalizedPreviewOffset();
           const preview = await request("/items/archive-failed", {
             method: "POST",
-            body: JSON.stringify(archiveBlockedPayload(true, 0))
+            body: JSON.stringify(archiveBlockedPayload(true, previewOffset))
           });
           errorEl.textContent =
             "Archive preview: scanned=" +
@@ -1216,9 +1234,10 @@ const html = `<!doctype html>
         previewRetryBtn.disabled = true;
         try {
           clearPreviewContinuation();
+          const previewOffset = normalizedPreviewOffset();
           const preview = await request("/items/retry-failed", {
             method: "POST",
-            body: JSON.stringify(retryFailedPayload(true, 0))
+            body: JSON.stringify(retryFailedPayload(true, previewOffset))
           });
           errorEl.textContent =
             "Retry preview: scanned=" +
@@ -1276,9 +1295,10 @@ const html = `<!doctype html>
         archiveBlockedBtn.disabled = true;
         try {
           clearPreviewContinuation();
+          const previewOffset = normalizedPreviewOffset();
           const preview = await request("/items/archive-failed", {
             method: "POST",
-            body: JSON.stringify(archiveBlockedPayload(true, 0))
+            body: JSON.stringify(archiveBlockedPayload(true, previewOffset))
           });
           const eligible = Number(preview.eligible ?? 0);
           if (!eligible) {
@@ -1341,9 +1361,10 @@ const html = `<!doctype html>
         previewUnarchiveBtn.disabled = true;
         try {
           clearPreviewContinuation();
+          const previewOffset = normalizedPreviewOffset();
           const preview = await request("/items/unarchive-batch", {
             method: "POST",
-            body: JSON.stringify(unarchiveBatchPayload(true, 0))
+            body: JSON.stringify(unarchiveBatchPayload(true, previewOffset))
           });
           errorEl.textContent =
             "Unarchive preview: scanned=" +
@@ -1559,9 +1580,10 @@ const html = `<!doctype html>
         unarchiveBatchBtn.disabled = true;
         try {
           clearPreviewContinuation();
+          const previewOffset = normalizedPreviewOffset();
           const preview = await request("/items/unarchive-batch", {
             method: "POST",
-            body: JSON.stringify(unarchiveBatchPayload(true, 0))
+            body: JSON.stringify(unarchiveBatchPayload(true, previewOffset))
           });
           const eligible = Number(preview.eligible ?? 0);
           if (!eligible) {
@@ -1614,6 +1636,12 @@ const html = `<!doctype html>
 
       batchLimitInput.addEventListener("change", () => {
         batchLimitInput.value = String(normalizedBatchLimit());
+        persistControls();
+        clearPreviewContinuation();
+      });
+
+      previewOffsetInput.addEventListener("change", () => {
+        previewOffsetInput.value = String(normalizedPreviewOffset());
         persistControls();
         clearPreviewContinuation();
       });
