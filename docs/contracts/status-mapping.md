@@ -49,6 +49,7 @@ Last Updated: 2026-02-13
 - 建议提供 `Reset Controls` 一键恢复默认筛选与批量参数
 - 建议在筛选条件变化时清空旧 preview 结果，避免“跨上下文预览”误导
 - 建议在筛选条件变化后将 `Preview Offset` 复位为 `0`，避免沿用旧分页位置
+- 建议提供 `Clear Filters` 按钮，仅清空列表筛选（q/status/retryable/failure_step），不影响批量参数
 
 头部统计建议展示：
 - Queue（QUEUED/LEASED）

@@ -65,6 +65,7 @@ Web Inbox 还支持 `Failure Step` 下拉筛选（extract/pipeline/export），�
 UI 提供 `Preview Next` 按钮，可直接基于 `next_offset` 连续翻页预览。
 也可通过 `Preview Offset` 输入框从任意 offset 起始预览（例如跳到第 200 条后再看）。
 批量执行（Retry/Archive/Unarchive）会使用当前 `Preview Offset`，保证“预览页即执行页”。
+`Clear Filters` 可快速清空 q/status/retryable/failure step 四类列表筛选，不影响 Batch Limit、Archive Scope、Unarchive Mode、Auto refresh。
 `Reset Controls` 可一键恢复筛选/批量参数默认值，并关闭自动刷新。
 筛选条件、Batch Limit、Preview Offset、Auto refresh 会在浏览器本地持久化，刷新页面后自动恢复。
 当切换筛选条件或调整批量参数时，旧的预览结果会自动清空，并将 `Preview Offset` 归零，避免跨上下文误读。

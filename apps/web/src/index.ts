@@ -108,6 +108,7 @@ const html = `<!doctype html>
           Preview Offset
           <input id="previewOffsetInput" type="number" min="0" step="1" value="0" style="width:72px;" />
         </label>
+        <button id="clearFiltersBtn" type="button">Clear Filters</button>
         <button id="resetControlsBtn" type="button">Reset Controls</button>
         <button class="primary" id="refreshBtn">Refresh</button>
       </div>
@@ -131,6 +132,7 @@ const html = `<!doctype html>
       const errorEl = document.getElementById("error");
       const retryPreviewOutputEl = document.getElementById("retryPreviewOutput");
       const refreshBtn = document.getElementById("refreshBtn");
+      const clearFiltersBtn = document.getElementById("clearFiltersBtn");
       const resetControlsBtn = document.getElementById("resetControlsBtn");
       const queryInput = document.getElementById("queryInput");
       const statusFilter = document.getElementById("statusFilter");
@@ -244,6 +246,13 @@ const html = `<!doctype html>
         batchLimitInput.value = String(controlDefaults.batch_limit);
         previewOffsetInput.value = String(controlDefaults.preview_offset);
         autoRefreshToggle.checked = controlDefaults.auto_refresh;
+      }
+
+      function clearListFilters() {
+        queryInput.value = controlDefaults.q;
+        statusFilter.value = controlDefaults.status;
+        retryableFilter.value = controlDefaults.retryable;
+        failureStepFilter.value = controlDefaults.failure_step;
       }
 
       function groupedItems(items) {
@@ -1084,6 +1093,20 @@ const html = `<!doctype html>
           await loadItems();
         } catch (err) {
           errorEl.textContent = "Reset controls failed: " + String(err);
+        }
+      });
+
+      clearFiltersBtn.addEventListener("click", async () => {
+        try {
+          clearListFilters();
+          resetPreviewOffset();
+          clearPreviewContinuation();
+          clearPreviewOutput();
+          persistControls();
+          errorEl.textContent = "Filters cleared.";
+          await loadItems();
+        } catch (err) {
+          errorEl.textContent = "Clear filters failed: " + String(err);
         }
       });
 
