@@ -3294,12 +3294,13 @@ const html = `<!doctype html>
 
       function expandQueueFilterConfigs(group, seeds) {
         return seeds.map((seed) => {
-          return createQueueFilterConfigByKey(group, seed.key, seed.element, seed.options || {});
+          const { key, element, ...options } = seed;
+          return createQueueFilterConfigByKey(group, key, element, options);
         });
       }
 
       function createQueueFilterSeed(key, element, options = {}) {
-        return { key, element, options };
+        return { key, element, ...options };
       }
 
       function expandQueueActionConfigs(seeds, buildConfig) {
