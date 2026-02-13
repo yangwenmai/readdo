@@ -530,6 +530,16 @@ test("retry-failed endpoint queues retryable pipeline failures only", async () =
     assert.equal(pagedDryRun.scan_truncated, true);
     assert.equal(pagedDryRun.next_offset, 2);
 
+    const negativeOffsetDryRunRes = await app.inject({
+      method: "POST",
+      url: "/api/items/retry-failed",
+      payload: { limit: 1, offset: -5, dry_run: true },
+    });
+    assert.equal(negativeOffsetDryRunRes.statusCode, 200);
+    const negativeOffsetDryRun = negativeOffsetDryRunRes.json() as { requested_offset: number; scanned: number };
+    assert.equal(negativeOffsetDryRun.requested_offset, 0);
+    assert.equal(negativeOffsetDryRun.scanned, 1);
+
     const exportOnlyDryRunRes = await app.inject({
       method: "POST",
       url: "/api/items/retry-failed",
@@ -758,6 +768,16 @@ test("archive-failed endpoint archives blocked failures with dry-run support", a
     assert.equal(limitedArchivePreview.scan_truncated, true);
     assert.equal(limitedArchivePreview.next_offset, 1);
 
+    const negativeOffsetArchivePreviewRes = await app.inject({
+      method: "POST",
+      url: "/api/items/archive-failed",
+      payload: { limit: 1, offset: -9, dry_run: true, retryable: "all", failure_step: "extract" },
+    });
+    assert.equal(negativeOffsetArchivePreviewRes.statusCode, 200);
+    const negativeOffsetArchivePreview = negativeOffsetArchivePreviewRes.json() as { requested_offset: number; scanned: number };
+    assert.equal(negativeOffsetArchivePreview.requested_offset, 0);
+    assert.equal(negativeOffsetArchivePreview.scanned, 1);
+
     const invalidRetryableRes = await app.inject({
       method: "POST",
       url: "/api/items/archive-failed",
@@ -905,6 +925,16 @@ test("unarchive-batch endpoint supports dry-run and regenerate mode", async () =
     assert.equal(limitedUnarchivePreview.scanned_total, 2);
     assert.equal(limitedUnarchivePreview.scan_truncated, true);
     assert.equal(limitedUnarchivePreview.next_offset, 1);
+
+    const negativeOffsetUnarchivePreviewRes = await app.inject({
+      method: "POST",
+      url: "/api/items/unarchive-batch",
+      payload: { limit: 1, offset: -3, dry_run: true, regenerate: false },
+    });
+    assert.equal(negativeOffsetUnarchivePreviewRes.statusCode, 200);
+    const negativeOffsetUnarchivePreview = negativeOffsetUnarchivePreviewRes.json() as { requested_offset: number; scanned: number };
+    assert.equal(negativeOffsetUnarchivePreview.requested_offset, 0);
+    assert.equal(negativeOffsetUnarchivePreview.scanned, 1);
 
     const runRes = await app.inject({
       method: "POST",
