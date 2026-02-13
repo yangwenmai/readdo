@@ -1,6 +1,7 @@
 import {
   canonicalizeUrlForCapture,
   detectSourceType,
+  extractApiErrorMessage,
   isSupportedCaptureUrl,
   normalizeIntentText,
   stableCaptureKey,
@@ -63,9 +64,7 @@ captureBtn?.addEventListener("click", async () => {
       }
     }
     if (!response.ok) {
-      const fallbackBody = raw && raw.trim() ? raw.trim().slice(0, 200) : "";
-      const detail = responsePayload?.error?.message || fallbackBody;
-      resultEl.textContent = detail ? `Capture failed: ${detail}` : `Capture failed: ${response.status}`;
+      resultEl.textContent = extractApiErrorMessage(raw, response.status);
       return;
     }
 

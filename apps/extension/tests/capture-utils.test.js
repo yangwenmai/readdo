@@ -1,6 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canonicalizeUrlForCapture, detectSourceType, isSupportedCaptureUrl, normalizeIntentText, stableCaptureKey } from "../capture-utils.js";
+import {
+  canonicalizeUrlForCapture,
+  detectSourceType,
+  extractApiErrorMessage,
+  isSupportedCaptureUrl,
+  normalizeIntentText,
+  stableCaptureKey,
+} from "../capture-utils.js";
 
 test("detectSourceType identifies known source types", () => {
   assert.equal(detectSourceType("https://www.youtube.com/watch?v=abc"), "youtube");
@@ -55,6 +62,19 @@ test("normalizeIntentText trims and collapses spaces", () => {
   assert.equal(normalizeIntentText("  keep   this focused  "), "keep this focused");
   assert.equal(normalizeIntentText(""), "");
   assert.equal(normalizeIntentText(null), "");
+});
+
+test("extractApiErrorMessage prefers JSON error.message", () => {
+  const raw = JSON.stringify({ error: { message: "Idempotency-Key mismatch" } });
+  assert.equal(extractApiErrorMessage(raw, 400), "Capture failed: Idempotency-Key mismatch");
+});
+
+test("extractApiErrorMessage falls back to plain text body", () => {
+  assert.equal(extractApiErrorMessage("gateway timeout", 504), "Capture failed: gateway timeout");
+});
+
+test("extractApiErrorMessage falls back to status code when body empty", () => {
+  assert.equal(extractApiErrorMessage("", 500), "Capture failed: 500");
 });
 
 test("stableCaptureKey is deterministic for same input", async () => {

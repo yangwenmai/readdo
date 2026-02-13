@@ -22,6 +22,23 @@ export function normalizeIntentText(intentText) {
     .trim();
 }
 
+export function extractApiErrorMessage(rawBody, statusCode) {
+  const fallback = `Capture failed: ${statusCode}`;
+  if (typeof rawBody !== "string") return fallback;
+  const trimmed = rawBody.trim();
+  if (!trimmed) return fallback;
+  try {
+    const parsed = JSON.parse(trimmed);
+    const message = parsed?.error?.message;
+    if (typeof message === "string" && message.trim()) {
+      return `Capture failed: ${message.trim()}`;
+    }
+  } catch {
+    // fallback to plain text body
+  }
+  return `Capture failed: ${trimmed.slice(0, 200)}`;
+}
+
 export function canonicalizeUrlForCapture(url) {
   try {
     const parsed = new URL(url);
