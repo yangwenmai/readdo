@@ -2016,6 +2016,26 @@ test("capture validates url and source_type", async () => {
     };
     assert.equal(inferredSourceTypeTrailingDotDetail.item.source_type, "youtube");
 
+    const inferredShortYoutubeTrailingDotRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://youtu.be./test123",
+        intent_text: "infer source type from short youtube trailing-dot hostname",
+      },
+    });
+    assert.equal(inferredShortYoutubeTrailingDotRes.statusCode, 201);
+    const inferredShortYoutubeTrailingDotId = (inferredShortYoutubeTrailingDotRes.json() as { item: { id: string } }).item.id;
+    const inferredShortYoutubeTrailingDotDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${inferredShortYoutubeTrailingDotId}`,
+    });
+    assert.equal(inferredShortYoutubeTrailingDotDetailRes.statusCode, 200);
+    const inferredShortYoutubeTrailingDotDetail = inferredShortYoutubeTrailingDotDetailRes.json() as {
+      item: { source_type: string };
+    };
+    assert.equal(inferredShortYoutubeTrailingDotDetail.item.source_type, "youtube");
+
     const falsePositiveYoutubeRes = await app.inject({
       method: "POST",
       url: "/api/capture",
@@ -2033,6 +2053,26 @@ test("capture validates url and source_type", async () => {
     assert.equal(falsePositiveYoutubeDetailRes.statusCode, 200);
     const falsePositiveYoutubeDetail = falsePositiveYoutubeDetailRes.json() as { item: { source_type: string } };
     assert.equal(falsePositiveYoutubeDetail.item.source_type, "web");
+
+    const falsePositiveYoutubeTrailingDotRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://notyoutube.com./watch?v=test123",
+        intent_text: "avoid false-positive youtube trailing-dot host match",
+      },
+    });
+    assert.equal(falsePositiveYoutubeTrailingDotRes.statusCode, 201);
+    const falsePositiveYoutubeTrailingDotId = (falsePositiveYoutubeTrailingDotRes.json() as { item: { id: string } }).item.id;
+    const falsePositiveYoutubeTrailingDotDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${falsePositiveYoutubeTrailingDotId}`,
+    });
+    assert.equal(falsePositiveYoutubeTrailingDotDetailRes.statusCode, 200);
+    const falsePositiveYoutubeTrailingDotDetail = falsePositiveYoutubeTrailingDotDetailRes.json() as {
+      item: { source_type: string };
+    };
+    assert.equal(falsePositiveYoutubeTrailingDotDetail.item.source_type, "web");
 
     const inferredNewsletterRes = await app.inject({
       method: "POST",
