@@ -1075,8 +1075,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     } catch {
       return reply.status(400).send(failure("VALIDATION_ERROR", "url is invalid"));
     }
-    const inferredDomain = ["http:", "https:"].includes(parsedUrl.protocol) ? parsedUrl.hostname : "";
-    const domain = (providedDomain || inferredDomain).toLowerCase();
+    const isWebLikeUrl = ["http:", "https:"].includes(parsedUrl.protocol);
+    const inferredDomain = isWebLikeUrl ? parsedUrl.hostname : "";
+    const domain = (isWebLikeUrl ? inferredDomain : providedDomain).toLowerCase();
 
     if (idempotencyKey) {
       const existing = db

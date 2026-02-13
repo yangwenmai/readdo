@@ -1973,7 +1973,27 @@ test("capture validates url and source_type", async () => {
     });
     assert.equal(normalizedDomainDetailRes.statusCode, 200);
     const normalizedDomainDetail = normalizedDomainDetailRes.json() as { item: { domain: string | null } };
-    assert.equal(normalizedDomainDetail.item.domain, "example.org");
+    assert.equal(normalizedDomainDetail.item.domain, "example.com");
+
+    const dataDomainRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,domain-source-for-data-url",
+        domain: "Data.Domain",
+        source_type: "web",
+        intent_text: "preserve explicit domain for data url",
+      },
+    });
+    assert.equal(dataDomainRes.statusCode, 201);
+    const dataDomainId = (dataDomainRes.json() as { item: { id: string } }).item.id;
+    const dataDomainDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${dataDomainId}`,
+    });
+    assert.equal(dataDomainDetailRes.statusCode, 200);
+    const dataDomainDetail = dataDomainDetailRes.json() as { item: { domain: string | null } };
+    assert.equal(dataDomainDetail.item.domain, "data.domain");
   } finally {
     await app.close();
   }
