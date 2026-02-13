@@ -252,6 +252,14 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /aha-rank-chip/u);
     assert.match(text, /Aha Rank #/u);
     assert.match(text, /rank-top/u);
+    assert.match(text, /duel-role-chip/u);
+    assert.match(text, /role-lead/u);
+    assert.match(text, /role-rival/u);
+    assert.match(text, /role-observer/u);
+    assert.match(text, /Duel Role/u);
+    assert.match(text, /Lead/u);
+    assert.match(text, /Rival/u);
+    assert.match(text, /Observer/u);
     assert.match(text, /aha-gap-line/u);
     assert.match(text, /gap-lead/u);
     assert.match(text, /gap-chase/u);

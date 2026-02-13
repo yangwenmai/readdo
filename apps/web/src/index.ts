@@ -95,6 +95,7 @@ const queueNudgeDuelLabel = "Aha Duel";
 const queueNudgeOpenRivalLabel = "Open Rival";
 const queueNudgeCopyDuelLabel = "Copy Duel";
 const queueLeadGapLabelPrefix = "Lead Gap";
+const queueDuelRoleLabelPrefix = "Duel Role";
 const detailStoryLabel = "Queue Storyline";
 const detailStoryOpenLeadPrefix = "Open Lead";
 const queueNudgePoolPrefix = "Aha pool";
@@ -476,6 +477,33 @@ const html = `<!doctype html>
         border-color: #c4b5fd;
         background: #f5f3ff;
         color: #5b21b6;
+      }
+      .duel-role-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        padding: 3px 8px;
+      }
+      .duel-role-chip.role-lead {
+        border-color: #86efac;
+        background: #ecfdf5;
+        color: #166534;
+      }
+      .duel-role-chip.role-rival {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .duel-role-chip.role-observer {
+        border-color: #d1d5db;
+        background: #f8fafc;
+        color: #475569;
       }
       .aha-rank-delta {
         margin-left: 4px;
@@ -1889,6 +1917,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_OPEN_RIVAL_LABEL = ${JSON.stringify(queueNudgeOpenRivalLabel)};
       const QUEUE_NUDGE_COPY_DUEL_LABEL = ${JSON.stringify(queueNudgeCopyDuelLabel)};
       const QUEUE_LEAD_GAP_LABEL_PREFIX = ${JSON.stringify(queueLeadGapLabelPrefix)};
+      const QUEUE_DUEL_ROLE_LABEL_PREFIX = ${JSON.stringify(queueDuelRoleLabelPrefix)};
       const DETAIL_STORY_LABEL = ${JSON.stringify(detailStoryLabel)};
       const DETAIL_STORY_OPEN_LEAD_PREFIX = ${JSON.stringify(detailStoryOpenLeadPrefix)};
       const QUEUE_NUDGE_POOL_PREFIX = ${JSON.stringify(queueNudgePoolPrefix)};
@@ -2815,6 +2844,30 @@ const html = `<!doctype html>
           rivalAction +
           "."
         );
+      }
+
+      function ahaDuelRoleMeta(item, poolItems = null) {
+        if (!item) return null;
+        const source =
+          Array.isArray(poolItems) && poolItems.length
+            ? poolItems
+            : (() => {
+                const visibleItems = visibleQueueItems();
+                return visibleItems.length ? visibleItems : allItems;
+              })();
+        const ranked = sortedAhaItems(source);
+        if (!ranked.length) return null;
+        const index = ranked.findIndex((entry) => String(entry?.id) === String(item?.id));
+        if (index === 0) return { role: "Lead", tone: "role-lead" };
+        if (index === 1) return { role: "Rival", tone: "role-rival" };
+        if (index >= 2) return { role: "Observer", tone: "role-observer" };
+        return { role: "Observer", tone: "role-observer" };
+      }
+
+      function ahaDuelRoleHtml(item, poolItems = null) {
+        const meta = ahaDuelRoleMeta(item, poolItems);
+        if (!meta) return "";
+        return '<span class="duel-role-chip ' + meta.tone + '">' + QUEUE_DUEL_ROLE_LABEL_PREFIX + ": " + meta.role + "</span>";
       }
 
       function ahaRankForItem(item, poolItems = null) {
@@ -4952,6 +5005,7 @@ const html = `<!doctype html>
         const ahaRankHtml = ahaRank
           ? '<span class="aha-rank-chip' + ahaRankTone + '">Aha #' + ahaRank.rank + ahaDeltaHtml + "</span>"
           : "";
+        const duelRoleHtml = ahaDuelRoleHtml(item);
         const scoreMeter = scoreMeterHtml(item.match_score);
         const freshnessChip = freshnessChipHtml(item.updated_at);
         const ahaIndex = ahaIndexHtml(item);
@@ -4965,6 +5019,7 @@ const html = `<!doctype html>
             <div class="status-cluster">
               <span class="status status-\${statusTone(item.status)}">\${item.status}</span>
               \${ahaRankHtml}
+              \${duelRoleHtml}
             </div>
             <span class="muted">\${item.priority || "N/A"} · \${score}</span>
           </div>
@@ -5475,6 +5530,7 @@ const html = `<!doctype html>
         const heroAhaRankHtml = heroAhaRank
           ? '<span class="aha-rank-chip' + heroAhaRankTone + '">Aha Rank #' + heroAhaRank.rank + "/" + heroAhaRank.total + heroAhaDeltaLabel + "</span>"
           : '<span class="aha-rank-chip">Aha Rank —</span>';
+        const heroDuelRoleHtml = ahaDuelRoleHtml(detail.item);
         const heroScoreMeter = scoreMeterHtml(detail.item.match_score);
         const heroFreshnessChip = freshnessChipHtml(detail.item.updated_at);
         const heroAhaIndex = ahaIndexHtml(detail.item);
@@ -5492,6 +5548,7 @@ const html = `<!doctype html>
               <span class="insight-pill \${heroImpactMeta.tone}">\${heroImpactMeta.label}</span>
               <span class="insight-pill \${heroUrgencyMeta.tone}">\${heroUrgencyMeta.label}</span>
               \${heroAhaRankHtml}
+              \${heroDuelRoleHtml}
             </div>
             \${heroScoreMeter}
             \${heroFreshnessChip}
@@ -6700,6 +6757,8 @@ const html = `<!doctype html>
         const ahaLabel = ahaRank ? "Aha #" + ahaRank.rank + "/" + ahaRank.total + " (" + ahaRank.value + ")" + ahaDeltaLabel : "Aha —";
         const gap = ahaLeadGapMeta(item, ahaRank);
         const gapLabel = gap ? " · " + QUEUE_LEAD_GAP_LABEL_PREFIX + " " + gap.label : "";
+        const duel = ahaDuelRoleMeta(item, null);
+        const duelLabel = duel ? " · " + QUEUE_DUEL_ROLE_LABEL_PREFIX + " " + duel.role : "";
         selectionHintEl.textContent =
           "Selected: #" +
           String(item.id ?? "—") +
@@ -6708,6 +6767,7 @@ const html = `<!doctype html>
           " · " +
           ahaLabel +
           gapLabel +
+          duelLabel +
           " · " +
           actionLabel +
           " · " +
