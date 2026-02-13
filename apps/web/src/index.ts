@@ -46,6 +46,7 @@ const queueRecoveryClearStepLabel = "Clear Step Focus";
 const queueRecoveryClearFailedLabel = "Clear Failed Filter";
 const queueRecoveryContextLabel = "Filter Context";
 const queueRecoveryEditContextLabel = "Edit Context Filters";
+const queueRecoveryFocusModePrefix = "Focus Priority";
 
 const html = `<!doctype html>
 <html lang="en">
@@ -1164,6 +1165,7 @@ const html = `<!doctype html>
       const QUEUE_RECOVERY_CLEAR_FAILED_LABEL = ${JSON.stringify(queueRecoveryClearFailedLabel)};
       const QUEUE_RECOVERY_CONTEXT_LABEL = ${JSON.stringify(queueRecoveryContextLabel)};
       const QUEUE_RECOVERY_EDIT_CONTEXT_LABEL = ${JSON.stringify(queueRecoveryEditContextLabel)};
+      const QUEUE_RECOVERY_FOCUS_MODE_PREFIX = ${JSON.stringify(queueRecoveryFocusModePrefix)};
       const RECOVERY_HISTORY_LIMIT = 5;
       const inboxEl = document.getElementById("inbox");
       const detailEl = document.getElementById("detail");
@@ -1217,6 +1219,7 @@ const html = `<!doctype html>
       let activeRecoverySummaryId = null;
       let focusedFilterControl = null;
       let focusedFilterControlTimer = null;
+      let recoveryContextFocusMode = "smart";
       const controlsStorageKey = "readdo.web.controls.v1";
       const recoveryRadarStorageKey = "readdo.web.recovery-radar.v1";
       const defaultCollapsedGroups = {
@@ -1241,6 +1244,7 @@ const html = `<!doctype html>
         preview_offset: 0,
         auto_refresh: false,
         detail_advanced: false,
+        recovery_focus_mode: "smart",
         collapsed_groups: defaultCollapsedGroups,
       };
       const queueActionCopy = {
@@ -1413,6 +1417,7 @@ const html = `<!doctype html>
             preview_offset: normalizedPreviewOffset(),
             auto_refresh: Boolean(autoRefreshToggle.checked),
             detail_advanced: Boolean(detailAdvancedEnabled),
+            recovery_focus_mode: recoveryContextFocusMode,
             collapsed_groups: collapsedGroups,
           };
           localStorage.setItem(controlsStorageKey, JSON.stringify(payload));
@@ -1440,6 +1445,9 @@ const html = `<!doctype html>
           }
           autoRefreshToggle.checked = Boolean(payload?.auto_refresh);
           detailAdvancedEnabled = Boolean(payload?.detail_advanced);
+          if (payload?.recovery_focus_mode === "smart" || payload?.recovery_focus_mode === "query_first" || payload?.recovery_focus_mode === "step_first") {
+            recoveryContextFocusMode = payload.recovery_focus_mode;
+          }
           if (payload?.collapsed_groups && typeof payload.collapsed_groups === "object" && !Array.isArray(payload.collapsed_groups)) {
             const normalizedGroups = { ...defaultCollapsedGroups };
             for (const [key, value] of Object.entries(payload.collapsed_groups)) {
@@ -1500,6 +1508,7 @@ const html = `<!doctype html>
         previewOffsetInput.value = String(controlDefaults.preview_offset);
         autoRefreshToggle.checked = controlDefaults.auto_refresh;
         detailAdvancedEnabled = controlDefaults.detail_advanced;
+        recoveryContextFocusMode = controlDefaults.recovery_focus_mode;
         collapsedGroups = { ...controlDefaults.collapsed_groups };
         syncDetailModeChips();
       }
@@ -1750,6 +1759,22 @@ const html = `<!doctype html>
         return "unknown";
       }
 
+      function recoveryContextFocusModeLabel(mode) {
+        if (mode === "query_first") return "Query First";
+        if (mode === "step_first") return "Step First";
+        return "Smart";
+      }
+
+      function nextRecoveryContextFocusMode(mode) {
+        if (mode === "query_first") return "step_first";
+        if (mode === "step_first") return "smart";
+        return "query_first";
+      }
+
+      function recoveryContextFocusModeHint() {
+        return QUEUE_RECOVERY_FOCUS_MODE_PREFIX + ": " + recoveryContextFocusModeLabel(recoveryContextFocusMode);
+      }
+
       function clearFocusedFilterControl() {
         if (focusedFilterControl && focusedFilterControl.classList) {
           focusedFilterControl.classList.remove("filter-attention");
@@ -1786,17 +1811,43 @@ const html = `<!doctype html>
         }
       }
 
+      function baseRecoveryContextTarget(step) {
+        if (step === "unknown") {
+          return { control: statusFilter, label: "Status Filter" };
+        }
+        return { control: failureStepFilter, label: "Failure Step Filter" };
+      }
+
       function recoveryContextTarget(step) {
+        const baseTarget = baseRecoveryContextTarget(step);
+        if (recoveryContextFocusMode === "query_first") {
+          if (queryInput.value.trim()) {
+            return { control: queryInput, label: "Search" };
+          }
+          if (retryableFilter.value) {
+            return { control: retryableFilter, label: "Retryable Filter" };
+          }
+          return baseTarget;
+        }
+        if (recoveryContextFocusMode === "step_first") {
+          if (baseTarget?.control) {
+            return baseTarget;
+          }
+          if (retryableFilter.value) {
+            return { control: retryableFilter, label: "Retryable Filter" };
+          }
+          if (queryInput.value.trim()) {
+            return { control: queryInput, label: "Search" };
+          }
+          return baseTarget;
+        }
         if (queryInput.value.trim()) {
           return { control: queryInput, label: "Search" };
         }
         if (retryableFilter.value) {
           return { control: retryableFilter, label: "Retryable Filter" };
         }
-        if (step === "unknown") {
-          return { control: statusFilter, label: "Status Filter" };
-        }
-        return { control: failureStepFilter, label: "Failure Step Filter" };
+        return baseTarget;
       }
 
       function focusRecoveryContextControl(step) {
@@ -1971,7 +2022,9 @@ const html = `<!doctype html>
             QUEUE_RECOVERY_CONTEXT_LABEL +
             ": " +
             focusContext +
-            '</span><button type="button" class="secondary" id="editTrendFocusContextBtn">' +
+            '</span><button type="button" class="secondary" id="switchTrendFocusModeBtn">' +
+            recoveryContextFocusModeHint() +
+            '</button><button type="button" class="secondary" id="editTrendFocusContextBtn">' +
             QUEUE_RECOVERY_EDIT_CONTEXT_LABEL +
             '</button><button type="button" id="clearTrendStepFocusBtn">' +
             (activeStep === "unknown" ? QUEUE_RECOVERY_CLEAR_FAILED_LABEL : QUEUE_RECOVERY_CLEAR_STEP_LABEL) +
@@ -2219,6 +2272,23 @@ const html = `<!doctype html>
               },
             },
             { button: editTrendFocusBtn, localFeedbackEl: queueActionBannerEl },
+          );
+        });
+        const switchTrendFocusModeBtn = recoveryRadarEl.querySelector("#switchTrendFocusModeBtn");
+        switchTrendFocusModeBtn?.addEventListener("click", async () => {
+          if (!activeStep) return;
+          await runActionWithFeedback(
+            {
+              id: "recovery_trend_focus_mode",
+              label: recoveryContextFocusModeHint(),
+              action: async () => {
+                recoveryContextFocusMode = nextRecoveryContextFocusMode(recoveryContextFocusMode);
+                persistControls();
+                renderRecoveryRadar(activeSummary);
+                errorEl.textContent = "Context focus mode: " + recoveryContextFocusModeLabel(recoveryContextFocusMode) + ".";
+              },
+            },
+            { button: switchTrendFocusModeBtn, localFeedbackEl: queueActionBannerEl },
           );
         });
         const clearTrendFocusBtn = recoveryRadarEl.querySelector("#clearTrendStepFocusBtn");

@@ -84,6 +84,8 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Click again to clear step filter/u);
     assert.match(text, /Click again to clear failed filter/u);
     assert.match(text, /Edit Context Filters/u);
+    assert.match(text, /Focus Priority/u);
+    assert.match(text, /switchTrendFocusModeBtn/u);
     assert.match(text, /filter-attention/u);
     assert.match(text, /Clear Step Focus/u);
     assert.match(text, /Clear Failed Filter/u);
