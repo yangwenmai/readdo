@@ -635,6 +635,9 @@ const html = `<!doctype html>
           archive: "Archive blocked action cancelled.",
           unarchive: "Unarchive action cancelled.",
         },
+        batch_progress: {
+          retry: "Retrying failed items...",
+        },
       };
 
       function statusByFocusChip(focus) {
@@ -2924,7 +2927,7 @@ const html = `<!doctype html>
           },
           cancelledMessage: queueActionCopy.batch_cancelled.retry,
           beforeExecute: () => {
-            errorEl.textContent = "Retrying failed items...";
+            errorEl.textContent = queueActionCopy.batch_progress.retry;
           },
           afterExecute: async (batchRes) => {
             const exportSummary = await exportItemsForRetry(batchRes.eligible_export_item_ids);
