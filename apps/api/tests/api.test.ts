@@ -574,6 +574,54 @@ test("export endpoint supports idempotency via header key only", async () => {
   }
 });
 
+test("export accepts repeated idempotency header values by using first key", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-idempotent-header-array-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20content%20verifies%20repeated%20header%20values%20for%20export%20idempotency.",
+        title: "Export Header Array Replay",
+        domain: "example.export.header.array",
+        source_type: "web",
+        intent_text: "verify repeated export idempotency header",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+    await app.runWorkerOnce();
+
+    const firstRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      headers: { "Idempotency-Key": ["export-header-array-key-1", "export-header-array-key-1"] },
+      payload: { export_key: "export-header-array-key-1", formats: ["md"] },
+    });
+    assert.equal(firstRes.statusCode, 200);
+    const firstPayload = firstRes.json() as { idempotent_replay: boolean };
+    assert.equal(firstPayload.idempotent_replay, false);
+
+    const replayRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      headers: { "Idempotency-Key": "export-header-array-key-1" },
+      payload: { export_key: "export-header-array-key-1", formats: ["md"] },
+    });
+    assert.equal(replayRes.statusCode, 200);
+    const replayPayload = replayRes.json() as { idempotent_replay: boolean };
+    assert.equal(replayPayload.idempotent_replay, true);
+  } finally {
+    await app.close();
+  }
+});
+
 test("export rejects mismatched header idempotency key and export_key", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-mismatch-idempotent-"));
   const app = await createApp({
@@ -710,6 +758,55 @@ test("process endpoint replays idempotent request with same key", async () => {
     assert.equal(replayPayload.mode, "REGENERATE");
     assert.equal(replayPayload.idempotent_replay, true);
     assert.equal(replayPayload.item.status, "QUEUED");
+  } finally {
+    await app.close();
+  }
+});
+
+test("process accepts repeated idempotency header values by using first key", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-idempotent-header-array-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20content%20is%20used%20to%20verify%20repeated%20header%20values%20for%20process%20idempotency.",
+        title: "Process Header Array Replay",
+        domain: "example.process.header.array",
+        source_type: "web",
+        intent_text: "validate repeated process idempotency header",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const firstProcessRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      headers: { "Idempotency-Key": ["process-header-array-key-1", "process-header-array-key-1"] },
+      payload: { mode: "REGENERATE", process_request_id: "process-header-array-key-1" },
+    });
+    assert.equal(firstProcessRes.statusCode, 202);
+    const firstPayload = firstProcessRes.json() as { idempotent_replay: boolean };
+    assert.equal(firstPayload.idempotent_replay, false);
+
+    const replayProcessRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      headers: { "Idempotency-Key": "process-header-array-key-1" },
+      payload: { mode: "REGENERATE", process_request_id: "process-header-array-key-1" },
+    });
+    assert.equal(replayProcessRes.statusCode, 202);
+    const replayPayload = replayProcessRes.json() as { idempotent_replay: boolean };
+    assert.equal(replayPayload.idempotent_replay, true);
   } finally {
     await app.close();
   }

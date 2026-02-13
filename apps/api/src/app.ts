@@ -275,6 +275,14 @@ function normalizeCaptureIdempotencyKey(rawValue: unknown, fromHeader = false): 
   return `extcap_${digest.toLowerCase()}`;
 }
 
+function isCaptureKeyUniqueConstraintError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const errorWithMeta = error as { code?: unknown; message?: unknown };
+  const code = String(errorWithMeta.code ?? "");
+  const message = String(errorWithMeta.message ?? "");
+  return code.includes("SQLITE_CONSTRAINT") && message.includes("items.capture_key");
+}
+
 function hostMatchesDomain(host: string, domain: string): boolean {
   const normalizedHost = normalizeHostname(host);
   const normalizedDomain = normalizeHostname(domain);
@@ -1205,12 +1213,32 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
     const id = `itm_${nanoid(10)}`;
     const ts = nowIso();
-    db.prepare(
-      `
-      INSERT INTO items(id, url, title, domain, source_type, intent_text, status, created_at, updated_at, capture_key)
-      VALUES(?, ?, ?, ?, ?, ?, 'CAPTURED', ?, ?, ?)
-      `,
-    ).run(id, sanitizedUrl, title, domain, sourceType, intentText, ts, ts, requestCaptureKey);
+    try {
+      db.prepare(
+        `
+        INSERT INTO items(id, url, title, domain, source_type, intent_text, status, created_at, updated_at, capture_key)
+        VALUES(?, ?, ?, ?, ?, ?, 'CAPTURED', ?, ?, ?)
+        `,
+      ).run(id, sanitizedUrl, title, domain, sourceType, intentText, ts, ts, requestCaptureKey);
+    } catch (error) {
+      if (!isCaptureKeyUniqueConstraintError(error)) {
+        throw error;
+      }
+      const concurrentExisting = db
+        .prepare("SELECT * FROM items WHERE capture_key = ?")
+        .get(requestCaptureKey) as DbItemRow | undefined;
+      if (!concurrentExisting) {
+        throw error;
+      }
+      return reply.status(201).send({
+        item: {
+          id: concurrentExisting.id,
+          status: concurrentExisting.status,
+          created_at: concurrentExisting.created_at,
+        },
+        idempotent_replay: true,
+      });
+    }
 
     createProcessJob(db, id, `capture:${id}:${requestCaptureKey}`);
 
