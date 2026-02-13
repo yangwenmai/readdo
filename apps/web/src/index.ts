@@ -15,6 +15,7 @@ const shortcutGuideItems = [
   { key: "K", label: "Select previous item" },
   { key: "F", label: "Focus Mode" },
   { key: "A", label: "Advanced Panels" },
+  { key: "V", label: "Toggle Detail Mode" },
   { key: "P", label: "Focus Priority" },
   { key: "Shift+P", label: "Focus Priority (reverse)" },
   { key: "G", label: "Edit Context Filters" },
@@ -5579,6 +5580,12 @@ const html = `<!doctype html>
         });
       }
 
+      function toggleDetailModeFromShortcut() {
+        const nextEnabled = !detailAdvancedEnabled;
+        setDetailAdvancedEnabled(nextEnabled);
+        errorEl.textContent = "Detail mode: " + (nextEnabled ? "Advanced Panels." : "Focus Mode.");
+      }
+
       function isTextEditingTarget(target) {
         if (!(target instanceof HTMLElement)) return false;
         const tag = target.tagName.toLowerCase();
@@ -5673,6 +5680,9 @@ const html = `<!doctype html>
         },
         a: () => {
           setDetailAdvancedEnabled(true);
+        },
+        v: () => {
+          toggleDetailModeFromShortcut();
         },
         p: () => {
           cycleRecoveryContextFocusMode();
