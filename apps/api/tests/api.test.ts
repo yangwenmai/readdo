@@ -354,14 +354,19 @@ test("worker status endpoint returns queue and item counters", async () => {
     const payload = workerRes.json() as {
       queue: Record<string, number>;
       items: Record<string, number>;
-      retry: { max_attempts: number; non_retryable_items: number };
+      retry: { max_attempts: number; retryable_items: number; non_retryable_items: number };
+      failure_steps: { extract: number; pipeline: number; export: number };
       worker: { active: boolean; interval_ms: number };
       timestamp: string;
     };
     assert.ok((payload.queue.QUEUED ?? 0) >= 1);
     assert.ok((payload.items.CAPTURED ?? 0) >= 1);
     assert.equal(payload.retry.max_attempts, 3);
+    assert.equal(payload.retry.retryable_items, 0);
     assert.equal(payload.retry.non_retryable_items, 0);
+    assert.equal(payload.failure_steps.extract, 0);
+    assert.equal(payload.failure_steps.pipeline, 0);
+    assert.equal(payload.failure_steps.export, 0);
     assert.equal(payload.worker.active, false);
     assert.equal(payload.worker.interval_ms, 20);
     assert.ok(Boolean(payload.timestamp));
@@ -432,6 +437,20 @@ test("retry-failed endpoint queues retryable pipeline failures only", async () =
       payload: { export_key: "retry-failed-export-case", formats: ["png"] },
     });
     assert.equal(exportRes.statusCode, 500);
+
+    const workerStatsRes = await app.inject({
+      method: "GET",
+      url: "/api/system/worker",
+    });
+    assert.equal(workerStatsRes.statusCode, 200);
+    const workerStats = workerStatsRes.json() as {
+      retry: { retryable_items: number; non_retryable_items: number };
+      failure_steps: { extract: number; pipeline: number; export: number };
+    };
+    assert.ok(workerStats.retry.retryable_items >= 3);
+    assert.equal(workerStats.retry.non_retryable_items, 0);
+    assert.ok(workerStats.failure_steps.extract >= 2);
+    assert.ok(workerStats.failure_steps.export >= 1);
 
     const retryFailedRes = await app.inject({
       method: "POST",

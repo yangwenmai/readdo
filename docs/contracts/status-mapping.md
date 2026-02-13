@@ -46,6 +46,12 @@ Last Updated: 2026-02-13
 - retryable=ALL（可选切换 `true/false`，用于快速定位“可重试失败项”或“已达上限项”）
 - failure_step=ALL（可选切换 `extract/pipeline/export`，用于按失败阶段聚焦处理）
 
+头部统计建议展示：
+- Queue（QUEUED/LEASED）
+- Processing 数量
+- Failed(e/p/x)（extract / pipeline / export）
+- Retryable / Retry blocked 数量
+
 可选全局动作：
 - `Preview Retry`（dry-run）：调用 `/items/retry-failed` 且 `dry_run=true`，仅展示可重试规模与分类，不改状态。
 - `Retry Failed`（批量）：调用 `/items/retry-failed` 批量重试 `FAILED_EXTRACTION/FAILED_AI` 的可重试项；

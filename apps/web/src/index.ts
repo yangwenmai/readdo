@@ -333,6 +333,10 @@ const html = `<!doctype html>
           const queueQueued = stats?.queue?.QUEUED ?? 0;
           const queueLeased = stats?.queue?.LEASED ?? 0;
           const processing = stats?.items?.PROCESSING ?? 0;
+          const failedExtract = stats?.failure_steps?.extract ?? 0;
+          const failedPipeline = stats?.failure_steps?.pipeline ?? 0;
+          const failedExport = stats?.failure_steps?.export ?? 0;
+          const retryable = stats?.retry?.retryable_items ?? 0;
           const blocked = stats?.retry?.non_retryable_items ?? 0;
           workerStatsEl.textContent =
             "Queue: " +
@@ -341,6 +345,14 @@ const html = `<!doctype html>
             queueLeased +
             " | Processing: " +
             processing +
+            " | Failed(e/p/x): " +
+            failedExtract +
+            "/" +
+            failedPipeline +
+            "/" +
+            failedExport +
+            " | Retryable: " +
+            retryable +
             " | Retry blocked: " +
             blocked;
         } catch {

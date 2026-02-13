@@ -205,7 +205,13 @@ Headers:
   },
   "retry": {
     "max_attempts": 3,
+    "retryable_items": 2,
     "non_retryable_items": 1
+  },
+  "failure_steps": {
+    "extract": 1,
+    "pipeline": 0,
+    "export": 2
   },
   "worker": {
     "interval_ms": 1500,

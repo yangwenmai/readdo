@@ -633,13 +633,48 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
         return false;
       }
     }).length;
+    const retryableItems = failedItemRows.filter((row) => {
+      try {
+        const payload = JSON.parse(row.failure_json) as { retryable?: boolean };
+        return payload.retryable !== false;
+      } catch {
+        return true;
+      }
+    }).length;
+    const failureStepRows = db
+      .prepare(
+        `
+        SELECT failure_json
+        FROM items
+        WHERE status IN ('FAILED_EXTRACTION', 'FAILED_AI', 'FAILED_EXPORT') AND failure_json IS NOT NULL
+      `,
+      )
+      .all() as Array<{ failure_json: string }>;
+    const failureSteps = failureStepRows.reduce<Record<string, number>>((acc, row) => {
+      try {
+        const payload = JSON.parse(row.failure_json) as { failed_step?: string };
+        const step = String(payload.failed_step ?? "").toLowerCase();
+        if (["extract", "pipeline", "export"].includes(step)) {
+          acc[step] = (acc[step] ?? 0) + 1;
+        }
+      } catch {
+        // ignore malformed payloads
+      }
+      return acc;
+    }, {});
 
     return {
       queue,
       items,
       retry: {
         max_attempts: MAX_ITEM_RETRY_ATTEMPTS,
+        retryable_items: retryableItems,
         non_retryable_items: nonRetryableItems,
+      },
+      failure_steps: {
+        extract: failureSteps.extract ?? 0,
+        pipeline: failureSteps.pipeline ?? 0,
+        export: failureSteps.export ?? 0,
       },
       worker: {
         interval_ms: workerIntervalMs,
