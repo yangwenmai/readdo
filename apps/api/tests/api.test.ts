@@ -461,6 +461,26 @@ test("retry-failed endpoint queues retryable pipeline failures only", async () =
     assert.equal((dryRunFailOne.json() as { item: { status: string } }).item.status, "FAILED_EXTRACTION");
     assert.equal((dryRunFailTwo.json() as { item: { status: string } }).item.status, "FAILED_EXTRACTION");
 
+    const extractFailedRes = await app.inject({
+      method: "GET",
+      url: "/api/items?status=FAILED_EXTRACTION,FAILED_AI,FAILED_EXPORT&failure_step=extract",
+    });
+    assert.equal(extractFailedRes.statusCode, 200);
+    const extractFailedItems = (extractFailedRes.json() as { items: Array<{ id: string }> }).items;
+    assert.ok(extractFailedItems.some((x) => x.id === failOneId));
+    assert.ok(extractFailedItems.some((x) => x.id === failTwoId));
+    assert.ok(extractFailedItems.every((x) => x.id !== exportFailId));
+
+    const exportFailedRes = await app.inject({
+      method: "GET",
+      url: "/api/items?status=FAILED_EXTRACTION,FAILED_AI,FAILED_EXPORT&failure_step=export",
+    });
+    assert.equal(exportFailedRes.statusCode, 200);
+    const exportFailedItems = (exportFailedRes.json() as { items: Array<{ id: string }> }).items;
+    assert.ok(exportFailedItems.some((x) => x.id === exportFailId));
+    assert.ok(exportFailedItems.every((x) => x.id !== failOneId));
+    assert.ok(exportFailedItems.every((x) => x.id !== failTwoId));
+
     const retryRunRes = await app.inject({
       method: "POST",
       url: "/api/items/retry-failed",

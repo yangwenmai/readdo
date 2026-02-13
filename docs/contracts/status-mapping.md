@@ -44,6 +44,7 @@ Last Updated: 2026-02-13
 默认筛选建议：
 - status=ALL
 - retryable=ALL（可选切换 `true/false`，用于快速定位“可重试失败项”或“已达上限项”）
+- failure_step=ALL（可选切换 `extract/pipeline/export`，用于按失败阶段聚焦处理）
 
 可选全局动作：
 - `Preview Retry`（dry-run）：调用 `/items/retry-failed` 且 `dry_run=true`，仅展示可重试规模与分类，不改状态。

@@ -292,6 +292,7 @@ Headers:
 * `priority`（可重复）：READ_NEXT, WORTH_IT, IF_TIME, SKIP
 * `source_type`（可重复）：web, youtube, newsletter, other
 * `retryable`：`true | false`（仅对 FAILED_* 生效；用于筛选可重试/不可重试失败项）
+* `failure_step`：`extract | pipeline | export`（仅对 FAILED_* 生效；按失败阶段筛选）
 * `q`：搜索（MVP 可仅 title/domain/intent_text）
 * `sort`：`priority_score_desc | created_desc | updated_desc`
 

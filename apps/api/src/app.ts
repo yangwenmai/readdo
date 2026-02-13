@@ -812,6 +812,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const sourceTypes = normalizeQueryList(query.source_type);
     const retryableQuery = typeof query.retryable === "string" ? query.retryable.toLowerCase() : "";
     const retryableFilter = retryableQuery === "true" ? true : retryableQuery === "false" ? false : null;
+    const failureStepQuery = typeof query.failure_step === "string" ? query.failure_step.trim().toLowerCase() : "";
+    const failureStepFilter =
+      ["extract", "pipeline", "export"].includes(failureStepQuery) ? (failureStepQuery as "extract" | "pipeline" | "export") : null;
     const q = typeof query.q === "string" ? query.q.trim() : "";
     const sort = typeof query.sort === "string" ? query.sort : "priority_score_desc";
     const limit = Math.min(Number(query.limit ?? 20), 100);
@@ -887,9 +890,18 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
             const isRetryable = failure?.retryable !== false;
             return retryableFilter ? isRetryable : !isRetryable;
           });
+    const filteredByFailureStep =
+      failureStepFilter === null
+        ? filteredItems
+        : filteredItems.filter((item) => {
+            const status = String((item as { status?: unknown }).status ?? "");
+            if (!status.startsWith("FAILED_")) return false;
+            const failure = (item as { failure?: unknown }).failure as { failed_step?: string } | undefined;
+            return String(failure?.failed_step ?? "").toLowerCase() === failureStepFilter;
+          });
 
     return {
-      items: filteredItems,
+      items: filteredByFailureStep,
       next_cursor: null,
     };
   });
