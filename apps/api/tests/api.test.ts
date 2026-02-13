@@ -475,6 +475,25 @@ test("retry-failed endpoint queues retryable pipeline failures only", async () =
     assert.ok(dryRunPayload.eligible_pipeline_item_ids.includes(failTwoId));
     assert.ok(dryRunPayload.eligible_export_item_ids.includes(exportFailId));
 
+    const queryDryRunRes = await app.inject({
+      method: "POST",
+      url: "/api/items/retry-failed",
+      payload: { limit: 10, dry_run: true, q: "Fail One" },
+    });
+    assert.equal(queryDryRunRes.statusCode, 200);
+    const queryDryRun = queryDryRunRes.json() as {
+      q_filter: string | null;
+      scanned: number;
+      eligible_pipeline: number;
+      eligible_export: number;
+      eligible_pipeline_item_ids: string[];
+    };
+    assert.equal(queryDryRun.q_filter, "Fail One");
+    assert.equal(queryDryRun.scanned, 1);
+    assert.equal(queryDryRun.eligible_pipeline, 1);
+    assert.equal(queryDryRun.eligible_export, 0);
+    assert.ok(queryDryRun.eligible_pipeline_item_ids.includes(failOneId));
+
     const exportOnlyDryRunRes = await app.inject({
       method: "POST",
       url: "/api/items/retry-failed",

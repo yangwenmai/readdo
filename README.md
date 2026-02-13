@@ -52,6 +52,7 @@ Open `http://localhost:5173` in your browser.
 Web Inbox 支持 `Retryable` 下拉筛选，可快速查看可重试失败项与已达上限失败项。
 Web Inbox 还支持 `Failure Step` 下拉筛选（extract/pipeline/export），用于聚焦不同失败阶段。
 点击 `Preview Retry` / `Retry Failed` 时会带上当前 Failure Step 过滤条件。
+若输入搜索关键词，Retry 预览/执行也会仅作用于匹配关键词的失败项。
 点击 `Preview Archive` 可预览将被批量归档的 blocked 失败项 ID 列表。
 `Archive Scope` 支持 blocked / retryable / all failed 三种归档范围。
 点击 `Archive Failed` 可批量归档匹配范围的失败项（先预览再确认执行）。
@@ -158,7 +159,7 @@ curl -X POST "http://localhost:8787/api/items/retry-failed" \
 # Dry-run preview for batch retry (no state changes)
 curl -X POST "http://localhost:8787/api/items/retry-failed" \
   -H "content-type: application/json" \
-  -d '{"limit":20,"dry_run":true}'
+  -d '{"limit":20,"dry_run":true,"q":"Fail One"}'
 
 # Dry-run preview for batch archive blocked failed items
 curl -X POST "http://localhost:8787/api/items/archive-failed" \

@@ -979,6 +979,10 @@ const html = `<!doctype html>
 
       function retryFailedPayload(dryRun) {
         const payload = { limit: 100, dry_run: dryRun };
+        const q = queryInput.value.trim();
+        if (q) {
+          Object.assign(payload, { q });
+        }
         if (failureStepFilter.value) {
           return { ...payload, failure_step: failureStepFilter.value };
         }
@@ -1081,6 +1085,8 @@ const html = `<!doctype html>
           errorEl.textContent =
             "Batch retry done. queued=" +
             (batchRes.queued ?? 0) +
+            ", q=" +
+            (batchRes.q_filter || "all") +
             ", skipped_non_retryable=" +
             (batchRes.skipped_non_retryable ?? 0) +
             ", eligible_export=" +
@@ -1106,6 +1112,8 @@ const html = `<!doctype html>
           errorEl.textContent =
             "Retry preview: scanned=" +
             (preview.scanned ?? 0) +
+            ", q=" +
+            (preview.q_filter || "all") +
             ", filter=" +
             (preview.failure_step_filter || "all") +
             ", eligible_pipeline=" +
@@ -1118,6 +1126,7 @@ const html = `<!doctype html>
           retryPreviewOutputEl.style.display = "block";
           retryPreviewOutputEl.textContent = JSON.stringify(
             {
+              q_filter: preview.q_filter || null,
               filter: preview.failure_step_filter || "all",
               eligible_pipeline_item_ids: preview.eligible_pipeline_item_ids || [],
               eligible_export_item_ids: preview.eligible_export_item_ids || [],

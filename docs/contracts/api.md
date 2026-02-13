@@ -258,7 +258,8 @@ Headers:
 {
   "limit": 20,
   "dry_run": false,
-  "failure_step": "extract"
+  "failure_step": "extract",
+  "q": "optional keyword"
 }
 ```
 
@@ -267,6 +268,7 @@ Headers:
 * `limit` 可选，范围建议 `1..100`，默认 20
 * `dry_run=true` 时仅返回预估结果，不会修改 item 状态或创建新 job
 * `failure_step` 可选：`extract | pipeline | export`（用于限制扫描范围）
+* `q` 可选，按 `title/domain/intent_text/url` 模糊过滤失败候选
 * `FAILED_EXPORT` 当前不会被该接口处理（计入 `skipped_unsupported_status`）
 
 ### 4.8.3 Response 200
@@ -276,6 +278,7 @@ Headers:
   "requested_limit": 20,
   "dry_run": false,
   "failure_step_filter": "extract",
+  "q_filter": "optional keyword",
   "scanned": 5,
   "queued": 3,
   "queued_item_ids": ["itm_a", "itm_b", "itm_c"],
