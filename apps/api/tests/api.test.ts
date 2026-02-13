@@ -674,6 +674,17 @@ test("items endpoint supports status and query filtering", async () => {
     assert.ok(readyItemsLowercase.length >= 1);
     assert.ok(readyItemsLowercase.every((x) => x.status === "READY"));
 
+    const statusMultiRes = await app.inject({
+      method: "GET",
+      url: "/api/items?status= ready , captured ",
+    });
+    assert.equal(statusMultiRes.statusCode, 200);
+    const statusMultiItems = (statusMultiRes.json() as { items: Array<{ status: string }> }).items;
+    assert.ok(statusMultiItems.length >= 2);
+    assert.ok(statusMultiItems.some((x) => x.status === "READY"));
+    assert.ok(statusMultiItems.some((x) => x.status === "CAPTURED"));
+    assert.ok(statusMultiItems.every((x) => ["READY", "CAPTURED"].includes(x.status)));
+
     const searchRes = await app.inject({
       method: "GET",
       url: "/api/items?q=creator",
