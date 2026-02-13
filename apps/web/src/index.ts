@@ -1288,6 +1288,42 @@ const html = `<!doctype html>
         return buckets;
       }
 
+      function lastAttemptRetryCandidates(items) {
+        return items
+          .filter((item) => {
+            if (!String(item?.status || "").startsWith("FAILED_")) return false;
+            const info = retryInfo(item);
+            return info.retryable && info.remaining === 1;
+          })
+          .sort((a, b) => Number(b.match_score ?? -1) - Number(a.match_score ?? -1));
+      }
+
+      async function retryItemsByIds(itemIds) {
+        let queued = 0;
+        let replayed = 0;
+        let failed = 0;
+        for (const itemId of itemIds) {
+          try {
+            const requestId = crypto.randomUUID();
+            const response = await request("/items/" + itemId + "/process", {
+              method: "POST",
+              body: JSON.stringify({
+                process_request_id: requestId,
+                mode: "RETRY",
+              }),
+              headers: { "Idempotency-Key": requestId },
+            });
+            queued += 1;
+            if (response?.idempotent_replay === true) {
+              replayed += 1;
+            }
+          } catch {
+            failed += 1;
+          }
+        }
+        return { queued, replayed, failed };
+      }
+
       function queueItemCardById(itemId) {
         if (itemId == null) return null;
         const cards = inboxEl.querySelectorAll(".item-card.clickable[data-item-id]");
@@ -1429,6 +1465,51 @@ const html = `<!doctype html>
             });
           });
           meta.appendChild(blockedBtn);
+        }
+        if (failedBuckets.last_attempt > 0) {
+          const lastRetryBtn = document.createElement("button");
+          lastRetryBtn.type = "button";
+          lastRetryBtn.textContent = "Rescue Last Retry";
+          const rescueOp = {
+            id: "flow_rescue_last_retry",
+            label: "Rescue Last Retry",
+            action: async () => {
+              const limit = normalizedBatchLimit();
+              const candidates = lastAttemptRetryCandidates(allItems).slice(0, limit);
+              if (!candidates.length) {
+                errorEl.textContent = "No last-attempt retry candidates under current filters.";
+                return;
+              }
+              const confirmed = confirm(
+                "Retry " +
+                  candidates.length +
+                  " last-attempt failed items now? (sorted by score desc, limit=" +
+                  limit +
+                  ")",
+              );
+              if (!confirmed) {
+                errorEl.textContent = "Rescue Last Retry cancelled.";
+                return;
+              }
+              const result = await retryItemsByIds(candidates.map((item) => item.id));
+              errorEl.textContent =
+                "Rescue Last Retry done. queued=" +
+                result.queued +
+                ", replayed=" +
+                result.replayed +
+                ", failed=" +
+                result.failed +
+                ".";
+              await loadItems();
+            },
+          };
+          lastRetryBtn.addEventListener("click", async () => {
+            await runActionWithFeedback(rescueOp, {
+              button: lastRetryBtn,
+              localFeedbackEl: queueActionBannerEl,
+            });
+          });
+          meta.appendChild(lastRetryBtn);
         }
         queueFlowPulseEl.appendChild(meta);
       }
