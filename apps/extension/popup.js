@@ -1,4 +1,4 @@
-import { canonicalizeUrlForCapture, detectSourceType, stableCaptureKey } from "./capture-utils.js";
+import { canonicalizeUrlForCapture, detectSourceType, normalizeIntentText, stableCaptureKey } from "./capture-utils.js";
 
 const intentEl = document.getElementById("intent");
 const resultEl = document.getElementById("result");
@@ -15,7 +15,7 @@ async function currentTab() {
 
 captureBtn?.addEventListener("click", async () => {
   const tab = await currentTab();
-  const intentText = (intentEl?.value ?? "").trim();
+  const intentText = normalizeIntentText(intentEl?.value ?? "");
 
   if (!tab?.url || !intentText) {
     resultEl.textContent = "Intent and URL are required.";

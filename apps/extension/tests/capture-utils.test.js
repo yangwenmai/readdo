@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canonicalizeUrlForCapture, detectSourceType, stableCaptureKey } from "../capture-utils.js";
+import { canonicalizeUrlForCapture, detectSourceType, normalizeIntentText, stableCaptureKey } from "../capture-utils.js";
 
 test("detectSourceType identifies known source types", () => {
   assert.equal(detectSourceType("https://www.youtube.com/watch?v=abc"), "youtube");
@@ -40,6 +40,12 @@ test("canonicalizeUrlForCapture sorts repeated keys by value for stability", () 
 
 test("canonicalizeUrlForCapture returns input for invalid URL", () => {
   assert.equal(canonicalizeUrlForCapture("not a valid url"), "not a valid url");
+});
+
+test("normalizeIntentText trims and collapses spaces", () => {
+  assert.equal(normalizeIntentText("  keep   this focused  "), "keep this focused");
+  assert.equal(normalizeIntentText(""), "");
+  assert.equal(normalizeIntentText(null), "");
 });
 
 test("stableCaptureKey is deterministic for same input", async () => {

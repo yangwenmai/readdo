@@ -7,6 +7,12 @@ export function detectSourceType(url) {
   return "other";
 }
 
+export function normalizeIntentText(intentText) {
+  return String(intentText ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function canonicalizeUrlForCapture(url) {
   try {
     const parsed = new URL(url);
@@ -37,9 +43,7 @@ export function canonicalizeUrlForCapture(url) {
 }
 
 export async function stableCaptureKey(url, intentText) {
-  const normalizedIntent = String(intentText ?? "")
-    .replace(/\s+/g, " ")
-    .trim();
+  const normalizedIntent = normalizeIntentText(intentText);
   const input = new TextEncoder().encode(`${url}\n${normalizedIntent}`);
   const digest = await crypto.subtle.digest("SHA-256", input);
   const bytes = Array.from(new Uint8Array(digest)).slice(0, 16);
