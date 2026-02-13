@@ -1298,6 +1298,16 @@ const html = `<!doctype html>
           .sort((a, b) => Number(b.match_score ?? -1) - Number(a.match_score ?? -1));
       }
 
+      function blockedFailedCandidates(items) {
+        return items
+          .filter((item) => {
+            if (!String(item?.status || "").startsWith("FAILED_")) return false;
+            const info = retryInfo(item);
+            return !info.retryable || info.remaining === 0;
+          })
+          .sort((a, b) => Number(b.match_score ?? -1) - Number(a.match_score ?? -1));
+      }
+
       async function retryItemsByIds(itemIds) {
         let queued = 0;
         let replayed = 0;
@@ -1465,6 +1475,30 @@ const html = `<!doctype html>
             });
           });
           meta.appendChild(blockedBtn);
+          const blockedDetailBtn = document.createElement("button");
+          blockedDetailBtn.type = "button";
+          blockedDetailBtn.textContent = "Open First Blocked";
+          const blockedDetailOp = {
+            id: "flow_open_first_blocked",
+            label: "Open First Blocked",
+            action: async () => {
+              const firstBlocked = blockedFailedCandidates(allItems)[0] || null;
+              if (!firstBlocked) {
+                errorEl.textContent = "No blocked failed item under current filters.";
+                return;
+              }
+              setDetailAdvancedEnabled(true, false);
+              await selectItem(firstBlocked.id);
+              focusQueueItemCard(firstBlocked.id);
+            },
+          };
+          blockedDetailBtn.addEventListener("click", async () => {
+            await runActionWithFeedback(blockedDetailOp, {
+              button: blockedDetailBtn,
+              localFeedbackEl: queueActionBannerEl,
+            });
+          });
+          meta.appendChild(blockedDetailBtn);
         }
         if (failedBuckets.last_attempt > 0) {
           const lastRetryBtn = document.createElement("button");
