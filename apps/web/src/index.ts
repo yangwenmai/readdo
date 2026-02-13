@@ -21,6 +21,7 @@ const shortcutGuideItems = [
   { key: "M", label: "Run Primary Item Action" },
   { key: "O", label: "Open Selected Source" },
   { key: "Y", label: "Copy Selected Source" },
+  { key: "I", label: "Copy Selected Context" },
   { key: "Shift+G", label: "Clear Step Focus" },
   { key: "Esc", label: "Clear Step Focus" },
   { key: "1", label: "Focus extract step" },
@@ -4764,6 +4765,39 @@ const html = `<!doctype html>
         );
       }
 
+      async function runCopySelectedContextAction(button = null) {
+        const item = selectedQueueItem();
+        if (!item) {
+          const hint = "No selected item. Use J/K to pick one first.";
+          setActionFeedbackPair("done", hint, queueActionBannerEl);
+          errorEl.textContent = hint;
+          return;
+        }
+        const contextLines = [
+          "Title: " + String(item.title || "N/A"),
+          "Intent: " + String(item.intent_text || "N/A"),
+          "URL: " + String(item.url || "N/A"),
+          "Status: " + String(item.status || "N/A"),
+          "Priority: " + String(item.priority || "N/A"),
+        ];
+        await runActionWithFeedback(
+          {
+            id: "queue_copy_context_" + String(item.id),
+            label: "Copy Selected Context",
+            action: async () => {
+              const copied = await copyTextToClipboard(contextLines.join("\\n"), {
+                success: "Copied selected item context.",
+                failure: "Copy selected item context failed.",
+              });
+              if (!copied) {
+                throw new Error("Copy selected item context failed.");
+              }
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
       async function runQueueSelectionNavigationAction(direction) {
         const visibleIds = visibleQueueItemIds();
         if (!visibleIds.length) {
@@ -5608,6 +5642,9 @@ const html = `<!doctype html>
         },
         y: () => {
           void runCopySelectedSourceAction();
+        },
+        i: () => {
+          void runCopySelectedContextAction();
         },
         "shift+g": () => {
           clearRecoveryFocusFromShortcut();
