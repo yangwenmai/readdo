@@ -497,6 +497,34 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
   app.get("/healthz", async () => ({ ok: true }));
 
+  app.get("/api/system/worker", async () => {
+    const jobRows = db
+      .prepare("SELECT status, COUNT(1) AS count FROM jobs GROUP BY status")
+      .all() as Array<{ status: string; count: number }>;
+    const itemRows = db
+      .prepare("SELECT status, COUNT(1) AS count FROM items GROUP BY status")
+      .all() as Array<{ status: string; count: number }>;
+
+    const queue = jobRows.reduce<Record<string, number>>((acc, row) => {
+      acc[row.status] = row.count;
+      return acc;
+    }, {});
+    const items = itemRows.reduce<Record<string, number>>((acc, row) => {
+      acc[row.status] = row.count;
+      return acc;
+    }, {});
+
+    return {
+      queue,
+      items,
+      worker: {
+        interval_ms: workerIntervalMs,
+        active: startWorker,
+      },
+      timestamp: nowIso(),
+    };
+  });
+
   app.post("/api/capture", async (request, reply) => {
     const body = request.body as Record<string, unknown>;
     const idempotencyKey = String(request.headers["idempotency-key"] ?? body.capture_id ?? "");

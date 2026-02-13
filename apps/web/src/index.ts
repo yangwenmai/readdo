@@ -40,6 +40,7 @@ const html = `<!doctype html>
       <h1>Read→Do Inbox</h1>
       <div class="controls">
         <span class="muted">API: ${apiBase}</span>
+        <span class="muted" id="workerStats">Queue: -</span>
         <input id="queryInput" placeholder="Search title/domain/intent" />
         <select id="statusFilter">
           <option value="">All Status</option>
@@ -73,6 +74,7 @@ const html = `<!doctype html>
       const refreshBtn = document.getElementById("refreshBtn");
       const queryInput = document.getElementById("queryInput");
       const statusFilter = document.getElementById("statusFilter");
+      const workerStatsEl = document.getElementById("workerStats");
 
       let allItems = [];
       let selectedId = null;
@@ -223,8 +225,21 @@ const html = `<!doctype html>
         const payload = await request("/items?" + params.toString());
         allItems = payload.items || [];
         renderInbox(allItems);
+        await loadWorkerStats();
         if (selectedId) {
           await selectItem(selectedId);
+        }
+      }
+
+      async function loadWorkerStats() {
+        try {
+          const stats = await request("/system/worker");
+          const queueQueued = stats?.queue?.QUEUED ?? 0;
+          const queueLeased = stats?.queue?.LEASED ?? 0;
+          const processing = stats?.items?.PROCESSING ?? 0;
+          workerStatsEl.textContent = "Queue: " + queueQueued + " | Leased: " + queueLeased + " | Processing items: " + processing;
+        } catch {
+          workerStatsEl.textContent = "Queue: unavailable";
         }
       }
 

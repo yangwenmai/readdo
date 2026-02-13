@@ -323,3 +323,46 @@ test("intent can be updated and optionally trigger regenerate", async () => {
     await app.close();
   }
 });
+
+test("worker status endpoint returns queue and item counters", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-worker-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,Queue%20status%20check%20for%20worker%20endpoint%20and%20item%20counters.",
+        title: "Worker Status",
+        domain: "example.worker",
+        source_type: "web",
+        intent_text: "Check worker counters",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+
+    const workerRes = await app.inject({
+      method: "GET",
+      url: "/api/system/worker",
+    });
+    assert.equal(workerRes.statusCode, 200);
+    const payload = workerRes.json() as {
+      queue: Record<string, number>;
+      items: Record<string, number>;
+      worker: { active: boolean; interval_ms: number };
+      timestamp: string;
+    };
+    assert.ok((payload.queue.QUEUED ?? 0) >= 1);
+    assert.ok((payload.items.CAPTURED ?? 0) >= 1);
+    assert.equal(payload.worker.active, false);
+    assert.equal(payload.worker.interval_ms, 20);
+    assert.ok(Boolean(payload.timestamp));
+  } finally {
+    await app.close();
+  }
+});
