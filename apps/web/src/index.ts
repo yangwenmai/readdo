@@ -96,6 +96,11 @@ const html = `<!doctype html>
       .panel-subtitle { margin: 6px 0 10px; font-size: 12px; color: #64748b; }
       .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
       .controls .muted { color: #e2e8f0; }
+      .controls .filter-attention {
+        border-color: #60a5fa !important;
+        box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.6), 0 6px 16px rgba(37, 99, 235, 0.25);
+        animation: filterAttentionPulse 850ms ease-out;
+      }
       .shortcut-panel-backdrop {
         position: fixed;
         inset: 0;
@@ -973,11 +978,17 @@ const html = `<!doctype html>
         0%, 100% { border-color: #93c5fd; }
         50% { border-color: #60a5fa; }
       }
+      @keyframes filterAttentionPulse {
+        0% { transform: translateY(0); }
+        50% { transform: translateY(-1px); }
+        100% { transform: translateY(0); }
+      }
       @media (prefers-reduced-motion: reduce) {
         .item-card.is-spotlight,
         .spotlight-note .spotlight-badge,
         .hero-recommendation,
-        .item-card.focus-flash {
+        .item-card.focus-flash,
+        .controls .filter-attention {
           animation: none !important;
         }
       }
@@ -1204,6 +1215,8 @@ const html = `<!doctype html>
       let latestRecoverySummary = null;
       let recoveryRadarHistory = [];
       let activeRecoverySummaryId = null;
+      let focusedFilterControl = null;
+      let focusedFilterControlTimer = null;
       const controlsStorageKey = "readdo.web.controls.v1";
       const recoveryRadarStorageKey = "readdo.web.recovery-radar.v1";
       const defaultCollapsedGroups = {
@@ -1737,29 +1750,59 @@ const html = `<!doctype html>
         return "unknown";
       }
 
+      function clearFocusedFilterControl() {
+        if (focusedFilterControl && focusedFilterControl.classList) {
+          focusedFilterControl.classList.remove("filter-attention");
+        }
+        focusedFilterControl = null;
+        if (focusedFilterControlTimer) {
+          clearTimeout(focusedFilterControlTimer);
+          focusedFilterControlTimer = null;
+        }
+      }
+
+      function markFilterControlAttention(control) {
+        if (!control || !control.classList) return;
+        clearFocusedFilterControl();
+        focusedFilterControl = control;
+        control.classList.add("filter-attention");
+        focusedFilterControlTimer = setTimeout(() => {
+          clearFocusedFilterControl();
+        }, 900);
+      }
+
       function focusQueueFilterControl(control) {
         if (!control) return;
-        control.scrollIntoView({ behavior: "smooth", block: "center" });
+        const controlsHost = control.closest(".controls");
+        if (controlsHost instanceof HTMLElement) {
+          controlsHost.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else {
+          control.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
         control.focus();
+        markFilterControlAttention(control);
         if (control === queryInput) {
           queryInput.select();
         }
       }
 
-      function focusRecoveryContextControl(step) {
+      function recoveryContextTarget(step) {
         if (queryInput.value.trim()) {
-          focusQueueFilterControl(queryInput);
-          return;
+          return { control: queryInput, label: "Search" };
         }
         if (retryableFilter.value) {
-          focusQueueFilterControl(retryableFilter);
-          return;
+          return { control: retryableFilter, label: "Retryable Filter" };
         }
         if (step === "unknown") {
-          focusQueueFilterControl(statusFilter);
-          return;
+          return { control: statusFilter, label: "Status Filter" };
         }
-        focusQueueFilterControl(failureStepFilter);
+        return { control: failureStepFilter, label: "Failure Step Filter" };
+      }
+
+      function focusRecoveryContextControl(step) {
+        const target = recoveryContextTarget(step);
+        focusQueueFilterControl(target.control);
+        return target;
       }
 
       function trendStepActionTitle(step) {
@@ -2164,12 +2207,15 @@ const html = `<!doctype html>
         }
         const editTrendFocusBtn = recoveryRadarEl.querySelector("#editTrendFocusContextBtn");
         editTrendFocusBtn?.addEventListener("click", async () => {
+          if (!activeStep) return;
+          const target = recoveryContextTarget(activeStep);
           await runActionWithFeedback(
             {
               id: "recovery_trend_edit_context",
-              label: QUEUE_RECOVERY_EDIT_CONTEXT_LABEL,
+              label: QUEUE_RECOVERY_EDIT_CONTEXT_LABEL + " → " + target.label,
               action: async () => {
-                focusRecoveryContextControl(activeStep);
+                const resolved = focusRecoveryContextControl(activeStep);
+                errorEl.textContent = "Focused control: " + resolved.label + ".";
               },
             },
             { button: editTrendFocusBtn, localFeedbackEl: queueActionBannerEl },
