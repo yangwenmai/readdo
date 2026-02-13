@@ -164,6 +164,7 @@ Headers:
 
 * url 必填
 * intent_text 必填（MVP）
+* domain 可选；若缺失且 url 为 http/https，服务端会从 URL 自动推断 hostname 并归一化为小写
 * source_type 枚举：`web | youtube | newsletter | other`（大小写不敏感，服务端会归一化为小写）
 * url 协议白名单：`http | https | data`（如 `ftp://`、`chrome://`、`file://` 应返回 `400 VALIDATION_ERROR`）
 * 若同时提供 `Idempotency-Key` 与 `capture_id`，两者必须一致；不一致返回 `400 VALIDATION_ERROR`

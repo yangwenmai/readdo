@@ -1916,6 +1916,14 @@ test("capture validates url and source_type", async () => {
       },
     });
     assert.equal(validRes.statusCode, 201);
+    const validId = (validRes.json() as { item: { id: string } }).item.id;
+    const validDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${validId}`,
+    });
+    assert.equal(validDetailRes.statusCode, 200);
+    const validDetail = validDetailRes.json() as { item: { domain: string | null } };
+    assert.equal(validDetail.item.domain, "example.com");
 
     const normalizedSourceTypeRes = await app.inject({
       method: "POST",
@@ -1935,6 +1943,26 @@ test("capture validates url and source_type", async () => {
     assert.equal(normalizedDetailRes.statusCode, 200);
     const normalizedDetail = normalizedDetailRes.json() as { item: { source_type: string } };
     assert.equal(normalizedDetail.item.source_type, "web");
+
+    const normalizedDomainRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://example.com/domain-normalize",
+        domain: "Example.ORG",
+        source_type: "web",
+        intent_text: "validate domain normalization",
+      },
+    });
+    assert.equal(normalizedDomainRes.statusCode, 201);
+    const normalizedDomainId = (normalizedDomainRes.json() as { item: { id: string } }).item.id;
+    const normalizedDomainDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${normalizedDomainId}`,
+    });
+    assert.equal(normalizedDomainDetailRes.statusCode, 200);
+    const normalizedDomainDetail = normalizedDomainDetailRes.json() as { item: { domain: string | null } };
+    assert.equal(normalizedDomainDetail.item.domain, "example.org");
   } finally {
     await app.close();
   }

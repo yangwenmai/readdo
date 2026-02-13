@@ -1058,7 +1058,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const sourceType = String(body.source_type ?? "web")
       .trim()
       .toLowerCase();
-    const domain = String(body.domain ?? "").trim();
+    const providedDomain = String(body.domain ?? "").trim();
 
     if (!url || !intentText) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "url and intent_text are required"));
@@ -1066,14 +1066,17 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     if (!["web", "youtube", "newsletter", "other"].includes(sourceType)) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "source_type must be web|youtube|newsletter|other"));
     }
+    let parsedUrl: URL;
     try {
-      const parsed = new URL(url);
-      if (!["http:", "https:", "data:"].includes(parsed.protocol)) {
+      parsedUrl = new URL(url);
+      if (!["http:", "https:", "data:"].includes(parsedUrl.protocol)) {
         return reply.status(400).send(failure("VALIDATION_ERROR", "url protocol must be http/https/data"));
       }
     } catch {
       return reply.status(400).send(failure("VALIDATION_ERROR", "url is invalid"));
     }
+    const inferredDomain = ["http:", "https:"].includes(parsedUrl.protocol) ? parsedUrl.hostname : "";
+    const domain = (providedDomain || inferredDomain).toLowerCase();
 
     if (idempotencyKey) {
       const existing = db
