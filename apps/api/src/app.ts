@@ -1497,6 +1497,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       return reply.status(400).send(failure("VALIDATION_ERROR", "sort must be priority_score_desc|created_desc|updated_desc"));
     }
     const sortRaw = typeof query.sort === "string" ? query.sort.trim() : "";
+    if (query.sort !== undefined && !sortRaw) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "sort must be priority_score_desc|created_desc|updated_desc"));
+    }
     const sort = sortRaw || "priority_score_desc";
     if (!["priority_score_desc", "created_desc", "updated_desc"].includes(sort)) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "sort must be priority_score_desc|created_desc|updated_desc"));
@@ -1623,6 +1626,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       return reply.status(400).send(failure("VALIDATION_ERROR", "include_history must be true|false when provided"));
     }
     const includeHistoryRaw = typeof query.include_history === "string" ? query.include_history.trim().toLowerCase() : "";
+    if (query.include_history !== undefined && !includeHistoryRaw) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "include_history must be true|false when provided"));
+    }
     if (includeHistoryRaw && includeHistoryRaw !== "true" && includeHistoryRaw !== "false") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "include_history must be true|false when provided"));
     }

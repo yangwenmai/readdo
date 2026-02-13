@@ -2662,6 +2662,15 @@ test("items endpoint supports status and query filtering", async () => {
     assert.equal(invalidSortPayload.error.code, "VALIDATION_ERROR");
     assert.match(invalidSortPayload.error.message, /sort must be priority_score_desc\|created_desc\|updated_desc/i);
 
+    const blankSortRes = await app.inject({
+      method: "GET",
+      url: "/api/items?sort=%20%20%20",
+    });
+    assert.equal(blankSortRes.statusCode, 400);
+    const blankSortPayload = blankSortRes.json() as { error: { code: string; message: string } };
+    assert.equal(blankSortPayload.error.code, "VALIDATION_ERROR");
+    assert.match(blankSortPayload.error.message, /sort must be priority_score_desc\|created_desc\|updated_desc/i);
+
     const limitOneRes = await app.inject({
       method: "GET",
       url: "/api/items?limit=1",
@@ -2923,6 +2932,15 @@ test("item detail validates include_history query values", async () => {
     const invalidDetailPayload = invalidDetailRes.json() as { error: { code: string; message: string } };
     assert.equal(invalidDetailPayload.error.code, "VALIDATION_ERROR");
     assert.match(invalidDetailPayload.error.message, /include_history must be true\|false/i);
+
+    const blankDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}?include_history=%20%20%20`,
+    });
+    assert.equal(blankDetailRes.statusCode, 400);
+    const blankDetailPayload = blankDetailRes.json() as { error: { code: string; message: string } };
+    assert.equal(blankDetailPayload.error.code, "VALIDATION_ERROR");
+    assert.match(blankDetailPayload.error.message, /include_history must be true\|false/i);
   } finally {
     await app.close();
   }

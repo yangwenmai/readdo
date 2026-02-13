@@ -462,7 +462,7 @@ Headers:
 * `retryable`：`true | false`（仅对 FAILED_* 生效；用于筛选可重试/不可重试失败项；必须为非空字符串；其他值返回 `400 VALIDATION_ERROR`）
 * `failure_step`：`extract | pipeline | export`（仅对 FAILED_* 生效；按失败阶段筛选；必须为非空字符串；其他值返回 `400 VALIDATION_ERROR`）
 * `q`：搜索（MVP 可仅 title/domain/intent_text）
-* `sort`：`priority_score_desc | created_desc | updated_desc`
+* `sort`：`priority_score_desc | created_desc | updated_desc`（必须为非空字符串）
 
   * 默认：`priority_score_desc`
   * 非法值返回 `400 VALIDATION_ERROR`
@@ -514,7 +514,7 @@ Headers:
 
 * `artifact_versions`（可选，json 字符串）：指定要取的版本（按类型）
   - 示例：`?artifact_versions={"todos":1,"card":2}`（URL 编码后传输）
-* `include_history`：`true/false`（大小写不敏感，MVP 默认 false；非法值返回 `400 VALIDATION_ERROR`）
+* `include_history`：`true/false`（大小写不敏感，MVP 默认 false；必须为非空字符串；非法值返回 `400 VALIDATION_ERROR`）
 
 ### 6.3 Response 200
 
