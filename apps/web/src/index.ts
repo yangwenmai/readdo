@@ -19,6 +19,12 @@ const shortcutDiscoveryText = `Press ${shortcutTriggerKey} for shortcuts`;
 const shortcutSummaryText =
   "Shortcuts: " + shortcutGuideItems.map((item) => `${item.key} ${item.label}`).join(" · ");
 const shortcutHintButtonText = `Shortcuts (${shortcutTriggerKey})`;
+const queuePreviewLabels = {
+  archive: "Preview Archive",
+  retry: "Preview Retry",
+  unarchive: "Preview Unarchive",
+  next: "Preview Next",
+};
 
 const html = `<!doctype html>
 <html lang="en">
@@ -460,12 +466,12 @@ const html = `<!doctype html>
         <span class="muted">API: ${apiBase}</span>
         <span class="muted" id="workerStats">Queue: -</span>
         <button id="runWorkerBtn" type="button">Run Worker Once</button>
-        <button id="previewRetryBtn" type="button">Preview Retry</button>
-        <button id="previewNextBtn" type="button" style="display:none;">Preview Next</button>
+        <button id="previewRetryBtn" type="button">${queuePreviewLabels.retry}</button>
+        <button id="previewNextBtn" type="button" style="display:none;">${queuePreviewLabels.next}</button>
         <button id="retryFailedBtn" type="button">Retry Failed</button>
-        <button id="previewArchiveBtn" type="button">Preview Archive</button>
+        <button id="previewArchiveBtn" type="button">${queuePreviewLabels.archive}</button>
         <button id="archiveBlockedBtn" type="button">Archive Failed</button>
-        <button id="previewUnarchiveBtn" type="button">Preview Unarchive</button>
+        <button id="previewUnarchiveBtn" type="button">${queuePreviewLabels.unarchive}</button>
         <button id="unarchiveBatchBtn" type="button">Unarchive Archived</button>
         <label class="muted" style="display:flex;align-items:center;gap:4px;">
           <input id="autoRefreshToggle" type="checkbox" />
@@ -550,6 +556,7 @@ const html = `<!doctype html>
     <script>
       const API_BASE = ${JSON.stringify(apiBase)};
       const SHORTCUT_TRIGGER_KEY = ${JSON.stringify(shortcutTriggerKey)};
+      const QUEUE_PREVIEW_LABELS = ${JSON.stringify(queuePreviewLabels)};
       const inboxEl = document.getElementById("inbox");
       const detailEl = document.getElementById("detail");
       const detailModeChipsEl = document.getElementById("detailModeChips");
@@ -641,10 +648,10 @@ const html = `<!doctype html>
       };
       const queueActionMeta = {
         preview: {
-          archive: { id: "queue_preview_archive", label: "Preview Archive" },
-          retry: { id: "queue_preview_retry", label: "Preview Retry" },
-          unarchive: { id: "queue_preview_unarchive", label: "Preview Unarchive" },
-          next: { id: "queue_preview_next", label: "Preview Next" },
+          archive: { id: "queue_preview_archive", label: QUEUE_PREVIEW_LABELS.archive },
+          retry: { id: "queue_preview_retry", label: QUEUE_PREVIEW_LABELS.retry },
+          unarchive: { id: "queue_preview_unarchive", label: QUEUE_PREVIEW_LABELS.unarchive },
+          next: { id: "queue_preview_next", label: QUEUE_PREVIEW_LABELS.next },
         },
         batch: {
           retry: { id: "queue_retry_failed", label: "Retry Failed Batch" },
@@ -688,7 +695,7 @@ const html = `<!doctype html>
       function clearPreviewContinuation() {
         previewContinuation = null;
         previewNextBtn.style.display = "none";
-        previewNextBtn.textContent = "Preview Next";
+        previewNextBtn.textContent = QUEUE_PREVIEW_LABELS.next;
         previewNextBtn.disabled = false;
       }
 
@@ -709,7 +716,7 @@ const html = `<!doctype html>
         }
         previewContinuation = { kind, next_offset: Number(nextOffset) };
         previewNextBtn.style.display = "inline-block";
-        previewNextBtn.textContent = "Preview Next (" + nextOffset + ")";
+        previewNextBtn.textContent = QUEUE_PREVIEW_LABELS.next + " (" + nextOffset + ")";
       }
 
       function clearDetailSectionNav() {
