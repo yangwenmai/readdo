@@ -161,6 +161,7 @@ See `docs/contracts/schemas/card.schema.json` for `render_spec`.
 > Web Detail 的 Export Records 支持 `Copy Path` 与 `Open`（通过 `/exports/...` 直接预览文件）。
 > 失败重试遵循上限策略（默认 3 次），达到上限后会返回 `RETRY_LIMIT_REACHED`。
 > 对同一 item 重复使用同一 `export_key` 会命中幂等重放（不新增 export 版本）；若此前是 `FAILED_EXPORT`，重放命中后会回到 `SHIPPED` 并清理 failure。
+> 当 `FAILED_EXPORT` 已达到重试上限时，新导出请求会被阻断；但若使用历史已存在的同一 `export_key`，仍可命中重放返回历史结果。
 
 ---
 

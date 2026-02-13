@@ -3331,6 +3331,92 @@ test("export retry is blocked after retry limit reached", async () => {
   }
 });
 
+test("export replay is still allowed after retry limit is reached", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-retry-limit-replay-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+    disablePngRender: true,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20content%20is%20used%20to%20verify%20export%20replay%20after%20retry%20limit%20is%20reached.",
+        title: "Export Replay After Retry Limit",
+        domain: "example.export.retry.replay",
+        source_type: "web",
+        intent_text: "allow replay even after retry limit reached",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const replayableKey = "exp-replay-after-limit";
+    const successExportRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: replayableKey, formats: ["md"] },
+    });
+    assert.equal(successExportRes.statusCode, 200);
+
+    for (let i = 1; i <= 3; i += 1) {
+      const exportRes = await app.inject({
+        method: "POST",
+        url: `/api/items/${itemId}/export`,
+        payload: { export_key: `png-fail-replay-${i}`, formats: ["png"] },
+      });
+      assert.equal(exportRes.statusCode, 500);
+    }
+
+    const failedDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}`,
+    });
+    assert.equal(failedDetailRes.statusCode, 200);
+    const failedDetail = failedDetailRes.json() as {
+      item: { status: string };
+      failure: { retryable: boolean; retry_attempts: number; retry_limit: number };
+    };
+    assert.equal(failedDetail.item.status, "FAILED_EXPORT");
+    assert.equal(failedDetail.failure.retryable, false);
+    assert.equal(failedDetail.failure.retry_attempts, 3);
+    assert.equal(failedDetail.failure.retry_limit, 3);
+
+    const replayRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: replayableKey, formats: ["md"] },
+    });
+    assert.equal(replayRes.statusCode, 200);
+    const replayPayload = replayRes.json() as {
+      idempotent_replay: boolean;
+      export: { payload: { export_key: string } };
+    };
+    assert.equal(replayPayload.idempotent_replay, true);
+    assert.equal(replayPayload.export.payload.export_key, replayableKey);
+
+    const replayDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}`,
+    });
+    assert.equal(replayDetailRes.statusCode, 200);
+    const replayDetail = replayDetailRes.json() as {
+      item: { status: string };
+      failure?: unknown;
+    };
+    assert.equal(replayDetail.item.status, "SHIPPED");
+    assert.equal(replayDetail.failure, undefined);
+  } finally {
+    await app.close();
+  }
+});
+
 test("artifact compare endpoint returns structured diff summary", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-compare-"));
   const app = await createApp({

@@ -1716,6 +1716,20 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     if (!["READY", "SHIPPED", "FAILED_EXPORT"].includes(item.status)) {
       return reply.status(409).send(failure("EXPORT_NOT_ALLOWED", "Export is only allowed for READY/SHIPPED/FAILED_EXPORT states"));
     }
+    const existingExportPayload = findExportPayloadByKey(db, id, exportKey);
+    if (existingExportPayload) {
+      const ts = nowIso();
+      db.prepare("UPDATE items SET status = 'SHIPPED', updated_at = ?, failure_json = NULL WHERE id = ?").run(ts, id);
+      return {
+        item: { id, status: "SHIPPED", updated_at: ts },
+        export: {
+          artifact_type: "export",
+          payload: existingExportPayload,
+        },
+        idempotent_replay: true,
+      };
+    }
+
     if (item.status === "FAILED_EXPORT" && item.failure_json) {
       try {
         const failurePayload = JSON.parse(item.failure_json) as {
@@ -1741,20 +1755,6 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const cardArtifact = artifacts.card as { payload?: Record<string, unknown> } | undefined;
     if (!cardArtifact?.payload) {
       return reply.status(409).send(failure("STATE_CONFLICT", "Card artifact is missing"));
-    }
-
-    const existingExportPayload = findExportPayloadByKey(db, id, exportKey);
-    if (existingExportPayload) {
-      const ts = nowIso();
-      db.prepare("UPDATE items SET status = 'SHIPPED', updated_at = ?, failure_json = NULL WHERE id = ?").run(ts, id);
-      return {
-        item: { id, status: "SHIPPED", updated_at: ts },
-        export: {
-          artifact_type: "export",
-          payload: existingExportPayload,
-        },
-        idempotent_replay: true,
-      };
     }
 
     const exportDir = resolve(root, "exports", id);
