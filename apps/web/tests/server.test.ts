@@ -56,6 +56,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Pipeline Pulse/u);
     assert.match(text, /Track capture → ship momentum/u);
     assert.match(text, /Flow health:/u);
+    assert.match(text, /View Blocked/u);
     assert.match(text, /id="ahaNudge"/u);
     assert.match(text, /Aha Now/u);
     assert.match(text, /spotlight-note/u);
@@ -76,6 +77,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Ship & Export/u);
     assert.match(text, /Maintain Queue/u);
     assert.match(text, /Recovery Playbook/u);
+    assert.match(text, /Recovery Priority:/u);
     assert.match(text, /Shipping Playbook/u);
     assert.match(text, /Next Recommended Move/u);
     assert.match(text, /Primary Next Step/u);

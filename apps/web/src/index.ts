@@ -594,12 +594,39 @@ const html = `<!doctype html>
       textarea { width: 100%; min-height: 180px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
       .editor-row { display: flex; gap: 8px; margin: 8px 0; align-items: center; flex-wrap: wrap; }
       .hint { font-size: 12px; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 6px 8px; margin-top: 6px; }
+      .failure-priority {
+        margin-top: 6px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        padding: 6px 8px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .failure-priority.normal {
+        border-color: #bae6fd;
+        background: #f0f9ff;
+        color: #0c4a6e;
+      }
+      .failure-priority.urgent {
+        border-color: #fed7aa;
+        background: #fff7ed;
+        color: #9a3412;
+      }
+      .failure-priority.blocked {
+        border-color: #fecaca;
+        background: #fef2f2;
+        color: #991b1b;
+      }
       .coach-card {
         margin-top: 8px;
         border: 1px solid #bfdbfe;
         border-radius: 10px;
         background: #eff6ff;
         padding: 8px;
+      }
+      .coach-card.blocked {
+        border-color: #fca5a5;
+        background: #fff1f2;
       }
       .coach-card h4 {
         margin: 0 0 6px;
@@ -1211,6 +1238,27 @@ const html = `<!doctype html>
         };
       }
 
+      function failedRetryBuckets(items) {
+        const buckets = {
+          retryable: 0,
+          blocked: 0,
+          last_attempt: 0,
+        };
+        for (const item of items) {
+          if (!String(item?.status || "").startsWith("FAILED_")) continue;
+          const info = retryInfo(item);
+          if (!info.retryable || info.remaining === 0) {
+            buckets.blocked += 1;
+            continue;
+          }
+          buckets.retryable += 1;
+          if (info.remaining === 1) {
+            buckets.last_attempt += 1;
+          }
+        }
+        return buckets;
+      }
+
       function queueItemCardById(itemId) {
         if (itemId == null) return null;
         const cards = inboxEl.querySelectorAll(".item-card.clickable[data-item-id]");
@@ -1262,6 +1310,7 @@ const html = `<!doctype html>
       function renderQueueFlowPulse(items, counts) {
         if (!queueFlowPulseEl) return;
         const total = Math.max(items.length, 1);
+        const failedBuckets = failedRetryBuckets(items);
         const flowHealth = Math.round(((counts.READY + counts.SHIPPED) / total) * 100);
         const stages = [
           { label: "Captured", status: "CAPTURED", tone: "captured", count: counts.CAPTURED },
@@ -1309,8 +1358,14 @@ const html = `<!doctype html>
           "Flow health: <strong>" +
           flowHealth +
           "%</strong> ready-or-shipped · Blocked now: <strong>" +
-          counts.FAILED +
-          "</strong> failed items · Click stage to filter";
+          failedBuckets.blocked +
+          "</strong> hard-blocked · Retryable failed: <strong>" +
+          failedBuckets.retryable +
+          "</strong>";
+        if (failedBuckets.last_attempt > 0) {
+          meta.innerHTML += " · Last-attempt items: <strong>" + failedBuckets.last_attempt + "</strong>";
+        }
+        meta.innerHTML += " · Click stage to filter";
         if (counts.FAILED > 0) {
           const failedBtn = document.createElement("button");
           failedBtn.type = "button";
@@ -1328,6 +1383,24 @@ const html = `<!doctype html>
           });
           meta.appendChild(failedBtn);
         }
+        if (failedBuckets.blocked > 0) {
+          const blockedBtn = document.createElement("button");
+          blockedBtn.type = "button";
+          blockedBtn.textContent = "View Blocked";
+          if (statusFilter.value === "FAILED_EXTRACTION,FAILED_AI,FAILED_EXPORT" && retryableFilter.value === "false") {
+            blockedBtn.disabled = true;
+          }
+          blockedBtn.addEventListener("click", async () => {
+            await applyListContextAndReload("Flow: Blocked", {
+              button: blockedBtn,
+              mutate: () => {
+                statusFilter.value = "FAILED_EXTRACTION,FAILED_AI,FAILED_EXPORT";
+                retryableFilter.value = "false";
+              },
+            });
+          });
+          meta.appendChild(blockedBtn);
+        }
         queueFlowPulseEl.appendChild(meta);
       }
 
@@ -1337,7 +1410,8 @@ const html = `<!doctype html>
         const readyCount = counts.READY;
         const shippedCount = counts.SHIPPED;
         const attentionCount = counts.FAILED;
-        const retryableCount = items.filter((item) => isRetryableFailedItem(item)).length;
+        const failedBuckets = failedRetryBuckets(items);
+        const retryableCount = failedBuckets.retryable;
         const candidate = topReadyItem(items);
         const momentum = readyCount + retryableCount;
         renderQueueFlowPulse(items, counts);
@@ -2194,6 +2268,11 @@ const html = `<!doctype html>
         const retryLimit = Number(failure.retry_limit ?? 0);
         const retryable = failure.retryable !== false;
         const remaining = retryLimit > 0 ? Math.max(retryLimit - retryAttempts, 0) : null;
+        const recoveryPriority = !retryable || remaining === 0
+          ? { tone: "blocked", label: "Recovery Priority: Blocked", note: "Manual edit before rerun." }
+          : remaining === 1
+            ? { tone: "urgent", label: "Recovery Priority: Last Retry", note: "Retry budget almost exhausted." }
+            : { tone: "normal", label: "Recovery Priority: Recoverable", note: "Safe to retry with playbook steps." };
 
         let actionGuide = "You can retry processing from Inbox.";
         if (failure.failed_step === "extract") {
@@ -2211,8 +2290,9 @@ const html = `<!doctype html>
           <h3>Failure Guidance</h3>
           <div class="muted">step: \${failure.failed_step || "unknown"} · code: \${failure.error_code || "UNKNOWN"}</div>
           <div class="hint">\${actionGuide}</div>
+          <div class="failure-priority \${recoveryPriority.tone}">\${recoveryPriority.label} · \${recoveryPriority.note}</div>
           <div class="muted">retry: \${retryAttempts}/\${retryLimit || "N/A"} used\${remaining == null ? "" : ", remaining: " + remaining}</div>
-          <div class="coach-card">
+          <div class="coach-card \${recoveryPriority.tone === "blocked" ? "blocked" : ""}">
             <h4>Recovery Playbook</h4>
             <ul class="coach-list" id="failureCoachList"></ul>
             <div class="actions" id="failureCoachActions"></div>
