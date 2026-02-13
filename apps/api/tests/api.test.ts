@@ -2227,6 +2227,25 @@ test("capture validates url and source_type", async () => {
     const credentialUrlDetail = credentialUrlDetailRes.json() as { item: { url: string } };
     assert.equal(credentialUrlDetail.item.url, "https://example.com/private?a=1");
 
+    const httpCredentialUrlRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "http://bob:pwd@Example.com.:80/hello?x=1",
+        source_type: "web",
+        intent_text: "normalize http credential URL before storage",
+      },
+    });
+    assert.equal(httpCredentialUrlRes.statusCode, 201);
+    const httpCredentialUrlId = (httpCredentialUrlRes.json() as { item: { id: string } }).item.id;
+    const httpCredentialUrlDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${httpCredentialUrlId}`,
+    });
+    assert.equal(httpCredentialUrlDetailRes.statusCode, 200);
+    const httpCredentialUrlDetail = httpCredentialUrlDetailRes.json() as { item: { url: string } };
+    assert.equal(httpCredentialUrlDetail.item.url, "http://example.com/hello?x=1");
+
     const dataDomainRes = await app.inject({
       method: "POST",
       url: "/api/capture",
