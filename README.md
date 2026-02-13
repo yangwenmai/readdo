@@ -71,6 +71,7 @@ UI 提供 `Preview Next` 按钮，可直接基于 `next_offset` 连续翻页预�
 批量执行会在预览后使用服务端回写的 `requested_offset` 再次发起请求，确保执行页与最终预览页严格一致。
 `Clear Filters` 可快速清空 q/status/retryable/failure step 四类列表筛选，不影响 Batch Limit、Archive Scope、Unarchive Mode、Auto refresh。
 `Reset Controls` 可一键恢复筛选/批量参数默认值，并关闭自动刷新。
+单条行内操作按钮在请求进行中会临时禁用，避免重复点击导致的重复提交。
 筛选条件、Batch Limit、Preview Offset、Auto refresh 会在浏览器本地持久化，刷新页面后自动恢复。
 当修改搜索词、切换筛选条件或调整批量参数时，旧的预览结果会自动清空，并将 `Preview Offset` 归零，避免跨上下文误读。
 
