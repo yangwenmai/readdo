@@ -193,6 +193,19 @@ function normalizeQueryList(value: unknown): string[] {
   return [];
 }
 
+function inferSourceTypeFromUrl(url: string): "web" | "youtube" | "newsletter" | "other" {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    if (host.includes("youtube.com") || host.includes("youtu.be")) return "youtube";
+    if (host.includes("substack.com") || host.includes("newsletter")) return "newsletter";
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") return "web";
+    return "other";
+  } catch {
+    return "web";
+  }
+}
+
 function artifactToSchema(artifactType: string):
   | "extraction"
   | "summary"
@@ -1055,9 +1068,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const url = String(body.url ?? "").trim();
     const intentText = String(body.intent_text ?? "").trim();
     const title = String(body.title ?? "").trim();
-    const sourceType = String(body.source_type ?? "web")
+    const sourceTypeInput = String(body.source_type ?? "")
       .trim()
       .toLowerCase();
+    const sourceType = sourceTypeInput || inferSourceTypeFromUrl(url);
     const providedDomain = String(body.domain ?? "").trim();
 
     if (!url || !intentText) {

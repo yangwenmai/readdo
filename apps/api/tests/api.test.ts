@@ -1936,6 +1936,24 @@ test("capture validates url and source_type", async () => {
     const validDetail = validDetailRes.json() as { item: { domain: string | null } };
     assert.equal(validDetail.item.domain, "example.com");
 
+    const inferredSourceTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://www.youtube.com/watch?v=test123",
+        intent_text: "infer source type from URL",
+      },
+    });
+    assert.equal(inferredSourceTypeRes.statusCode, 201);
+    const inferredSourceTypeId = (inferredSourceTypeRes.json() as { item: { id: string } }).item.id;
+    const inferredSourceTypeDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${inferredSourceTypeId}`,
+    });
+    assert.equal(inferredSourceTypeDetailRes.statusCode, 200);
+    const inferredSourceTypeDetail = inferredSourceTypeDetailRes.json() as { item: { source_type: string } };
+    assert.equal(inferredSourceTypeDetail.item.source_type, "youtube");
+
     const normalizedSourceTypeRes = await app.inject({
       method: "POST",
       url: "/api/capture",
