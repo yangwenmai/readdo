@@ -73,6 +73,16 @@ Evals ensure schema + key behaviors don’t drift.
 pnpm eval
 ```
 
+Advanced examples:
+
+```bash
+# Use creator profile and only block on P0
+pnpm eval -- --profile creator --fail-on P0
+
+# Custom case glob and output report path
+pnpm eval -- --cases "docs/evals/cases/case_00*.json" --out "docs/evals/reports/custom.json"
+```
+
 Quality gates:
 
 * P0 must be 100% passing
@@ -111,6 +121,21 @@ MVP export targets:
 * PNG（下一步补齐，基于 HTML render_spec）
 
 See `docs/contracts/schemas/card.schema.json` for `render_spec`.
+
+> Export supports `formats: ["png","md","caption"]`.  
+> If png rendering fails and only png is requested, item will enter `FAILED_EXPORT`.
+
+---
+
+## API quick checks
+
+```bash
+# Worker queue/lease visibility
+curl "http://localhost:8787/api/system/worker"
+
+# Filter inbox by status and search keyword
+curl "http://localhost:8787/api/items?status=READY&q=checklist"
+```
 
 ---
 
