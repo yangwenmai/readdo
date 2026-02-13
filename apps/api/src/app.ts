@@ -247,8 +247,26 @@ function deriveCaptureKey(url: string, intentText: string): string {
   return `extcap_${digest}`;
 }
 
-function normalizeCaptureIdempotencyKey(rawValue: unknown): string {
-  const key = rawValue == null ? "" : String(rawValue).trim();
+function normalizeIdempotencyKey(rawValue: unknown): string {
+  if (Array.isArray(rawValue)) {
+    for (const entry of rawValue) {
+      const normalizedEntry = entry == null ? "" : String(entry).trim();
+      if (normalizedEntry) return normalizedEntry;
+    }
+    return "";
+  }
+  return rawValue == null ? "" : String(rawValue).trim();
+}
+
+function normalizeIdempotencyHeaderKey(rawValue: unknown): string {
+  const key = normalizeIdempotencyKey(rawValue);
+  if (!key.includes(",")) return key;
+  const first = key.split(",")[0];
+  return first?.trim() ?? "";
+}
+
+function normalizeCaptureIdempotencyKey(rawValue: unknown, fromHeader = false): string {
+  const key = fromHeader ? normalizeIdempotencyHeaderKey(rawValue) : normalizeIdempotencyKey(rawValue);
   if (!key) return "";
   const extcapMatch = /^extcap_([0-9a-f]{32})$/iu.exec(key);
   if (!extcapMatch) return key;
@@ -1134,7 +1152,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
   app.post("/api/capture", async (request, reply) => {
     const body = request.body as Record<string, unknown>;
-    const headerKey = normalizeCaptureIdempotencyKey(request.headers["idempotency-key"]);
+    const headerKey = normalizeCaptureIdempotencyKey(request.headers["idempotency-key"], true);
     const captureId = normalizeCaptureIdempotencyKey(body.capture_id);
     if (headerKey && captureId && headerKey !== captureId) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "Idempotency-Key and capture_id must match when both are provided"));
@@ -1517,8 +1535,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       return reply.status(400).send(failure("VALIDATION_ERROR", "mode must be PROCESS | RETRY | REGENERATE"));
     }
     const headerProcessRaw = request.headers["idempotency-key"];
-    const headerProcessKey = typeof headerProcessRaw === "string" ? headerProcessRaw.trim() : "";
-    const bodyProcessKey = typeof body.process_request_id === "string" ? body.process_request_id.trim() : "";
+    const headerProcessKey = normalizeIdempotencyHeaderKey(headerProcessRaw);
+    const bodyProcessKey = normalizeIdempotencyKey(body.process_request_id);
     if (headerProcessKey && bodyProcessKey && headerProcessKey !== bodyProcessKey) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "Idempotency-Key and process_request_id must match when both are provided"));
     }
@@ -1607,8 +1625,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const id = (request.params as { id: string }).id;
     const body = (request.body ?? {}) as Record<string, unknown>;
     const headerExportRaw = request.headers["idempotency-key"];
-    const headerExportKey = typeof headerExportRaw === "string" ? headerExportRaw.trim() : "";
-    const bodyExportKey = typeof body.export_key === "string" ? body.export_key.trim() : "";
+    const headerExportKey = normalizeIdempotencyHeaderKey(headerExportRaw);
+    const bodyExportKey = normalizeIdempotencyKey(body.export_key);
     if (headerExportKey && bodyExportKey && headerExportKey !== bodyExportKey) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "Idempotency-Key and export_key must match when both are provided"));
     }

@@ -402,6 +402,52 @@ test("capture normalizes extcap idempotency keys case-insensitively", async () =
   }
 });
 
+test("capture accepts repeated idempotency header values by using first key", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-capture-idempotent-header-array-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureKey = "extcap_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+    const firstCaptureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      headers: { "Idempotency-Key": [captureKey, captureKey] },
+      payload: {
+        capture_id: captureKey,
+        url: "https://example.com/repeated-header",
+        source_type: "web",
+        intent_text: "capture with repeated header values",
+      },
+    });
+    assert.equal(firstCaptureRes.statusCode, 201);
+    const firstPayload = firstCaptureRes.json() as { item: { id: string }; idempotent_replay: boolean };
+    assert.equal(firstPayload.idempotent_replay, false);
+
+    const replayCaptureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      headers: { "Idempotency-Key": captureKey },
+      payload: {
+        capture_id: captureKey,
+        url: "https://example.com/repeated-header?utm_source=x",
+        source_type: "web",
+        intent_text: "capture with repeated header values",
+      },
+    });
+    assert.equal(replayCaptureRes.statusCode, 201);
+    const replayPayload = replayCaptureRes.json() as { item: { id: string }; idempotent_replay: boolean };
+    assert.equal(replayPayload.idempotent_replay, true);
+    assert.equal(replayPayload.item.id, firstPayload.item.id);
+  } finally {
+    await app.close();
+  }
+});
+
 test("export idempotency replays old export_key beyond recent window", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-idempotent-"));
   const app = await createApp({
