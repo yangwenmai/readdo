@@ -2979,33 +2979,42 @@ const html = `<!doctype html>
         });
       }
 
-      function handleGlobalShortcutKey(event) {
-        const key = event.key.toLowerCase();
-        if (event.key === "?") {
-          event.preventDefault();
-          showShortcutHint();
-          return;
+      function shortcutActionByKey(key) {
+        if (key === "?") {
+          return () => {
+            showShortcutHint();
+          };
         }
-        if (event.key === "/") {
-          event.preventDefault();
-          queryInput.focus();
-          queryInput.select();
-          return;
+        if (key === "/") {
+          return () => {
+            queryInput.focus();
+            queryInput.select();
+          };
         }
         if (key === "f") {
-          event.preventDefault();
-          setDetailAdvancedEnabled(false);
-          return;
+          return () => {
+            setDetailAdvancedEnabled(false);
+          };
         }
         if (key === "a") {
-          event.preventDefault();
-          setDetailAdvancedEnabled(true);
-          return;
+          return () => {
+            setDetailAdvancedEnabled(true);
+          };
         }
         if (key === "r") {
-          event.preventDefault();
-          refreshItemsWithErrorHandling();
+          return () => {
+            refreshItemsWithErrorHandling();
+          };
         }
+        return null;
+      }
+
+      function handleGlobalShortcutKey(event) {
+        const key = event.key.toLowerCase();
+        const action = shortcutActionByKey(key);
+        if (!action) return;
+        event.preventDefault();
+        action();
       }
 
       function bindAutoRefreshToggle(toggleEl) {
