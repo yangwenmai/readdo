@@ -50,7 +50,7 @@ test("capture -> worker -> ready -> export", async () => {
     const exportRes = await app.inject({
       method: "POST",
       url: `/api/items/${captureBody.item.id}/export`,
-      payload: { export_key: "exp-key-1" },
+      payload: { export_key: "exp-key-1", formats: ["png", "md", "caption"] },
     });
     assert.equal(exportRes.statusCode, 200);
     const exportBody = exportRes.json() as {

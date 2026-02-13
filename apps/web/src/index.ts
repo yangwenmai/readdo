@@ -244,7 +244,7 @@ const html = `<!doctype html>
           method: "POST",
           body: JSON.stringify({
             export_key: "web_" + crypto.randomUUID(),
-            formats: ["md", "caption"]
+            formats: ["png", "md", "caption"]
           }),
           headers: { "Idempotency-Key": crypto.randomUUID() }
         });

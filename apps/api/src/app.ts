@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
@@ -211,6 +212,101 @@ async function extractFromUrl(url: string): Promise<{ normalized_text: string; c
     normalized_text: normalized,
     content_meta: extractContentMeta(normalized),
   };
+}
+
+async function tryRenderPngFromCard(
+  rootDir: string,
+  itemId: string,
+  card: {
+    headline: string;
+    points: string[];
+    insight: string;
+    action: string;
+    render_spec?: {
+      width?: number;
+      height?: number;
+      theme?: string;
+      payload?: {
+        content?: {
+          headline?: string;
+          points?: string[];
+          insight?: string;
+          action?: string;
+        };
+      };
+    };
+  },
+): Promise<{ path?: string; renderer: { name: string; version: string } }> {
+  try {
+    const require = createRequire(import.meta.url);
+    const playwright = require("playwright") as { chromium: { launch: (options: Record<string, unknown>) => Promise<unknown> } };
+    const width = card.render_spec?.width ?? 1080;
+    const height = card.render_spec?.height ?? 1350;
+    const theme = card.render_spec?.theme ?? "LIGHT";
+    const content = card.render_spec?.payload?.content;
+    const headline = content?.headline ?? card.headline;
+    const points = content?.points ?? card.points;
+    const insight = content?.insight ?? card.insight;
+    const action = content?.action ?? card.action;
+
+    const pngRelativePath = `exports/${itemId}/card_${Date.now()}.png`;
+    const pngAbsPath = resolve(rootDir, pngRelativePath);
+
+    const browser = (await playwright.chromium.launch({ headless: true })) as {
+      newPage: (options: { viewport: { width: number; height: number } }) => Promise<{
+        setContent: (html: string, opts: { waitUntil: "networkidle" }) => Promise<void>;
+        screenshot: (opts: { path: string; type: "png" }) => Promise<void>;
+      }>;
+      close: () => Promise<void>;
+    };
+    try {
+      const page = await browser.newPage({ viewport: { width, height } });
+      const html = `
+        <!doctype html>
+        <html><head>
+          <meta charset="utf-8" />
+          <style>
+            body { margin:0; font-family: Inter, Arial, sans-serif; width:${width}px; height:${height}px; background:${theme === "DARK" ? "#0b1020" : "#f6f7fb"}; color:${theme === "DARK" ? "#f9fafb" : "#111827"}; }
+            .card { box-sizing:border-box; margin: 40px; padding: 48px; border-radius: 24px; background:${theme === "DARK" ? "#111827" : "#ffffff"}; height: calc(100% - 80px); border: 1px solid ${theme === "DARK" ? "#1f2937" : "#e5e7eb"}; }
+            h1 { font-size: 48px; margin: 0 0 24px; line-height: 1.2; }
+            ul { margin: 0; padding-left: 20px; }
+            li { margin: 10px 0; font-size: 32px; line-height: 1.35; }
+            .insight { margin-top: 28px; font-size: 30px; opacity: 0.95; }
+            .action { margin-top: 24px; font-size: 28px; font-weight: 700; }
+            .watermark { position: absolute; right: 70px; bottom: 55px; font-size: 20px; opacity: 0.6; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <h1>${headline}</h1>
+            <ul>${points.map((point) => `<li>${point}</li>`).join("")}</ul>
+            <div class="insight">${insight}</div>
+            <div class="action">${action}</div>
+          </div>
+          <div class="watermark">Read→Do</div>
+        </body>
+        </html>
+      `;
+      await page.setContent(html, { waitUntil: "networkidle" });
+      await page.screenshot({ path: pngAbsPath, type: "png" });
+      return {
+        path: pngRelativePath,
+        renderer: {
+          name: "playwright-html-v1",
+          version: "0.1.0",
+        },
+      };
+    } finally {
+      await browser.close();
+    }
+  } catch {
+    return {
+      renderer: {
+        name: "markdown-caption-fallback",
+        version: "0.1.0",
+      },
+    };
+  }
 }
 
 function latestArtifacts(db: DatabaseSync, itemId: string): Record<string, unknown> {
@@ -519,6 +615,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const id = (request.params as { id: string }).id;
     const body = (request.body ?? {}) as Record<string, unknown>;
     const exportKey = String(body.export_key ?? request.headers["idempotency-key"] ?? `exp_${nanoid(8)}`);
+    const formats = normalizeQueryList(body.formats).length ? normalizeQueryList(body.formats) : ["png", "md", "caption"];
 
     const item = db.prepare("SELECT * FROM items WHERE id = ?").get(id) as DbItemRow | undefined;
     if (!item) {
@@ -559,26 +656,57 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const card = cardArtifact.payload as {
       headline: string;
       points: string[];
+      insight: string;
       action: string;
       caption?: string;
+      render_spec?: {
+        width?: number;
+        height?: number;
+        theme?: string;
+        payload?: {
+          content?: {
+            headline?: string;
+            points?: string[];
+            insight?: string;
+            action?: string;
+          };
+        };
+      };
     };
-    const mdRelativePath = `exports/${id}/card_${Date.now()}.md`;
-    const captionRelativePath = `exports/${id}/caption_${Date.now()}.txt`;
-    writeFileSync(
-      resolve(root, mdRelativePath),
-      `# ${card.headline}\n\n${card.points.map((p, i) => `${i + 1}. ${p}`).join("\n")}\n\nAction: ${card.action}\n`,
-      "utf-8",
-    );
-    writeFileSync(resolve(root, captionRelativePath), card.caption ?? `${card.headline}\n${card.action}`, "utf-8");
+    const files: Array<{ type: "png" | "md" | "caption"; path: string; created_at: string }> = [];
+
+    if (formats.includes("png")) {
+      const pngResult = await tryRenderPngFromCard(root, id, card);
+      if (pngResult.path) {
+        files.push({ type: "png", path: pngResult.path, created_at: nowIso() });
+      }
+    }
+
+    if (formats.includes("md")) {
+      const mdRelativePath = `exports/${id}/card_${Date.now()}.md`;
+      writeFileSync(
+        resolve(root, mdRelativePath),
+        `# ${card.headline}\n\n${card.points.map((p, i) => `${i + 1}. ${p}`).join("\n")}\n\nInsight: ${card.insight}\n\nAction: ${card.action}\n`,
+        "utf-8",
+      );
+      files.push({ type: "md", path: mdRelativePath, created_at: nowIso() });
+    }
+
+    if (formats.includes("caption")) {
+      const captionRelativePath = `exports/${id}/caption_${Date.now()}.txt`;
+      writeFileSync(resolve(root, captionRelativePath), card.caption ?? `${card.headline}\n${card.action}`, "utf-8");
+      files.push({ type: "caption", path: captionRelativePath, created_at: nowIso() });
+    }
+
+    if (files.length === 0) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "formats must include at least one of png|md|caption"));
+    }
 
     const exportPayload = {
-      files: [
-        { type: "md", path: mdRelativePath, created_at: nowIso() },
-        { type: "caption", path: captionRelativePath, created_at: nowIso() },
-      ],
+      files,
       export_key: exportKey,
       renderer: {
-        name: "markdown-caption-fallback",
+        name: files.some((x) => x.type === "png") ? "playwright-html-v1" : "markdown-caption-fallback",
         version: "0.1.0",
       },
     };
