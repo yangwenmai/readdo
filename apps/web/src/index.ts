@@ -80,6 +80,7 @@ const queueNudgeFocusPrevLabel = "Focus Previous Aha (Alt+N)";
 const queueNudgeFocusSecondLabel = "Focus 2nd Aha (Shift+Z)";
 const queueNudgeRunTopLabel = "Run Top Aha Action (Q)";
 const queueNudgeCopySnapshotLabel = "Copy Aha Snapshot (U)";
+const queueNudgeCopyStoryLabel = "Copy Aha Story";
 const queueNudgeDownloadSnapshotLabel = "Download Aha Snapshot (Shift+U)";
 const queueNudgeResetCycleLabel = "Reset Aha Cycle (Shift+R)";
 const queueNudgeCandidatesLabel = "Top Aha Candidates";
@@ -87,6 +88,7 @@ const queueNudgeCandidateOpenLabel = "Open Candidate";
 const queueNudgeHeatmapLabel = "Aha Heatmap";
 const queueNudgeHeatFocusLabel = "Focus";
 const queueNudgeHeatMomentumPrefix = "Momentum";
+const queueNudgeStoryLabel = "Aha Storyline";
 const queueNudgePoolPrefix = "Aha pool";
 const queueNudgeCycleHint = "Cycle with Shift+N";
 const queueRecoveryCopyLabel = "Copy Recovery Summary";
@@ -1245,6 +1247,18 @@ const html = `<!doctype html>
         background: #f8fafc;
         color: #475569;
       }
+      .aha-nudge .nudge-story {
+        margin-top: 8px;
+        border-top: 1px dashed rgba(148, 163, 184, 0.45);
+        padding-top: 8px;
+        display: grid;
+        gap: 4px;
+      }
+      .aha-nudge .nudge-story .label {
+        font-size: 11px;
+        color: #334155;
+        font-weight: 700;
+      }
       .aha-nudge .nudge-heat-chip.tone-hot {
         border-color: #86efac;
         background: #ecfdf5;
@@ -1696,6 +1710,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_FOCUS_SECOND_LABEL = ${JSON.stringify(queueNudgeFocusSecondLabel)};
       const QUEUE_NUDGE_RUN_TOP_LABEL = ${JSON.stringify(queueNudgeRunTopLabel)};
       const QUEUE_NUDGE_COPY_SNAPSHOT_LABEL = ${JSON.stringify(queueNudgeCopySnapshotLabel)};
+      const QUEUE_NUDGE_COPY_STORY_LABEL = ${JSON.stringify(queueNudgeCopyStoryLabel)};
       const QUEUE_NUDGE_DOWNLOAD_SNAPSHOT_LABEL = ${JSON.stringify(queueNudgeDownloadSnapshotLabel)};
       const QUEUE_NUDGE_RESET_CYCLE_LABEL = ${JSON.stringify(queueNudgeResetCycleLabel)};
       const QUEUE_NUDGE_CANDIDATES_LABEL = ${JSON.stringify(queueNudgeCandidatesLabel)};
@@ -1703,6 +1718,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_HEATMAP_LABEL = ${JSON.stringify(queueNudgeHeatmapLabel)};
       const QUEUE_NUDGE_HEAT_FOCUS_LABEL = ${JSON.stringify(queueNudgeHeatFocusLabel)};
       const QUEUE_NUDGE_HEAT_MOMENTUM_PREFIX = ${JSON.stringify(queueNudgeHeatMomentumPrefix)};
+      const QUEUE_NUDGE_STORY_LABEL = ${JSON.stringify(queueNudgeStoryLabel)};
       const QUEUE_NUDGE_POOL_PREFIX = ${JSON.stringify(queueNudgePoolPrefix)};
       const QUEUE_NUDGE_CYCLE_HINT = ${JSON.stringify(queueNudgeCycleHint)};
       const QUEUE_RECOVERY_COPY_LABEL = ${JSON.stringify(queueRecoveryCopyLabel)};
@@ -2461,6 +2477,40 @@ const html = `<!doctype html>
           return { label: "Cooling -" + Math.abs(delta), tone: "heat-down" };
         }
         return { label: "Steady", tone: "heat-flat" };
+      }
+
+      function ahaStoryText(poolItems, heatBuckets = ahaHeatBuckets(poolItems)) {
+        const ranked = sortedAhaItems(poolItems);
+        if (!ranked.length) return "";
+        const top = ranked[0];
+        const topMeta = ahaIndexMetaForItem(top);
+        const topPrimary = primaryActionForItem(top);
+        const momentum = ahaHeatMomentumMeta(heatBuckets);
+        const hot = Number(heatBuckets.find((bucket) => bucket.key === "hot")?.count || 0);
+        const strong = Number(heatBuckets.find((bucket) => bucket.key === "strong")?.count || 0);
+        const warm = Number(heatBuckets.find((bucket) => bucket.key === "warm")?.count || 0);
+        const cool = Number(heatBuckets.find((bucket) => bucket.key === "cool")?.count || 0);
+        return (
+          "Storyline: " +
+          momentum.label +
+          " · Hot " +
+          hot +
+          ", Strong " +
+          strong +
+          ", Warm " +
+          warm +
+          ", Cool " +
+          cool +
+          ". Lead #" +
+          top.id +
+          " (" +
+          topMeta.value +
+          ", " +
+          topMeta.note +
+          ") → " +
+          (topPrimary?.label || "Review candidate") +
+          "."
+        );
       }
 
       function ahaRankForItem(item, poolItems = null) {
@@ -4010,6 +4060,14 @@ const html = `<!doctype html>
             await runCopyAhaSnapshotAction(copySnapshotBtn);
           });
           actionsEl.appendChild(copySnapshotBtn);
+          const copyStoryBtn = document.createElement("button");
+          copyStoryBtn.type = "button";
+          copyStoryBtn.className = "secondary";
+          copyStoryBtn.textContent = QUEUE_NUDGE_COPY_STORY_LABEL;
+          copyStoryBtn.addEventListener("click", async () => {
+            await runCopyAhaStoryAction(copyStoryBtn);
+          });
+          actionsEl.appendChild(copyStoryBtn);
           const downloadSnapshotBtn = document.createElement("button");
           downloadSnapshotBtn.type = "button";
           downloadSnapshotBtn.className = "secondary";
@@ -4040,6 +4098,14 @@ const html = `<!doctype html>
               await runCopyAhaSnapshotAction(copySnapshotBtn);
             });
             actionsEl.appendChild(copySnapshotBtn);
+            const copyStoryBtn = document.createElement("button");
+            copyStoryBtn.type = "button";
+            copyStoryBtn.className = "secondary";
+            copyStoryBtn.textContent = QUEUE_NUDGE_COPY_STORY_LABEL;
+            copyStoryBtn.addEventListener("click", async () => {
+              await runCopyAhaStoryAction(copyStoryBtn);
+            });
+            actionsEl.appendChild(copyStoryBtn);
             const downloadSnapshotBtn = document.createElement("button");
             downloadSnapshotBtn.type = "button";
             downloadSnapshotBtn.className = "secondary";
@@ -4121,6 +4187,20 @@ const html = `<!doctype html>
             heatmapEl.appendChild(chip);
           }
           ahaNudgeEl.appendChild(heatmapEl);
+          const storyText = ahaStoryText(ahaPool, buckets);
+          if (storyText) {
+            const storyEl = document.createElement("div");
+            storyEl.className = "nudge-story";
+            const storyLabelEl = document.createElement("span");
+            storyLabelEl.className = "label";
+            storyLabelEl.textContent = QUEUE_NUDGE_STORY_LABEL;
+            const storyBodyEl = document.createElement("span");
+            storyBodyEl.className = "muted";
+            storyBodyEl.textContent = storyText;
+            storyEl.appendChild(storyLabelEl);
+            storyEl.appendChild(storyBodyEl);
+            ahaNudgeEl.appendChild(storyEl);
+          }
           const poolEl = document.createElement("div");
           poolEl.className = "nudge-pool muted";
           poolEl.textContent =
@@ -5775,6 +5855,38 @@ const html = `<!doctype html>
               });
               if (!copied) {
                 throw new Error("Copy Aha snapshot failed.");
+              }
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
+      async function runCopyAhaStoryAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_copy_aha_story",
+            label: "Copy Aha Story",
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const pool = visibleItems.length ? visibleItems : allItems;
+              const rankedPool = sortedAhaItems(pool);
+              if (!rankedPool.length) {
+                errorEl.textContent = "No Aha story available yet.";
+                return;
+              }
+              const buckets = ahaHeatBuckets(rankedPool);
+              const story = ahaStoryText(rankedPool, buckets);
+              if (!story) {
+                errorEl.textContent = "No Aha story available yet.";
+                return;
+              }
+              const copied = await copyTextToClipboard(story, {
+                success: "Copied Aha story.",
+                failure: "Copy Aha story failed.",
+              });
+              if (!copied) {
+                throw new Error("Copy Aha story failed.");
               }
             },
           },

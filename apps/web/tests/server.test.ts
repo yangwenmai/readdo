@@ -109,6 +109,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Focus 2nd Aha \(Shift\+Z\)/u);
     assert.match(text, /Run Top Aha Action \(Q\)/u);
     assert.match(text, /Copy Aha Snapshot \(U\)/u);
+    assert.match(text, /Copy Aha Story/u);
     assert.match(text, /Download Aha Snapshot \(Shift\+U\)/u);
     assert.match(text, /Reset Aha Cycle \(Shift\+R\)/u);
     assert.match(text, /Top Aha Candidates/u);
@@ -120,6 +121,10 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /nudge-heat-chip/u);
     assert.match(text, /nudge-heat-delta/u);
     assert.match(text, /nudge-heat-momentum/u);
+    assert.match(text, /nudge-story/u);
+    assert.match(text, /Aha Storyline/u);
+    assert.match(text, /Storyline:/u);
+    assert.match(text, /Lead #/u);
     assert.match(text, /Momentum/u);
     assert.match(text, /Heating \+/u);
     assert.match(text, /Cooling -/u);
