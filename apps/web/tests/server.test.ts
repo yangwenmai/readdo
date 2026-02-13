@@ -96,6 +96,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Aha Now/u);
     assert.match(text, /spotlight-note/u);
     assert.match(text, /Focus Recommended Item/u);
+    assert.match(text, /Focus Top Aha \(Z\)/u);
     assert.match(text, /nudge-actions/u);
     assert.match(text, /id="queueActionBanner"/u);
     assert.match(text, /id="recoveryRadar"/u);

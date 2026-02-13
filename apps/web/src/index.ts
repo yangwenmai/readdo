@@ -67,6 +67,7 @@ const queueBatchLabels = {
 const queueFlowRailNodeLabels = ["Catch", "Queue", "Process", "Ready", "Ship"];
 const queueSpotlightBadgeText = "Aha Now";
 const queueNudgeFocusLabel = "Focus Recommended Item";
+const queueNudgeFocusTopLabel = "Focus Top Aha (Z)";
 const queueRecoveryCopyLabel = "Copy Recovery Summary";
 const queueRecoveryClearLabel = "Clear Radar";
 const queueRecoveryDownloadLabel = "Download Summary";
@@ -1512,6 +1513,7 @@ const html = `<!doctype html>
       const QUEUE_FLOW_RAIL_NODE_LABELS = ${JSON.stringify(queueFlowRailNodeLabels)};
       const QUEUE_SPOTLIGHT_BADGE_TEXT = ${JSON.stringify(queueSpotlightBadgeText)};
       const QUEUE_NUDGE_FOCUS_LABEL = ${JSON.stringify(queueNudgeFocusLabel)};
+      const QUEUE_NUDGE_FOCUS_TOP_LABEL = ${JSON.stringify(queueNudgeFocusTopLabel)};
       const QUEUE_RECOVERY_COPY_LABEL = ${JSON.stringify(queueRecoveryCopyLabel)};
       const QUEUE_RECOVERY_CLEAR_LABEL = ${JSON.stringify(queueRecoveryClearLabel)};
       const QUEUE_RECOVERY_DOWNLOAD_LABEL = ${JSON.stringify(queueRecoveryDownloadLabel)};
@@ -3562,6 +3564,14 @@ const html = `<!doctype html>
             });
             actionsEl.appendChild(focusBtn);
           }
+          const focusTopBtn = document.createElement("button");
+          focusTopBtn.type = "button";
+          focusTopBtn.className = "secondary";
+          focusTopBtn.textContent = QUEUE_NUDGE_FOCUS_TOP_LABEL;
+          focusTopBtn.addEventListener("click", async () => {
+            await runFocusTopAhaQueueAction(focusTopBtn);
+          });
+          actionsEl.appendChild(focusTopBtn);
           ahaNudgeEl.appendChild(actionsEl);
         } else {
           setActionFeedback(queueActionBannerEl, "", "No immediate CTA. Capture or process new items.");
