@@ -1419,8 +1419,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     }
 
     const body = (request.body ?? {}) as { intent_text?: unknown; regenerate?: unknown };
-    const intentText = String(body.intent_text ?? "").trim();
-    const regenerate = Boolean(body.regenerate);
+    if (typeof body.intent_text !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "intent_text must be a string"));
+    }
+    if (body.regenerate !== undefined && typeof body.regenerate !== "boolean") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "regenerate must be a boolean when provided"));
+    }
+    const intentText = body.intent_text.trim();
+    const regenerate = body.regenerate ?? false;
     if (intentText.length < 3) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "intent_text must be at least 3 characters"));
     }

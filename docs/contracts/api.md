@@ -613,7 +613,8 @@ Headers:
 
 约束：
 
-* intent_text 必填，且长度 >= 3
+* intent_text 必填，必须为字符串，且长度 >= 3
+* regenerate 若提供，必须为 boolean
 * regenerate=true 时，item 应转入 QUEUED 并触发处理任务
 * PROCESSING 状态下不允许更新（返回 409 PROCESSING_IN_PROGRESS）
 

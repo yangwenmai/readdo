@@ -2137,6 +2137,59 @@ test("intent can be updated and optionally trigger regenerate", async () => {
   }
 });
 
+test("intent endpoint validates intent_text and regenerate types", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-intent-validate-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20item%20is%20used%20to%20validate%20intent%20endpoint%20input%20types.",
+        title: "Intent Validate",
+        domain: "example.intent.validate",
+        source_type: "web",
+        intent_text: "Initial intent for validation.",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    const nonStringIntentRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/intent`,
+      payload: {
+        intent_text: { bad: true },
+        regenerate: false,
+      },
+    });
+    assert.equal(nonStringIntentRes.statusCode, 400);
+    const nonStringIntentPayload = nonStringIntentRes.json() as { error: { code: string; message: string } };
+    assert.equal(nonStringIntentPayload.error.code, "VALIDATION_ERROR");
+    assert.match(nonStringIntentPayload.error.message, /intent_text must be a string/i);
+
+    const nonBooleanRegenerateRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/intent`,
+      payload: {
+        intent_text: "Still valid intent text",
+        regenerate: "false",
+      },
+    });
+    assert.equal(nonBooleanRegenerateRes.statusCode, 400);
+    const nonBooleanRegeneratePayload = nonBooleanRegenerateRes.json() as { error: { code: string; message: string } };
+    assert.equal(nonBooleanRegeneratePayload.error.code, "VALIDATION_ERROR");
+    assert.match(nonBooleanRegeneratePayload.error.message, /regenerate must be a boolean/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("artifact edit rejects non-object payload shapes", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-artifact-edit-shape-"));
   const app = await createApp({
