@@ -3278,11 +3278,11 @@ const html = `<!doctype html>
         if (button) {
           button.disabled = true;
         }
-        if (onStart) {
-          onStart();
-        }
-        setActionFeedbackPair("pending", actionFeedbackText("pending", label), localFeedbackEl);
         try {
+          if (onStart) {
+            onStart();
+          }
+          setActionFeedbackPair("pending", actionFeedbackText("pending", label), localFeedbackEl);
           errorEl.textContent = "";
           await op.action();
           setActionFeedbackPair("done", actionFeedbackText("done", label), localFeedbackEl);
@@ -4639,7 +4639,12 @@ const html = `<!doctype html>
 
       function selectedQueueItem() {
         if (selectedId == null) return null;
-        return allItems.find((item) => String(item?.id) === String(selectedId)) || null;
+        const fromList = allItems.find((item) => String(item?.id) === String(selectedId)) || null;
+        if (fromList) return fromList;
+        if (selectedDetail?.item && String(selectedDetail.item.id) === String(selectedId)) {
+          return selectedDetail.item;
+        }
+        return null;
       }
 
       async function runSelectedPrimaryItemAction(button = null) {
