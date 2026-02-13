@@ -3292,24 +3292,16 @@ const html = `<!doctype html>
         return label;
       }
 
-      function queueControlLabelByKey(key) {
-        return queueFilterLabelByKey("controls", key);
-      }
-
       function createQueueControlChangeConfigByKey(key, element, options = {}) {
-        return createQueueControlChangeConfig(element, queueControlLabelByKey(key), options);
+        return createQueueControlChangeConfig(element, queueFilterLabelByKey("controls", key), options);
       }
 
       function createListFilterChangeConfig(element, label) {
         return { element, label };
       }
 
-      function listFilterLabelByKey(key) {
-        return queueFilterLabelByKey("list", key);
-      }
-
       function createListFilterChangeConfigByKey(key, element) {
-        return createListFilterChangeConfig(element, listFilterLabelByKey(key));
+        return createListFilterChangeConfig(element, queueFilterLabelByKey("list", key));
       }
 
       const previewActionConfigs = [
