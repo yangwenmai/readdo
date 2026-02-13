@@ -113,6 +113,7 @@ Artifacts payload 必须满足 `docs/contracts/schemas/*.schema.json`。
 ## 3. API 列表（MVP）
 
 * POST `/capture`
+* GET  `/system/worker`（队列与状态统计）
 * GET  `/items`
 * GET  `/items/{id}`
 * POST `/items/{id}/intent`（intent 编辑）
@@ -174,6 +175,37 @@ Headers:
 ### 4.5 错误
 
 * 400 VALIDATION_ERROR
+
+---
+
+## 4.6 GET /system/worker（Worker/Queue 可观测）
+
+### 4.6.1 目的
+
+提供本地 worker 队列与 item 状态统计，便于 UI 显示“处理中/排队中”概览。
+
+### 4.6.2 Response 200
+
+```json
+{
+  "queue": {
+    "QUEUED": 3,
+    "LEASED": 1,
+    "DONE": 20,
+    "FAILED": 2
+  },
+  "items": {
+    "CAPTURED": 1,
+    "PROCESSING": 2,
+    "READY": 7
+  },
+  "worker": {
+    "interval_ms": 1500,
+    "active": true
+  },
+  "timestamp": "2026-02-13T12:00:00Z"
+}
+```
 
 ---
 
