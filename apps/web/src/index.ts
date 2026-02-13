@@ -514,6 +514,16 @@ const html = `<!doctype html>
         font-size: 11px;
         color: #64748b;
       }
+      .recovery-step button {
+        margin-top: 6px;
+        width: 100%;
+        padding: 4px 8px;
+        border-radius: 8px;
+        border: 1px solid #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-size: 11px;
+      }
       .legend-item {
         border: 1px solid #dbe2ea;
         border-radius: 999px;
@@ -1369,11 +1379,20 @@ const html = `<!doctype html>
 
       function emptyRecoveryStepBuckets() {
         return {
-          extract: { targeted: 0, queued: 0, replayed: 0, failed: 0 },
-          pipeline: { targeted: 0, queued: 0, replayed: 0, failed: 0 },
-          export: { targeted: 0, queued: 0, replayed: 0, failed: 0 },
-          unknown: { targeted: 0, queued: 0, replayed: 0, failed: 0 },
+          extract: { targeted: 0, queued: 0, replayed: 0, failed: 0, sample_item_ids: [], failed_item_ids: [] },
+          pipeline: { targeted: 0, queued: 0, replayed: 0, failed: 0, sample_item_ids: [], failed_item_ids: [] },
+          export: { targeted: 0, queued: 0, replayed: 0, failed: 0, sample_item_ids: [], failed_item_ids: [] },
+          unknown: { targeted: 0, queued: 0, replayed: 0, failed: 0, sample_item_ids: [], failed_item_ids: [] },
         };
+      }
+
+      function appendRecoverySampleId(list, itemId, limit = 3) {
+        if (!Array.isArray(list)) return;
+        if (itemId == null) return;
+        const normalized = String(itemId);
+        if (list.includes(normalized)) return;
+        if (list.length >= limit) return;
+        list.push(normalized);
       }
 
       function renderRecoveryRadar(summary = null) {
@@ -1412,7 +1431,7 @@ const html = `<!doctype html>
         const stepGrid = document.createElement("div");
         stepGrid.className = "recovery-step-grid";
         for (const def of stepDefs) {
-          const bucket = stepBuckets[def.key] || { targeted: 0, queued: 0, replayed: 0, failed: 0 };
+          const bucket = stepBuckets[def.key] || { targeted: 0, queued: 0, replayed: 0, failed: 0, sample_item_ids: [], failed_item_ids: [] };
           const cell = document.createElement("div");
           cell.className = "recovery-step";
           cell.innerHTML =
@@ -1425,6 +1444,29 @@ const html = `<!doctype html>
             ", failed=" +
             bucket.failed +
             "</div>";
+          const failedSamples = Array.isArray(bucket.failed_item_ids) ? bucket.failed_item_ids : [];
+          const allSamples = Array.isArray(bucket.sample_item_ids) ? bucket.sample_item_ids : [];
+          const sampleId = failedSamples[0] || allSamples[0] || null;
+          if (sampleId) {
+            const sampleBtn = document.createElement("button");
+            sampleBtn.type = "button";
+            sampleBtn.textContent = "Open Sample";
+            const op = {
+              id: "recovery_radar_open_" + def.key,
+              label: "Open " + def.label + " sample",
+              action: async () => {
+                await selectItem(sampleId);
+                focusQueueItemCard(sampleId);
+              },
+            };
+            sampleBtn.addEventListener("click", async () => {
+              await runActionWithFeedback(op, {
+                button: sampleBtn,
+                localFeedbackEl: queueActionBannerEl,
+              });
+            });
+            cell.appendChild(sampleBtn);
+          }
           stepGrid.appendChild(cell);
         }
         recoveryRadarEl.appendChild(stepGrid);
@@ -1466,6 +1508,7 @@ const html = `<!doctype html>
               : null,
           );
           stepBuckets[step].targeted += 1;
+          appendRecoverySampleId(stepBuckets[step].sample_item_ids, itemId);
           try {
             const requestId = crypto.randomUUID();
             const response = await request("/items/" + itemId + "/process", {
@@ -1485,6 +1528,7 @@ const html = `<!doctype html>
           } catch {
             failed += 1;
             stepBuckets[step].failed += 1;
+            appendRecoverySampleId(stepBuckets[step].failed_item_ids, itemId);
           }
         }
         return { queued, replayed, failed, targeted: itemIds.length, step_buckets: stepBuckets };
@@ -3806,7 +3850,10 @@ const html = `<!doctype html>
         let success = 0;
         let failed = 0;
         let replayed = 0;
+        const failedItemIds = [];
+        const sampleItemIds = [];
         for (const itemId of itemIds || []) {
+          appendRecoverySampleId(sampleItemIds, itemId);
           try {
             const requestId = crypto.randomUUID();
             const response = await request("/items/" + itemId + "/export", {
@@ -3823,9 +3870,10 @@ const html = `<!doctype html>
             }
           } catch {
             failed += 1;
+            appendRecoverySampleId(failedItemIds, itemId);
           }
         }
-        return { success, failed, replayed };
+        return { success, failed, replayed, failed_item_ids: failedItemIds, sample_item_ids: sampleItemIds };
       }
 
       async function runBatchFlow(config) {
@@ -3895,12 +3943,16 @@ const html = `<!doctype html>
                   queued: Number(batchRes.queued ?? 0),
                   replayed: 0,
                   failed: 0,
+                  sample_item_ids: (batchRes.eligible_pipeline_item_ids || []).slice(0, 3).map((x) => String(x)),
+                  failed_item_ids: [],
                 },
                 export: {
                   targeted: Number(batchRes.eligible_export ?? 0),
                   queued: Number(exportSummary.success ?? 0),
                   replayed: Number(exportSummary.replayed ?? 0),
                   failed: Number(exportSummary.failed ?? 0),
+                  sample_item_ids: Array.isArray(exportSummary.sample_item_ids) ? exportSummary.sample_item_ids : [],
+                  failed_item_ids: Array.isArray(exportSummary.failed_item_ids) ? exportSummary.failed_item_ids : [],
                 },
               },
             });
