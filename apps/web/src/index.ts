@@ -12,6 +12,7 @@ const shortcutGuideItems = [
   { key: "/", label: "Search" },
   { key: "F", label: "Focus Mode" },
   { key: "A", label: "Advanced Panels" },
+  { key: "P", label: "Focus Priority" },
   { key: "R", label: "Refresh" },
   { key: shortcutTriggerKey, label: "Show shortcuts" },
 ];
@@ -1841,6 +1842,29 @@ const html = `<!doctype html>
         if (mode === "query_first") return "Always jump to Search first, then tune other filters.";
         if (mode === "step_first") return "Always jump to failed-step/status controls first.";
         return "Auto-pick Search/Retryable when active, otherwise jump by failed step.";
+      }
+
+      function nextRecoveryContextFocusMode(mode) {
+        if (mode === "smart") return "query_first";
+        if (mode === "query_first") return "step_first";
+        return "smart";
+      }
+
+      function cycleRecoveryContextFocusMode() {
+        const nextMode = nextRecoveryContextFocusMode(recoveryContextFocusMode);
+        const changed = setRecoveryContextFocusMode(nextMode);
+        if (!changed) {
+          setActionFeedbackPair("done", "Focus Priority: " + recoveryContextFocusModeLabel(recoveryContextFocusMode), queueActionBannerEl);
+          return;
+        }
+        persistControls();
+        const currentSummary = activeRecoverySummary();
+        if (currentSummary) {
+          renderRecoveryRadar(currentSummary);
+        }
+        const modeLabel = recoveryContextFocusModeLabel(nextMode);
+        setActionFeedbackPair("done", "Focus Priority: " + modeLabel, queueActionBannerEl);
+        errorEl.textContent = "Context focus mode: " + modeLabel + ".";
       }
 
       function clearFocusedFilterControl() {
@@ -5123,6 +5147,9 @@ const html = `<!doctype html>
         },
         a: () => {
           setDetailAdvancedEnabled(true);
+        },
+        p: () => {
+          cycleRecoveryContextFocusMode();
         },
         r: () => {
           refreshItemsWithErrorHandling();
