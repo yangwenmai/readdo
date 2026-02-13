@@ -555,6 +555,17 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     if (!url || !intentText) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "url and intent_text are required"));
     }
+    if (!["web", "youtube", "newsletter", "other"].includes(sourceType)) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "source_type must be web|youtube|newsletter|other"));
+    }
+    try {
+      const parsed = new URL(url);
+      if (!["http:", "https:", "data:"].includes(parsed.protocol)) {
+        return reply.status(400).send(failure("VALIDATION_ERROR", "url protocol must be http/https/data"));
+      }
+    } catch {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "url is invalid"));
+    }
 
     if (idempotencyKey) {
       const existing = db

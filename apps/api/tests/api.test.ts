@@ -461,3 +461,50 @@ test("manual worker run endpoint drains one queued job", async () => {
     await app.close();
   }
 });
+
+test("capture validates url and source_type", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-capture-validate-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const invalidSourceRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://example.com",
+        source_type: "blog",
+        intent_text: "invalid source type",
+      },
+    });
+    assert.equal(invalidSourceRes.statusCode, 400);
+    assert.equal((invalidSourceRes.json() as { error: { code: string } }).error.code, "VALIDATION_ERROR");
+
+    const invalidUrlRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "not-a-url",
+        source_type: "web",
+        intent_text: "invalid url",
+      },
+    });
+    assert.equal(invalidUrlRes.statusCode, 400);
+
+    const validRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://example.com",
+        source_type: "web",
+        intent_text: "valid url/source type",
+      },
+    });
+    assert.equal(validRes.statusCode, 201);
+  } finally {
+    await app.close();
+  }
+});
