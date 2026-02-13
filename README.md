@@ -146,7 +146,7 @@ Key docs:
 * `docs/contracts/api.md`
 * `docs/contracts/artifact-meta.md`
 
-> 兼容性说明：若历史数据中存在损坏 JSON（如 legacy failure/artifact payload/meta），API 读取接口会尽量降级为“跳过损坏/非对象 payload 版本 / 将损坏 meta 降级为 {}”而非直接 500。
+> 兼容性说明：若历史数据中存在损坏 JSON（如 legacy failure/artifact payload/meta），API 读取接口会尽量降级为“将损坏/非对象 failure 视为缺失 / 跳过损坏/非对象 payload 版本 / 将损坏 meta 降级为 {}”而非直接 500。
 
 ---
 

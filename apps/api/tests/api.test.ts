@@ -4111,6 +4111,32 @@ test("items endpoints tolerate malformed legacy failure_json payloads", async ()
     const target = listPayload.items.find((x) => x.id === itemId);
     assert.ok(target);
     assert.equal(target?.failure, undefined);
+
+    const db2 = new DatabaseSync(dbPath);
+    try {
+      db2.prepare("UPDATE items SET status = 'FAILED_AI', failure_json = ? WHERE id = ?").run('"non-object-json-string"', itemId);
+    } finally {
+      db2.close();
+    }
+
+    const nonObjectDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}`,
+    });
+    assert.equal(nonObjectDetailRes.statusCode, 200);
+    const nonObjectDetailPayload = nonObjectDetailRes.json() as { item: { id: string }; failure?: unknown };
+    assert.equal(nonObjectDetailPayload.item.id, itemId);
+    assert.equal(nonObjectDetailPayload.failure, undefined);
+
+    const nonObjectListRes = await app.inject({
+      method: "GET",
+      url: "/api/items?status=FAILED_AI",
+    });
+    assert.equal(nonObjectListRes.statusCode, 200);
+    const nonObjectListPayload = nonObjectListRes.json() as { items: Array<{ id: string; failure?: unknown }> };
+    const nonObjectTarget = nonObjectListPayload.items.find((x) => x.id === itemId);
+    assert.ok(nonObjectTarget);
+    assert.equal(nonObjectTarget?.failure, undefined);
   } finally {
     await app.close();
   }

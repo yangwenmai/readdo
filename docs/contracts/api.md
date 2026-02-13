@@ -533,6 +533,7 @@ Headers:
 
 * 当 status 非 FAILED_* 时 failure 可省略
 * artifacts 缺失允许（例如 PROCESSING 中仅 extraction 已存在）
+* 若历史 `failure_json` 非法（含非对象形态），服务端按“无 failure”降级处理
 * 若历史 artifact 行存在损坏 JSON：
   - `payload` 非法（含非对象形态）：服务端会跳过该损坏版本
   - `meta` 非法：服务端会降级为 `{}`，保留可用 payload

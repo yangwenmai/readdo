@@ -94,6 +94,11 @@ function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function parseFailurePayload(rawValue: string | null): Record<string, unknown> | undefined {
+  const parsed = safeParseJson(rawValue);
+  return isObjectRecord(parsed) ? parsed : undefined;
+}
+
 function normalizeText(input: string): string {
   return input.replace(/\s+/g, " ").trim();
 }
@@ -187,7 +192,7 @@ function rowToItem(row: DbItemRow): Record<string, unknown> {
     status: row.status,
     priority: row.priority,
     match_score: row.match_score,
-    failure: safeParseJson(row.failure_json),
+    failure: parseFailurePayload(row.failure_json),
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -810,20 +815,12 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       .prepare("SELECT failure_json FROM items WHERE status IN ('FAILED_EXTRACTION', 'FAILED_AI', 'FAILED_EXPORT') AND failure_json IS NOT NULL")
       .all() as Array<{ failure_json: string }>;
     const nonRetryableItems = failedItemRows.filter((row) => {
-      try {
-        const payload = JSON.parse(row.failure_json) as { retryable?: boolean };
-        return payload.retryable === false;
-      } catch {
-        return false;
-      }
+      const payload = parseFailurePayload(row.failure_json);
+      return payload?.retryable === false;
     }).length;
     const retryableItems = failedItemRows.filter((row) => {
-      try {
-        const payload = JSON.parse(row.failure_json) as { retryable?: boolean };
-        return payload.retryable !== false;
-      } catch {
-        return true;
-      }
+      const payload = parseFailurePayload(row.failure_json);
+      return payload?.retryable !== false;
     }).length;
     const failureStepRows = db
       .prepare(
@@ -835,14 +832,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       )
       .all() as Array<{ failure_json: string }>;
     const failureSteps = failureStepRows.reduce<Record<string, number>>((acc, row) => {
-      try {
-        const payload = JSON.parse(row.failure_json) as { failed_step?: string };
-        const step = String(payload.failed_step ?? "").toLowerCase();
-        if (["extract", "pipeline", "export"].includes(step)) {
-          acc[step] = (acc[step] ?? 0) + 1;
-        }
-      } catch {
-        // ignore malformed payloads
+      const payload = parseFailurePayload(row.failure_json);
+      const step = String(payload?.failed_step ?? "").toLowerCase();
+      if (["extract", "pipeline", "export"].includes(step)) {
+        acc[step] = (acc[step] ?? 0) + 1;
       }
       return acc;
     }, {});
@@ -944,15 +937,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const ts = nowIso();
 
     for (const item of failedItems) {
-      let retryable = true;
-      if (item.failure_json) {
-        try {
-          const payload = JSON.parse(item.failure_json) as { retryable?: boolean };
-          retryable = payload.retryable !== false;
-        } catch {
-          retryable = true;
-        }
-      }
+      const failurePayload = parseFailurePayload(item.failure_json);
+      const retryable = failurePayload?.retryable !== false;
       if (!retryable) {
         skippedNonRetryable += 1;
         continue;
@@ -1084,15 +1070,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const ts = nowIso();
 
     for (const item of failedItems) {
-      let isRetryable = true;
-      if (item.failure_json) {
-        try {
-          const payload = JSON.parse(item.failure_json) as { retryable?: boolean };
-          isRetryable = payload.retryable !== false;
-        } catch {
-          isRetryable = true;
-        }
-      }
+      const failurePayload = parseFailurePayload(item.failure_json);
+      const isRetryable = failurePayload?.retryable !== false;
       if (retryableFilter !== null && isRetryable !== retryableFilter) {
         skippedRetryableMismatch += 1;
         continue;
@@ -1411,13 +1390,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       if (retryableFilter === null) return true;
       if (!String(row.status || "").startsWith("FAILED_")) return false;
       if (!row.failure_json) return retryableFilter;
-      try {
-        const payload = JSON.parse(row.failure_json) as { retryable?: boolean };
-        const isRetryable = payload.retryable !== false;
-        return retryableFilter ? isRetryable : !isRetryable;
-      } catch {
-        return retryableFilter;
-      }
+      const payload = parseFailurePayload(row.failure_json);
+      const isRetryable = payload?.retryable !== false;
+      return retryableFilter ? isRetryable : !isRetryable;
     };
 
     const rows: DbItemRow[] = [];
@@ -1468,7 +1443,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const response = {
       item: rowToItem(item),
       artifacts: selectedArtifacts(db, id, versionOverrides),
-      failure: safeParseJson(item.failure_json),
+      failure: parseFailurePayload(item.failure_json),
       artifact_versions_selected: versionOverrides,
     };
     if (includeHistory) {
@@ -1688,23 +1663,15 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     }
 
     if (mode === "RETRY" && item.failure_json) {
-      try {
-        const failurePayload = JSON.parse(item.failure_json) as {
-          retryable?: boolean;
-          retry_attempts?: number;
-          retry_limit?: number;
-        };
-        if (failurePayload.retryable === false) {
-          return reply.status(409).send(
-            failure("RETRY_LIMIT_REACHED", "Retry limit reached for this item", {
-              item_id: id,
-              retry_attempts: failurePayload.retry_attempts ?? null,
-              retry_limit: failurePayload.retry_limit ?? MAX_ITEM_RETRY_ATTEMPTS,
-            }),
-          );
-        }
-      } catch {
-        // ignore malformed legacy payloads
+      const failurePayload = parseFailurePayload(item.failure_json);
+      if (failurePayload?.retryable === false) {
+        return reply.status(409).send(
+          failure("RETRY_LIMIT_REACHED", "Retry limit reached for this item", {
+            item_id: id,
+            retry_attempts: failurePayload.retry_attempts ?? null,
+            retry_limit: failurePayload.retry_limit ?? MAX_ITEM_RETRY_ATTEMPTS,
+          }),
+        );
       }
     }
 
@@ -1789,23 +1756,15 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     }
 
     if (item.status === "FAILED_EXPORT" && item.failure_json) {
-      try {
-        const failurePayload = JSON.parse(item.failure_json) as {
-          retryable?: boolean;
-          retry_attempts?: number;
-          retry_limit?: number;
-        };
-        if (failurePayload.retryable === false) {
-          return reply.status(409).send(
-            failure("RETRY_LIMIT_REACHED", "Retry limit reached for this item", {
-              item_id: id,
-              retry_attempts: failurePayload.retry_attempts ?? null,
-              retry_limit: failurePayload.retry_limit ?? MAX_ITEM_RETRY_ATTEMPTS,
-            }),
-          );
-        }
-      } catch {
-        // ignore malformed legacy payloads
+      const failurePayload = parseFailurePayload(item.failure_json);
+      if (failurePayload?.retryable === false) {
+        return reply.status(409).send(
+          failure("RETRY_LIMIT_REACHED", "Retry limit reached for this item", {
+            item_id: id,
+            retry_attempts: failurePayload.retry_attempts ?? null,
+            retry_limit: failurePayload.retry_limit ?? MAX_ITEM_RETRY_ATTEMPTS,
+          }),
+        );
       }
     }
 
@@ -1870,13 +1829,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       const ts = nowIso();
       let previousAttempts = 0;
       if (item.failure_json) {
-        try {
-          const previousFailure = JSON.parse(item.failure_json) as { failed_step?: string; retry_attempts?: number };
-          if (previousFailure.failed_step === "export") {
-            previousAttempts = Number(previousFailure.retry_attempts ?? 0);
-          }
-        } catch {
-          previousAttempts = 0;
+        const previousFailure = parseFailurePayload(item.failure_json);
+        if (previousFailure?.failed_step === "export") {
+          previousAttempts = Number(previousFailure.retry_attempts ?? 0);
         }
       }
       const retryAttempts = previousAttempts + 1;
