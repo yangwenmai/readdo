@@ -2850,7 +2850,7 @@ const html = `<!doctype html>
       function bindPreviewAction(config) {
         const button = config.button;
         button.addEventListener("click", async () => {
-          await runActionWithFeedback(
+          await runQueueAction(
             {
               id: config.id,
               label: config.label,
@@ -2868,15 +2868,22 @@ const html = `<!doctype html>
                 );
               },
             },
-            { button, localFeedbackEl: queueActionBannerEl },
+            { button },
           );
         });
       }
 
-      async function runQueueBatchAction(op, button) {
+      async function runQueueAction(op, options = {}) {
         await runActionWithFeedback(op, {
-          button,
+          button: options.button,
           localFeedbackEl: queueActionBannerEl,
+          onFinally: options.onFinally,
+        });
+      }
+
+      async function runQueueBatchAction(op, button) {
+        await runQueueAction(op, {
+          button,
           onFinally: async () => {
             await loadItems();
           },
@@ -2978,7 +2985,7 @@ const html = `<!doctype html>
 
       previewNextBtn.addEventListener("click", async () => {
         if (!previewContinuation || previewContinuation.next_offset == null) return;
-        await runActionWithFeedback(
+        await runQueueAction(
           {
             id: "queue_preview_next",
             label: "Preview Next",
@@ -3000,7 +3007,7 @@ const html = `<!doctype html>
               );
             },
           },
-          { button: previewNextBtn, localFeedbackEl: queueActionBannerEl },
+          { button: previewNextBtn },
         );
       });
 
