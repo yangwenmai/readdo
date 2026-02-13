@@ -459,8 +459,8 @@ Headers:
 * `status`（可重复）：CAPTURED, QUEUED, PROCESSING, READY, FAILED_*, SHIPPED, ARCHIVED（大小写不敏感；`FAILED_*` 会展开为全部失败态；包含非法值返回 `400 VALIDATION_ERROR`）
 * `priority`（可重复）：READ_NEXT, WORTH_IT, IF_TIME, SKIP（大小写不敏感；包含非法值返回 `400 VALIDATION_ERROR`）
 * `source_type`（可重复）：web, youtube, newsletter, other（大小写不敏感；包含非法值返回 `400 VALIDATION_ERROR`）
-* `retryable`：`true | false`（仅对 FAILED_* 生效；用于筛选可重试/不可重试失败项；其他值返回 `400 VALIDATION_ERROR`）
-* `failure_step`：`extract | pipeline | export`（仅对 FAILED_* 生效；按失败阶段筛选；其他值返回 `400 VALIDATION_ERROR`）
+* `retryable`：`true | false`（仅对 FAILED_* 生效；用于筛选可重试/不可重试失败项；必须为非空字符串；其他值返回 `400 VALIDATION_ERROR`）
+* `failure_step`：`extract | pipeline | export`（仅对 FAILED_* 生效；按失败阶段筛选；必须为非空字符串；其他值返回 `400 VALIDATION_ERROR`）
 * `q`：搜索（MVP 可仅 title/domain/intent_text）
 * `sort`：`priority_score_desc | created_desc | updated_desc`
 

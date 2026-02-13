@@ -2855,6 +2855,15 @@ test("items endpoint validates retryable and failure_step query values", async (
     assert.equal(invalidRetryablePayload.error.code, "VALIDATION_ERROR");
     assert.match(invalidRetryablePayload.error.message, /retryable must be true\\|false/i);
 
+    const blankRetryableRes = await app.inject({
+      method: "GET",
+      url: "/api/items?retryable=%20%20%20",
+    });
+    assert.equal(blankRetryableRes.statusCode, 400);
+    const blankRetryablePayload = blankRetryableRes.json() as { error: { code: string; message: string } };
+    assert.equal(blankRetryablePayload.error.code, "VALIDATION_ERROR");
+    assert.match(blankRetryablePayload.error.message, /retryable must be true\\|false/i);
+
     const invalidFailureStepRes = await app.inject({
       method: "GET",
       url: "/api/items?failure_step=unknown",
@@ -2863,6 +2872,15 @@ test("items endpoint validates retryable and failure_step query values", async (
     const invalidFailureStepPayload = invalidFailureStepRes.json() as { error: { code: string; message: string } };
     assert.equal(invalidFailureStepPayload.error.code, "VALIDATION_ERROR");
     assert.match(invalidFailureStepPayload.error.message, /failure_step must be extract\\|pipeline\\|export/i);
+
+    const blankFailureStepRes = await app.inject({
+      method: "GET",
+      url: "/api/items?failure_step=%20%20%20",
+    });
+    assert.equal(blankFailureStepRes.statusCode, 400);
+    const blankFailureStepPayload = blankFailureStepRes.json() as { error: { code: string; message: string } };
+    assert.equal(blankFailureStepPayload.error.code, "VALIDATION_ERROR");
+    assert.match(blankFailureStepPayload.error.message, /failure_step must be extract\\|pipeline\\|export/i);
   } finally {
     await app.close();
   }

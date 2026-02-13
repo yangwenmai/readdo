@@ -1476,11 +1476,17 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       return reply.status(400).send(failure("VALIDATION_ERROR", "failure_step must be extract|pipeline|export"));
     }
     const retryableQuery = typeof query.retryable === "string" ? query.retryable.trim().toLowerCase() : "";
+    if (query.retryable !== undefined && !retryableQuery) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "retryable must be true|false"));
+    }
     if (retryableQuery && retryableQuery !== "true" && retryableQuery !== "false") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "retryable must be true|false"));
     }
     const retryableFilter = retryableQuery === "true" ? true : retryableQuery === "false" ? false : null;
     const failureStepQuery = typeof query.failure_step === "string" ? query.failure_step.trim().toLowerCase() : "";
+    if (query.failure_step !== undefined && !failureStepQuery) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "failure_step must be extract|pipeline|export"));
+    }
     if (failureStepQuery && !["extract", "pipeline", "export"].includes(failureStepQuery)) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "failure_step must be extract|pipeline|export"));
     }
