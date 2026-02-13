@@ -15,6 +15,7 @@
   "dependencies": {
     "@readdo/contracts": "workspace:*",
     "@readdo/core": "workspace:*",
-    "@readdo/shared": "workspace:*"
+    "@readdo/shared": "workspace:*",
+    "fast-glob": "^3.3.3"
   }
 }

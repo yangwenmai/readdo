@@ -1,8 +1,9 @@
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { validateSchema } from "@readdo/contracts";
-import { runEngine } from "@readdo/core";
+import { EngineProfile, runEngine } from "@readdo/core";
 import { PRIORITIES } from "@readdo/shared";
+import fg from "fast-glob";
 
 type EvalCase = {
   id: string;
@@ -49,10 +50,49 @@ function repoRoot(): string {
   }
 }
 
-function readCases(): EvalCase[] {
-  const dir = resolve(repoRoot(), "docs/evals/cases");
-  const files = readdirSync(dir).filter((f) => f.endsWith(".json")).sort();
-  return files.map((file) => JSON.parse(readFileSync(resolve(dir, file), "utf-8")) as EvalCase);
+type CliOptions = {
+  cases: string;
+  out: string;
+  format: "json" | "text";
+  failOn: "P0" | "P1" | "P2";
+  profile: EngineProfile;
+};
+
+function parseCliOptions(): CliOptions {
+  const args = process.argv.slice(2);
+  const values = new Map<string, string>();
+  for (let i = 0; i < args.length; i += 1) {
+    const current = args[i];
+    const next = args[i + 1];
+    if (current?.startsWith("--") && next && !next.startsWith("--")) {
+      values.set(current.slice(2), next);
+      i += 1;
+    }
+  }
+
+  const format = values.get("format") === "json" ? "json" : "text";
+  const failOn = (values.get("fail-on") as "P0" | "P1" | "P2" | undefined) ?? "P1";
+  const profile = (values.get("profile") as EngineProfile | undefined) ?? "engineer";
+  const failOnSafe: "P0" | "P1" | "P2" = ["P0", "P1", "P2"].includes(failOn) ? failOn : "P1";
+  const profileSafe: EngineProfile = ["engineer", "creator", "manager"].includes(profile) ? profile : "engineer";
+
+  return {
+    cases: values.get("cases") ?? "docs/evals/cases/*.json",
+    out: values.get("out") ?? "docs/evals/reports/latest.json",
+    format,
+    failOn: failOnSafe,
+    profile: profileSafe,
+  };
+}
+
+function readCases(casesGlob: string): EvalCase[] {
+  const root = repoRoot();
+  const absoluteGlob = resolve(root, casesGlob);
+  const files = fg.sync(absoluteGlob, { onlyFiles: true, absolute: true }).sort();
+  if (!files.length) {
+    throw new Error(`No eval cases matched: ${casesGlob}`);
+  }
+  return files.map((file) => JSON.parse(readFileSync(file, "utf-8")) as EvalCase);
 }
 
 function scoreMatchesPriority(priority: string, score: number): boolean {
@@ -92,11 +132,11 @@ function actionSpecific(action: string): boolean {
   return /(写|列|实现|比较|制定|分享|draft|list|implement|compare|ship|plan)/u.test(lower);
 }
 
-async function runCase(inputCase: EvalCase): Promise<CaseReport> {
+async function runCase(inputCase: EvalCase, profile: EngineProfile): Promise<CaseReport> {
   const engineInput = {
     intent_text: inputCase.intent_text,
     extracted_text: inputCase.extracted_text,
-    profile: "engineer",
+    profile,
     source_type: inputCase.source_type ?? "web",
     engine_version: "0.1.0",
     run_id: `eval_${inputCase.id}`,
@@ -234,19 +274,19 @@ function summarize(caseReports: CaseReport[]): { p0_fail: number; p1_fail: numbe
 }
 
 async function main(): Promise<void> {
-  const profile = "engineer";
-  const cases = readCases();
+  const opts = parseCliOptions();
+  const cases = readCases(opts.cases);
 
   const reports: CaseReport[] = [];
   for (const c of cases) {
     // eslint-disable-next-line no-await-in-loop
-    reports.push(await runCase(c));
+    reports.push(await runCase(c, opts.profile));
   }
 
   const totals = summarize(reports);
   const output = {
     run: {
-      profile,
+      profile: opts.profile,
       engine_version: "0.1.0",
       priority_values: PRIORITIES,
       timestamp: new Date().toISOString(),
@@ -256,16 +296,27 @@ async function main(): Promise<void> {
     cases: reports,
   };
 
-  const reportDir = resolve(repoRoot(), "docs/evals/reports");
+  const reportPath = resolve(repoRoot(), opts.out);
+  const reportDir = dirname(reportPath);
   mkdirSync(reportDir, { recursive: true });
-  const reportPath = resolve(reportDir, "latest.json");
   writeFileSync(reportPath, JSON.stringify(output, null, 2), "utf-8");
 
-  const p0p1Pass = totals.p0_fail === 0 && totals.p1_fail === 0;
-  // console output
-  console.log(`Eval finished. cases=${reports.length} P0_fail=${totals.p0_fail} P1_fail=${totals.p1_fail} P2_fail=${totals.p2_fail}`);
+  const gatePass =
+    opts.failOn === "P0"
+      ? totals.p0_fail === 0
+      : opts.failOn === "P1"
+        ? totals.p0_fail === 0 && totals.p1_fail === 0
+        : totals.p0_fail === 0 && totals.p1_fail === 0 && totals.p2_fail === 0;
 
-  if (!p0p1Pass) {
+  if (opts.format === "json") {
+    console.log(JSON.stringify(output, null, 2));
+  } else {
+    console.log(
+      `Eval finished. cases=${reports.length} fail_on=${opts.failOn} P0_fail=${totals.p0_fail} P1_fail=${totals.p1_fail} P2_fail=${totals.p2_fail}`,
+    );
+  }
+
+  if (!gatePass) {
     process.exitCode = 1;
   }
 }
