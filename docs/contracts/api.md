@@ -567,7 +567,7 @@ Headers:
 
 约束：
 
-* payload 必须通过对应 schema 校验
+* payload 必须是 JSON 对象，且通过对应 schema 校验
 * 未提供 template_version 时，服务端可自动生成默认值（如 `user.<type>.edit.v1`）
 
 ### 6.5.4 Response 201

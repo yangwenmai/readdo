@@ -1460,7 +1460,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     }
 
     const body = (request.body ?? {}) as { payload?: unknown; template_version?: unknown };
-    if (!body.payload || typeof body.payload !== "object") {
+    if (!isObjectRecord(body.payload)) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "payload must be a JSON object"));
     }
 

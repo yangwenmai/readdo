@@ -2137,6 +2137,47 @@ test("intent can be updated and optionally trigger regenerate", async () => {
   }
 });
 
+test("artifact edit rejects non-object payload shapes", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-artifact-edit-shape-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20item%20verifies%20artifact%20edit%20payload%20shape%20validation.",
+        title: "Artifact Edit Payload Shape",
+        domain: "example.artifact.shape",
+        source_type: "web",
+        intent_text: "ensure non-object artifact payload is rejected",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const invalidEditRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/artifacts/todos`,
+      payload: {
+        payload: [],
+      },
+    });
+    assert.equal(invalidEditRes.statusCode, 400);
+    const invalidPayload = invalidEditRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidPayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidPayload.error.message, /payload must be a JSON object/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("worker status endpoint returns queue and item counters", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-worker-"));
   const app = await createApp({
