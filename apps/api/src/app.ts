@@ -481,25 +481,50 @@ function artifactRowsByItem(db: DatabaseSync, itemId: string): ArtifactDbRow[] {
     .all(itemId) as ArtifactDbRow[];
 }
 
+function parseArtifactRow(row: ArtifactDbRow): {
+  artifact_type: string;
+  version: number;
+  created_by: string;
+  created_at: string;
+  meta: unknown;
+  payload: unknown;
+} | null {
+  const meta = safeParseJson(row.meta_json);
+  const payload = safeParseJson(row.payload_json);
+  if (meta === undefined || payload === undefined) {
+    return null;
+  }
+  return {
+    artifact_type: row.artifact_type,
+    version: row.version,
+    created_by: row.created_by,
+    created_at: row.created_at,
+    meta,
+    payload,
+  };
+}
+
 function latestArtifacts(db: DatabaseSync, itemId: string): Record<string, unknown> {
   const rows = artifactRowsByItem(db, itemId);
   const seen = new Set<string>();
-  const latestRows: ArtifactDbRow[] = [];
+  const latestRows: Array<{
+    artifact_type: string;
+    version: number;
+    created_by: string;
+    created_at: string;
+    meta: unknown;
+    payload: unknown;
+  }> = [];
   for (const row of rows) {
     if (seen.has(row.artifact_type)) continue;
+    const parsed = parseArtifactRow(row);
+    if (!parsed) continue;
     seen.add(row.artifact_type);
-    latestRows.push(row);
+    latestRows.push(parsed);
   }
 
   return latestRows.reduce<Record<string, unknown>>((acc, row) => {
-    acc[row.artifact_type] = {
-      artifact_type: row.artifact_type,
-      version: row.version,
-      created_by: row.created_by,
-      created_at: row.created_at,
-      meta: JSON.parse(row.meta_json),
-      payload: JSON.parse(row.payload_json),
-    };
+    acc[row.artifact_type] = row;
     return acc;
   }, {});
 }
@@ -508,15 +533,10 @@ function allArtifactsHistory(db: DatabaseSync, itemId: string): Record<string, u
   const rows = artifactRowsByItem(db, itemId);
 
   return rows.reduce<Record<string, unknown[]>>((acc, row) => {
+    const parsed = parseArtifactRow(row);
+    if (!parsed) return acc;
     const current = acc[row.artifact_type] ?? [];
-    current.push({
-      artifact_type: row.artifact_type,
-      version: row.version,
-      created_by: row.created_by,
-      created_at: row.created_at,
-      meta: JSON.parse(row.meta_json),
-      payload: JSON.parse(row.payload_json),
-    });
+    current.push(parsed);
     acc[row.artifact_type] = current;
     return acc;
   }, {});
@@ -543,7 +563,14 @@ function parseArtifactVersions(value: unknown): Record<string, number> {
 
 function selectedArtifacts(db: DatabaseSync, itemId: string, versionOverrides: Record<string, number>): Record<string, unknown> {
   const rows = artifactRowsByItem(db, itemId);
-  const selected: Record<string, ArtifactDbRow> = {};
+  const selected: Record<string, {
+    artifact_type: string;
+    version: number;
+    created_by: string;
+    created_at: string;
+    meta: unknown;
+    payload: unknown;
+  }> = {};
   for (const row of rows) {
     const targetVersion = versionOverrides[row.artifact_type];
     if (selected[row.artifact_type]) {
@@ -551,22 +578,20 @@ function selectedArtifacts(db: DatabaseSync, itemId: string, versionOverrides: R
     }
     if (targetVersion) {
       if (row.version === targetVersion) {
-        selected[row.artifact_type] = row;
+        const parsed = parseArtifactRow(row);
+        if (parsed) {
+          selected[row.artifact_type] = parsed;
+        }
       }
       continue;
     }
-    selected[row.artifact_type] = row;
+    const parsed = parseArtifactRow(row);
+    if (!parsed) continue;
+    selected[row.artifact_type] = parsed;
   }
 
   return Object.values(selected).reduce<Record<string, unknown>>((acc, row) => {
-    acc[row.artifact_type] = {
-      artifact_type: row.artifact_type,
-      version: row.version,
-      created_by: row.created_by,
-      created_at: row.created_at,
-      meta: JSON.parse(row.meta_json),
-      payload: JSON.parse(row.payload_json),
-    };
+    acc[row.artifact_type] = row;
     return acc;
   }, {});
 }
@@ -1562,8 +1587,18 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       return reply.status(404).send(failure("NOT_FOUND", "Artifact version not found", { artifact_type: artifactType }));
     }
 
-    const basePayload = JSON.parse(baseRow.payload_json) as unknown;
-    const targetPayload = JSON.parse(targetRow.payload_json) as unknown;
+    const basePayload = safeParseJson(baseRow.payload_json);
+    const targetPayload = safeParseJson(targetRow.payload_json);
+    if (basePayload === undefined || targetPayload === undefined) {
+      return reply.status(500).send(
+        failure("DATA_CORRUPTION", "Artifact payload is malformed", {
+          item_id: id,
+          artifact_type: artifactType,
+          base_version: baseVersion,
+          target_version: targetVersion,
+        }),
+      );
+    }
     const summary = comparePayloads(basePayload, targetPayload);
 
     return {

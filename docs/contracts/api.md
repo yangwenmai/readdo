@@ -533,6 +533,7 @@ Headers:
 
 * 当 status 非 FAILED_* 时 failure 可省略
 * artifacts 缺失允许（例如 PROCESSING 中仅 extraction 已存在）
+* 若历史 artifact 行存在损坏 JSON（meta/payload 非法），服务端会跳过该损坏版本，避免详情接口报错
 * `artifact_versions_selected` 回显被接受的版本选择（未提供或解析失败时为空对象）
 * 仅当 `include_history=true` 时返回 `artifact_history`
 
@@ -667,6 +668,7 @@ Headers:
 
 * 400 VALIDATION_ERROR（版本参数非法）
 * 404 NOT_FOUND（item 或版本不存在）
+* 500 DATA_CORRUPTION（目标版本 payload 非法 JSON）
 
 ---
 
