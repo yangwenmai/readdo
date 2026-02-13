@@ -3610,6 +3610,100 @@ test("single unarchive endpoint enforces archived state and regenerate option", 
   }
 });
 
+test("archive and unarchive endpoints validate request body shapes", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-archive-unarchive-body-validation-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20item%20is%20used%20to%20validate%20archive%20and%20unarchive%20request%20body%20shapes.",
+        title: "Archive Body Validation",
+        domain: "example.archive.body.validation",
+        source_type: "web",
+        intent_text: "validate archive and unarchive body validation behavior",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    const archiveBodyTypeRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/archive`,
+      payload: [],
+    });
+    assert.equal(archiveBodyTypeRes.statusCode, 400);
+    const archiveBodyTypePayload = archiveBodyTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(archiveBodyTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(archiveBodyTypePayload.error.message, /request body must be an object/i);
+
+    const archiveReasonTypeRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/archive`,
+      payload: { reason: 1234 },
+    });
+    assert.equal(archiveReasonTypeRes.statusCode, 400);
+    const archiveReasonTypePayload = archiveReasonTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(archiveReasonTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(archiveReasonTypePayload.error.message, /reason must be a string/i);
+
+    const archiveReasonBlankRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/archive`,
+      payload: { reason: "   " },
+    });
+    assert.equal(archiveReasonBlankRes.statusCode, 400);
+    const archiveReasonBlankPayload = archiveReasonBlankRes.json() as { error: { code: string; message: string } };
+    assert.equal(archiveReasonBlankPayload.error.code, "VALIDATION_ERROR");
+    assert.match(archiveReasonBlankPayload.error.message, /reason must be a non-empty string/i);
+
+    const archiveUnknownKeyRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/archive`,
+      payload: { reason: "valid reason", foo: "bar" },
+    });
+    assert.equal(archiveUnknownKeyRes.statusCode, 400);
+    const archiveUnknownKeyPayload = archiveUnknownKeyRes.json() as { error: { code: string; message: string } };
+    assert.equal(archiveUnknownKeyPayload.error.code, "VALIDATION_ERROR");
+    assert.match(archiveUnknownKeyPayload.error.message, /archive body supports only reason/i);
+
+    const archiveRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/archive`,
+      payload: { reason: "validated reason" },
+    });
+    assert.equal(archiveRes.statusCode, 200);
+
+    const unarchiveBodyTypeRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/unarchive`,
+      payload: [],
+    });
+    assert.equal(unarchiveBodyTypeRes.statusCode, 400);
+    const unarchiveBodyTypePayload = unarchiveBodyTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(unarchiveBodyTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(unarchiveBodyTypePayload.error.message, /request body must be an object/i);
+
+    const unarchiveUnknownKeyRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/unarchive`,
+      payload: { regenerate: false, unknown: true },
+    });
+    assert.equal(unarchiveUnknownKeyRes.statusCode, 400);
+    const unarchiveUnknownKeyPayload = unarchiveUnknownKeyRes.json() as { error: { code: string; message: string } };
+    assert.equal(unarchiveUnknownKeyPayload.error.code, "VALIDATION_ERROR");
+    assert.match(unarchiveUnknownKeyPayload.error.message, /unarchive body supports only regenerate/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("batch and unarchive endpoints validate boolean control flags", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-bool-flags-"));
   const app = await createApp({

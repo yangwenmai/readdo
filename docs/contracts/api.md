@@ -885,6 +885,12 @@ reason 枚举（MVP 建议）：
 * SYSTEM_SKIP
 * FAILURE_ARCHIVE
 
+约束：
+
+* body 若提供，必须是对象
+* body 当前仅支持 `reason` 键
+* `reason` 若提供，必须是非空字符串
+
 ### 9.3 Response 200
 
 ```json
@@ -895,6 +901,7 @@ reason 枚举（MVP 建议）：
 
 ### 9.4 错误
 
+* 400 VALIDATION_ERROR
 * 409 ARCHIVE_NOT_ALLOWED
 * 409 STATE_CONFLICT（并发条件下状态在归档前发生变化）
 
@@ -914,6 +921,7 @@ reason 枚举（MVP 建议）：
 约束：
 
 * `regenerate` 若提供，必须为 boolean
+* body 若提供，必须是对象，且当前仅支持 `regenerate` 键
 
 ### 10.2 Request
 

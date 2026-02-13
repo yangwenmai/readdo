@@ -2133,6 +2133,21 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     if (item.status === "PROCESSING") {
       return reply.status(409).send(failure("ARCHIVE_NOT_ALLOWED", "Cannot archive processing item"));
     }
+    if (request.body !== undefined && !isObjectRecord(request.body)) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "request body must be an object when provided"));
+    }
+    const body = isObjectRecord(request.body) ? request.body : {};
+    const unknownArchiveKey = Object.keys(body).find((key) => key !== "reason");
+    if (unknownArchiveKey) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "archive body supports only reason"));
+    }
+    if (body.reason !== undefined && typeof body.reason !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "reason must be a string when provided"));
+    }
+    const archiveReason = typeof body.reason === "string" ? body.reason.trim() : undefined;
+    if (body.reason !== undefined && !archiveReason) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "reason must be a non-empty string when provided"));
+    }
     const ts = nowIso();
     const updateRes = db.prepare("UPDATE items SET status = 'ARCHIVED', updated_at = ? WHERE id = ? AND status = ?").run(ts, id, item.status);
     if (updateRes.changes === 0) {
@@ -2153,7 +2168,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       return reply.status(409).send(failure("STATE_CONFLICT", "Only archived items can be unarchived"));
     }
 
-    const body = (request.body ?? {}) as Record<string, unknown>;
+    if (request.body !== undefined && !isObjectRecord(request.body)) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "request body must be an object when provided"));
+    }
+    const body = (isObjectRecord(request.body) ? request.body : {}) as Record<string, unknown>;
+    const unknownUnarchiveKey = Object.keys(body).find((key) => key !== "regenerate");
+    if (unknownUnarchiveKey) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "unarchive body supports only regenerate"));
+    }
     if (body.regenerate !== undefined && typeof body.regenerate !== "boolean") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "regenerate must be a boolean when provided"));
     }
