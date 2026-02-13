@@ -747,6 +747,7 @@ options（MVP 可选）：
 失败：FAILED_EXPORT（或保持 READY 并记录 failure；MVP 推荐 FAILED_EXPORT）
 
 > 当 `failure.retryable=false`（达到导出重试上限）时，再次调用 export 返回 `409 RETRY_LIMIT_REACHED`。
+> 当重复使用同一 `export_key`（或同一幂等键语义）请求同一 item 导出时，应返回历史已存在的导出结果，不重复创建新版本 artifact。
 
 ### 8.3 Request
 

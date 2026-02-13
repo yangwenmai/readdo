@@ -65,6 +65,84 @@ test("capture -> worker -> ready -> export", async () => {
   }
 });
 
+test("export idempotency replays old export_key beyond recent window", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-idempotent-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20content%20verifies%20export%20idempotency%20for%20older%20export%20keys%20across%20many%20versions.",
+        title: "Export Idempotency",
+        domain: "example.export.idempotent",
+        source_type: "web",
+        intent_text: "verify old export key replay",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    for (let i = 0; i < 6; i += 1) {
+      const exportRes = await app.inject({
+        method: "POST",
+        url: `/api/items/${itemId}/export`,
+        payload: { export_key: `exp-history-${i}`, formats: ["md"] },
+      });
+      assert.equal(exportRes.statusCode, 200);
+    }
+
+    const beforeReplayDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}?include_history=true`,
+    });
+    assert.equal(beforeReplayDetailRes.statusCode, 200);
+    const beforeReplayDetail = beforeReplayDetailRes.json() as {
+      artifact_history: {
+        export: Array<{ version: number }>;
+      };
+    };
+    const exportHistoryCountBeforeReplay = beforeReplayDetail.artifact_history.export.length;
+    assert.ok(exportHistoryCountBeforeReplay >= 6);
+
+    const replayRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: "exp-history-0", formats: ["md"] },
+    });
+    assert.equal(replayRes.statusCode, 200);
+    const replayPayload = replayRes.json() as {
+      export: {
+        payload: {
+          export_key: string;
+        };
+      };
+    };
+    assert.equal(replayPayload.export.payload.export_key, "exp-history-0");
+
+    const afterReplayDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}?include_history=true`,
+    });
+    assert.equal(afterReplayDetailRes.statusCode, 200);
+    const afterReplayDetail = afterReplayDetailRes.json() as {
+      artifact_history: {
+        export: Array<{ version: number }>;
+      };
+    };
+    assert.equal(afterReplayDetail.artifact_history.export.length, exportHistoryCountBeforeReplay);
+  } finally {
+    await app.close();
+  }
+});
+
 test("process mode must match current status", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-"));
   const app = await createApp({

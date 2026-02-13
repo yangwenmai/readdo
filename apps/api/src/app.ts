@@ -1505,20 +1505,24 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     }
 
     const existingExports = db
-      .prepare("SELECT payload_json FROM artifacts WHERE item_id = ? AND artifact_type = 'export' ORDER BY version DESC LIMIT 5")
+      .prepare("SELECT payload_json FROM artifacts WHERE item_id = ? AND artifact_type = 'export' ORDER BY version DESC")
       .all(id) as Array<{ payload_json: string }>;
     for (const row of existingExports) {
-      const payload = JSON.parse(row.payload_json) as { export_key?: string };
-      if (payload.export_key === exportKey) {
-        const ts = nowIso();
-        db.prepare("UPDATE items SET status = 'SHIPPED', updated_at = ? WHERE id = ?").run(ts, id);
-        return {
-          item: { id, status: "SHIPPED", updated_at: ts },
-          export: {
-            artifact_type: "export",
-            payload,
-          },
-        };
+      try {
+        const payload = JSON.parse(row.payload_json) as { export_key?: string };
+        if (payload.export_key === exportKey) {
+          const ts = nowIso();
+          db.prepare("UPDATE items SET status = 'SHIPPED', updated_at = ? WHERE id = ?").run(ts, id);
+          return {
+            item: { id, status: "SHIPPED", updated_at: ts },
+            export: {
+              artifact_type: "export",
+              payload,
+            },
+          };
+        }
+      } catch {
+        // ignore malformed legacy payloads
       }
     }
 
