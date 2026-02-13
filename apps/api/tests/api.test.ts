@@ -1849,6 +1849,29 @@ test("capture validates url and source_type", async () => {
     });
     assert.equal(invalidUrlRes.statusCode, 400);
 
+    const invalidProtocolRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "chrome://extensions",
+        source_type: "web",
+        intent_text: "unsupported protocol",
+      },
+    });
+    assert.equal(invalidProtocolRes.statusCode, 400);
+    assert.match((invalidProtocolRes.json() as { error: { message: string } }).error.message, /url protocol must be http\/https\/data/i);
+
+    const dataUrlRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20is%20a%20data%20url%20capture%20used%20for%20local%20testing",
+        source_type: "web",
+        intent_text: "valid data url/source type",
+      },
+    });
+    assert.equal(dataUrlRes.statusCode, 201);
+
     const validRes = await app.inject({
       method: "POST",
       url: "/api/capture",
