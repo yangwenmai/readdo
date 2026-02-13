@@ -1023,12 +1023,16 @@ const html = `<!doctype html>
           errorEl.textContent =
             "Archive preview: scanned=" +
             (preview.scanned ?? 0) +
+            "/" +
+            (preview.scanned_total ?? preview.scanned ?? 0) +
             ", retryable=" +
             (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
             ", q=" +
             (preview.q_filter || "all") +
             ", filter=" +
             (preview.failure_step_filter || "all") +
+            ", truncated=" +
+            (preview.scan_truncated ? "yes" : "no") +
             ", eligible=" +
             (preview.eligible ?? 0) +
             ", skipped_retryable_mismatch=" +
@@ -1041,6 +1045,9 @@ const html = `<!doctype html>
               retryable_filter: preview.retryable_filter == null ? "all" : preview.retryable_filter,
               q_filter: preview.q_filter || null,
               filter: preview.failure_step_filter || "all",
+              scanned: preview.scanned ?? 0,
+              scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
+              scan_truncated: Boolean(preview.scan_truncated),
               eligible_item_ids: preview.eligible_item_ids || [],
               skipped_retryable_mismatch: preview.skipped_retryable_mismatch || 0,
             },
@@ -1092,8 +1099,14 @@ const html = `<!doctype html>
           errorEl.textContent =
             "Batch retry done. queued=" +
             (batchRes.queued ?? 0) +
+            ", scanned=" +
+            (batchRes.scanned ?? 0) +
+            "/" +
+            (batchRes.scanned_total ?? batchRes.scanned ?? 0) +
             ", q=" +
             (batchRes.q_filter || "all") +
+            ", truncated=" +
+            (batchRes.scan_truncated ? "yes" : "no") +
             ", skipped_non_retryable=" +
             (batchRes.skipped_non_retryable ?? 0) +
             ", eligible_export=" +
@@ -1119,10 +1132,14 @@ const html = `<!doctype html>
           errorEl.textContent =
             "Retry preview: scanned=" +
             (preview.scanned ?? 0) +
+            "/" +
+            (preview.scanned_total ?? preview.scanned ?? 0) +
             ", q=" +
             (preview.q_filter || "all") +
             ", filter=" +
             (preview.failure_step_filter || "all") +
+            ", truncated=" +
+            (preview.scan_truncated ? "yes" : "no") +
             ", eligible_pipeline=" +
             (preview.eligible_pipeline ?? 0) +
             ", eligible_export=" +
@@ -1135,6 +1152,9 @@ const html = `<!doctype html>
             {
               q_filter: preview.q_filter || null,
               filter: preview.failure_step_filter || "all",
+              scanned: preview.scanned ?? 0,
+              scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
+              scan_truncated: Boolean(preview.scan_truncated),
               eligible_pipeline_item_ids: preview.eligible_pipeline_item_ids || [],
               eligible_export_item_ids: preview.eligible_export_item_ids || [],
               skipped_non_retryable: preview.skipped_non_retryable || 0,
@@ -1170,6 +1190,9 @@ const html = `<!doctype html>
               retryable_filter: preview.retryable_filter == null ? "all" : preview.retryable_filter,
               q_filter: preview.q_filter || null,
               filter: preview.failure_step_filter || "all",
+              scanned: preview.scanned ?? 0,
+              scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
+              scan_truncated: Boolean(preview.scan_truncated),
               eligible_item_ids: preview.eligible_item_ids || [],
               skipped_retryable_mismatch: preview.skipped_retryable_mismatch || 0,
             },
@@ -1220,10 +1243,14 @@ const html = `<!doctype html>
           errorEl.textContent =
             "Unarchive preview: scanned=" +
             (preview.scanned ?? 0) +
+            "/" +
+            (preview.scanned_total ?? preview.scanned ?? 0) +
             ", mode=" +
             (preview.regenerate ? "regenerate" : "smart") +
             ", q=" +
             (preview.q_filter || "all") +
+            ", truncated=" +
+            (preview.scan_truncated ? "yes" : "no") +
             ", eligible_ready=" +
             (preview.eligible_ready ?? 0) +
             ", eligible_queued=" +
@@ -1235,6 +1262,9 @@ const html = `<!doctype html>
               preview_type: "unarchive_batch",
               mode: preview.regenerate ? "regenerate" : "smart",
               q_filter: preview.q_filter || null,
+              scanned: preview.scanned ?? 0,
+              scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
+              scan_truncated: Boolean(preview.scan_truncated),
               eligible_ready_item_ids: preview.eligible_ready_item_ids || [],
               eligible_queued_item_ids: preview.eligible_queued_item_ids || [],
             },

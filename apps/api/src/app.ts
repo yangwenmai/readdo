@@ -725,6 +725,16 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       const token = `%${q}%`;
       params.push(token, token, token, token);
     }
+    const scanCountRow = db
+      .prepare(
+        `
+        SELECT COUNT(1) AS count
+        FROM items
+        WHERE ${whereParts.join(" AND ")}
+      `,
+      )
+      .get(...params) as { count: number } | undefined;
+    const scannedTotal = Number(scanCountRow?.count ?? 0);
     const failedItems = db
       .prepare(
         `
@@ -791,6 +801,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       failure_step_filter: failureStepFilter,
       q_filter: q || null,
       scanned: failedItems.length,
+      scanned_total: scannedTotal,
+      scan_truncated: scannedTotal > failedItems.length,
       queued,
       queued_item_ids: queuedItemIds,
       eligible_pipeline: eligiblePipeline,
@@ -851,6 +863,16 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       const token = `%${q}%`;
       params.push(token, token, token, token);
     }
+    const scanCountRow = db
+      .prepare(
+        `
+        SELECT COUNT(1) AS count
+        FROM items
+        WHERE ${whereParts.join(" AND ")}
+      `,
+      )
+      .get(...params) as { count: number } | undefined;
+    const scannedTotal = Number(scanCountRow?.count ?? 0);
     const failedItems = db
       .prepare(
         `
@@ -902,6 +924,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       failure_step_filter: failureStepFilter,
       q_filter: q || null,
       scanned: failedItems.length,
+      scanned_total: scannedTotal,
+      scan_truncated: scannedTotal > failedItems.length,
       eligible,
       eligible_item_ids: eligibleItemIds,
       archived,
@@ -926,6 +950,16 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       const token = `%${q}%`;
       params.push(token, token, token, token);
     }
+    const scanCountRow = db
+      .prepare(
+        `
+        SELECT COUNT(1) AS count
+        FROM items
+        WHERE ${whereParts.join(" AND ")}
+      `,
+      )
+      .get(...params) as { count: number } | undefined;
+    const scannedTotal = Number(scanCountRow?.count ?? 0);
     const archivedItems = db
       .prepare(
         `
@@ -980,6 +1014,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       regenerate,
       q_filter: q || null,
       scanned: archivedItems.length,
+      scanned_total: scannedTotal,
+      scan_truncated: scannedTotal > archivedItems.length,
       eligible: eligibleReady + eligibleQueued,
       eligible_ready: eligibleReady,
       eligible_ready_item_ids: eligibleReadyItemIds,

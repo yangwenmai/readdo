@@ -270,6 +270,7 @@ Headers:
 * `failure_step` 可选：`extract | pipeline | export`（用于限制扫描范围）
 * `q` 可选，按 `title/domain/intent_text/url` 模糊过滤失败候选
 * `FAILED_EXPORT` 当前不会被该接口处理（计入 `skipped_unsupported_status`）
+* 响应中的 `scanned_total` 为匹配筛选条件的总量（未截断前），`scan_truncated=true` 表示受到 `limit` 截断
 
 ### 4.8.3 Response 200
 
@@ -280,6 +281,8 @@ Headers:
   "failure_step_filter": "extract",
   "q_filter": "optional keyword",
   "scanned": 5,
+  "scanned_total": 8,
+  "scan_truncated": true,
   "queued": 3,
   "queued_item_ids": ["itm_a", "itm_b", "itm_c"],
   "eligible_pipeline": 3,
@@ -319,6 +322,7 @@ Headers:
 * `retryable` 可选：`true | false | null | "all"`（默认 `false`，即仅归档已达重试上限项）
 * `failure_step` 可选：`extract | pipeline | export`
 * `q` 可选，按 `title/domain/intent_text/url` 模糊过滤失败候选
+* 响应中的 `scanned_total` 为匹配筛选条件的总量（未截断前），`scan_truncated=true` 表示受到 `limit` 截断
 
 ### 4.9.3 Response 200
 
@@ -330,6 +334,8 @@ Headers:
   "failure_step_filter": "extract",
   "q_filter": "optional keyword",
   "scanned": 8,
+  "scanned_total": 12,
+  "scan_truncated": true,
   "eligible": 3,
   "eligible_item_ids": ["itm_a", "itm_b", "itm_c"],
   "archived": 3,
@@ -367,6 +373,7 @@ Headers:
 * `dry_run=true` 时仅返回预估结果，不会修改 item 状态
 * `regenerate=true` 时不走 READY 快速恢复，统一入队重跑
 * `q` 可选，按 `title/domain/intent_text/url` 模糊过滤 archived 候选
+* 响应中的 `scanned_total` 为匹配筛选条件的总量（未截断前），`scan_truncated=true` 表示受到 `limit` 截断
 
 ### 4.10.3 Response 200
 
@@ -377,6 +384,8 @@ Headers:
   "regenerate": false,
   "q_filter": "optional keyword",
   "scanned": 6,
+  "scanned_total": 9,
+  "scan_truncated": true,
   "eligible": 6,
   "eligible_ready": 4,
   "eligible_ready_item_ids": ["itm_r1", "itm_r2"],
