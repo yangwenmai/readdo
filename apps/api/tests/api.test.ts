@@ -1976,6 +1976,24 @@ test("capture validates url and source_type", async () => {
     const inferredSourceTypeDetail = inferredSourceTypeDetailRes.json() as { item: { source_type: string } };
     assert.equal(inferredSourceTypeDetail.item.source_type, "youtube");
 
+    const falsePositiveYoutubeRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://notyoutube.com/watch?v=test123",
+        intent_text: "avoid false-positive youtube host match",
+      },
+    });
+    assert.equal(falsePositiveYoutubeRes.statusCode, 201);
+    const falsePositiveYoutubeId = (falsePositiveYoutubeRes.json() as { item: { id: string } }).item.id;
+    const falsePositiveYoutubeDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${falsePositiveYoutubeId}`,
+    });
+    assert.equal(falsePositiveYoutubeDetailRes.statusCode, 200);
+    const falsePositiveYoutubeDetail = falsePositiveYoutubeDetailRes.json() as { item: { source_type: string } };
+    assert.equal(falsePositiveYoutubeDetail.item.source_type, "web");
+
     const inferredNewsletterRes = await app.inject({
       method: "POST",
       url: "/api/capture",

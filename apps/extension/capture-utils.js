@@ -1,10 +1,16 @@
+function hostMatchesDomain(host, domain) {
+  const normalizedHost = String(host ?? "").toLowerCase();
+  const normalizedDomain = String(domain ?? "").toLowerCase();
+  return normalizedHost === normalizedDomain || normalizedHost.endsWith(`.${normalizedDomain}`);
+}
+
 export function detectSourceType(url) {
   if (!url) return "other";
   try {
     const parsed = new URL(url);
     const host = parsed.hostname.toLowerCase();
-    if (host.includes("youtube.com") || host.includes("youtu.be")) return "youtube";
-    if (host.includes("substack.com") || host.includes("newsletter")) return "newsletter";
+    if (hostMatchesDomain(host, "youtube.com") || hostMatchesDomain(host, "youtu.be")) return "youtube";
+    if (hostMatchesDomain(host, "substack.com") || host.includes("newsletter")) return "newsletter";
     if (parsed.protocol === "http:" || parsed.protocol === "https:") return "web";
     return "other";
   } catch {

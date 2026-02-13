@@ -193,12 +193,18 @@ function normalizeQueryList(value: unknown): string[] {
   return [];
 }
 
+function hostMatchesDomain(host: string, domain: string): boolean {
+  const normalizedHost = host.toLowerCase();
+  const normalizedDomain = domain.toLowerCase();
+  return normalizedHost === normalizedDomain || normalizedHost.endsWith(`.${normalizedDomain}`);
+}
+
 function inferSourceTypeFromUrl(url: string): "web" | "youtube" | "newsletter" | "other" {
   try {
     const parsed = new URL(url);
     const host = parsed.hostname.toLowerCase();
-    if (host.includes("youtube.com") || host.includes("youtu.be")) return "youtube";
-    if (host.includes("substack.com") || host.includes("newsletter")) return "newsletter";
+    if (hostMatchesDomain(host, "youtube.com") || hostMatchesDomain(host, "youtu.be")) return "youtube";
+    if (hostMatchesDomain(host, "substack.com") || host.includes("newsletter")) return "newsletter";
     if (parsed.protocol === "http:" || parsed.protocol === "https:") return "web";
     return "other";
   } catch {

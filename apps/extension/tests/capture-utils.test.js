@@ -14,6 +14,8 @@ test("detectSourceType identifies known source types", () => {
   assert.equal(detectSourceType("https://foo.substack.com/p/hello"), "newsletter");
   assert.equal(detectSourceType("https://example.com/read"), "web");
   assert.equal(detectSourceType("https://example.com/newsletter"), "web");
+  assert.equal(detectSourceType("https://notyoutube.com/watch?v=abc"), "web");
+  assert.equal(detectSourceType("https://substack.com.example.org/p/hello"), "web");
   assert.equal(detectSourceType("file:///tmp/a.txt"), "other");
 });
 
