@@ -866,7 +866,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   });
 
   app.post("/api/items/retry-failed", async (request, reply) => {
+    if (request.body !== undefined && !isObjectRecord(request.body)) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "request body must be an object when provided"));
+    }
     const body = (request.body ?? {}) as Record<string, unknown>;
+    const unknownRetryFailedKey = Object.keys(body).find((key) => !["limit", "offset", "dry_run", "failure_step", "q"].includes(key));
+    if (unknownRetryFailedKey) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "retry-failed body supports only limit|offset|dry_run|failure_step|q"));
+    }
     if (body.dry_run !== undefined && typeof body.dry_run !== "boolean") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "dry_run must be a boolean when provided"));
     }
@@ -991,7 +998,18 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   });
 
   app.post("/api/items/archive-failed", async (request, reply) => {
+    if (request.body !== undefined && !isObjectRecord(request.body)) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "request body must be an object when provided"));
+    }
     const body = (request.body ?? {}) as Record<string, unknown>;
+    const unknownArchiveFailedKey = Object.keys(body).find(
+      (key) => !["limit", "offset", "dry_run", "retryable", "failure_step", "q"].includes(key),
+    );
+    if (unknownArchiveFailedKey) {
+      return reply
+        .status(400)
+        .send(failure("VALIDATION_ERROR", "archive-failed body supports only limit|offset|dry_run|retryable|failure_step|q"));
+    }
     if (body.dry_run !== undefined && typeof body.dry_run !== "boolean") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "dry_run must be a boolean when provided"));
     }
@@ -1121,7 +1139,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   });
 
   app.post("/api/items/unarchive-batch", async (request, reply) => {
+    if (request.body !== undefined && !isObjectRecord(request.body)) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "request body must be an object when provided"));
+    }
     const body = (request.body ?? {}) as Record<string, unknown>;
+    const unknownUnarchiveBatchKey = Object.keys(body).find((key) => !["limit", "offset", "dry_run", "regenerate", "q"].includes(key));
+    if (unknownUnarchiveBatchKey) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "unarchive-batch body supports only limit|offset|dry_run|regenerate|q"));
+    }
     if (body.dry_run !== undefined && typeof body.dry_run !== "boolean") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "dry_run must be a boolean when provided"));
     }

@@ -279,6 +279,8 @@ Headers:
 
 约束：
 
+* body 若提供，必须是对象
+* body 当前仅支持键：`limit`、`offset`、`dry_run`、`failure_step`、`q`
 * `limit` 可选，范围建议 `1..200`，默认 20
 * `offset` 可选，默认 0，用于分页扫描批量候选（负值按 0 处理）
 * `dry_run` 若提供，必须为 boolean
@@ -336,6 +338,8 @@ Headers:
 
 约束：
 
+* body 若提供，必须是对象
+* body 当前仅支持键：`limit`、`offset`、`dry_run`、`retryable`、`failure_step`、`q`
 * `limit` 可选，范围建议 `1..200`，默认 50
 * `offset` 可选，默认 0，用于分页扫描批量候选（负值按 0 处理）
 * `dry_run` 若提供，必须为 boolean
@@ -393,6 +397,8 @@ Headers:
 
 约束：
 
+* body 若提供，必须是对象
+* body 当前仅支持键：`limit`、`offset`、`dry_run`、`regenerate`、`q`
 * `limit` 可选，范围建议 `1..200`，默认 50
 * `offset` 可选，默认 0，用于分页扫描 archived 候选（负值按 0 处理）
 * `dry_run` 若提供，必须为 boolean

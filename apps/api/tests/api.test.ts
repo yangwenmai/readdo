@@ -3713,6 +3713,26 @@ test("batch and unarchive endpoints validate boolean control flags", async () =>
   });
 
   try {
+    const retryBodyTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/items/retry-failed",
+      payload: [],
+    });
+    assert.equal(retryBodyTypeRes.statusCode, 400);
+    const retryBodyTypePayload = retryBodyTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(retryBodyTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(retryBodyTypePayload.error.message, /request body must be an object/i);
+
+    const retryUnknownKeyRes = await app.inject({
+      method: "POST",
+      url: "/api/items/retry-failed",
+      payload: { unknown_key: true },
+    });
+    assert.equal(retryUnknownKeyRes.statusCode, 400);
+    const retryUnknownKeyPayload = retryUnknownKeyRes.json() as { error: { code: string; message: string } };
+    assert.equal(retryUnknownKeyPayload.error.code, "VALIDATION_ERROR");
+    assert.match(retryUnknownKeyPayload.error.message, /retry-failed body supports only/i);
+
     const retryDryRunTypeRes = await app.inject({
       method: "POST",
       url: "/api/items/retry-failed",
@@ -3793,6 +3813,26 @@ test("batch and unarchive endpoints validate boolean control flags", async () =>
     assert.equal(archiveFailureStepValuePayload.error.code, "VALIDATION_ERROR");
     assert.match(archiveFailureStepValuePayload.error.message, /failure_step must be extract\|pipeline\|export/i);
 
+    const archiveBodyTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/items/archive-failed",
+      payload: [],
+    });
+    assert.equal(archiveBodyTypeRes.statusCode, 400);
+    const archiveBodyTypePayload = archiveBodyTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(archiveBodyTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(archiveBodyTypePayload.error.message, /request body must be an object/i);
+
+    const archiveUnknownKeyRes = await app.inject({
+      method: "POST",
+      url: "/api/items/archive-failed",
+      payload: { unknown_key: true },
+    });
+    assert.equal(archiveUnknownKeyRes.statusCode, 400);
+    const archiveUnknownKeyPayload = archiveUnknownKeyRes.json() as { error: { code: string; message: string } };
+    assert.equal(archiveUnknownKeyPayload.error.code, "VALIDATION_ERROR");
+    assert.match(archiveUnknownKeyPayload.error.message, /archive-failed body supports only/i);
+
     const unarchiveBatchDryRunTypeRes = await app.inject({
       method: "POST",
       url: "/api/items/unarchive-batch",
@@ -3822,6 +3862,26 @@ test("batch and unarchive endpoints validate boolean control flags", async () =>
     const unarchiveBatchQTypePayload = unarchiveBatchQTypeRes.json() as { error: { code: string; message: string } };
     assert.equal(unarchiveBatchQTypePayload.error.code, "VALIDATION_ERROR");
     assert.match(unarchiveBatchQTypePayload.error.message, /q must be a string/i);
+
+    const unarchiveBatchBodyTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/items/unarchive-batch",
+      payload: [],
+    });
+    assert.equal(unarchiveBatchBodyTypeRes.statusCode, 400);
+    const unarchiveBatchBodyTypePayload = unarchiveBatchBodyTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(unarchiveBatchBodyTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(unarchiveBatchBodyTypePayload.error.message, /request body must be an object/i);
+
+    const unarchiveBatchUnknownKeyRes = await app.inject({
+      method: "POST",
+      url: "/api/items/unarchive-batch",
+      payload: { unknown_key: true },
+    });
+    assert.equal(unarchiveBatchUnknownKeyRes.statusCode, 400);
+    const unarchiveBatchUnknownKeyPayload = unarchiveBatchUnknownKeyRes.json() as { error: { code: string; message: string } };
+    assert.equal(unarchiveBatchUnknownKeyPayload.error.code, "VALIDATION_ERROR");
+    assert.match(unarchiveBatchUnknownKeyPayload.error.message, /unarchive-batch body supports only/i);
 
     const captureRes = await app.inject({
       method: "POST",
