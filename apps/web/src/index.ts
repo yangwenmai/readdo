@@ -9,6 +9,7 @@ const repoRoot = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const exportsRoot = resolve(repoRoot, "exports");
 const shortcutDiscoveryText = "Press ? for shortcuts";
 const shortcutSummaryText = "Shortcuts: / Search · F Focus Mode · A Advanced Panels · R Refresh";
+const shortcutHintButtonText = "Shortcuts (?)";
 
 const html = `<!doctype html>
 <html lang="en">
@@ -463,6 +464,7 @@ const html = `<!doctype html>
         </label>
         <input id="queryInput" placeholder="Search title/domain/intent (press /)" />
         <span class="muted">${shortcutDiscoveryText}</span>
+        <button id="shortcutHintBtn" type="button">${shortcutHintButtonText}</button>
         <select id="statusFilter">
           <option value="">All Status</option>
           <option value="CAPTURED">CAPTURED</option>
@@ -555,6 +557,7 @@ const html = `<!doctype html>
       const clearFiltersBtn = document.getElementById("clearFiltersBtn");
       const resetControlsBtn = document.getElementById("resetControlsBtn");
       const queryInput = document.getElementById("queryInput");
+      const shortcutHintBtn = document.getElementById("shortcutHintBtn");
       const statusFilter = document.getElementById("statusFilter");
       const retryableFilter = document.getElementById("retryableFilter");
       const failureStepFilter = document.getElementById("failureStepFilter");
@@ -2948,6 +2951,13 @@ const html = `<!doctype html>
         });
       }
 
+      function bindShortcutHintAction(button) {
+        if (!button) return;
+        button.addEventListener("click", () => {
+          showShortcutHint();
+        });
+      }
+
       function bindDetailModeActions() {
         detailFocusModeBtn?.addEventListener("click", () => {
           setDetailAdvancedEnabled(false);
@@ -3230,6 +3240,7 @@ const html = `<!doctype html>
       function setupQueueInteractionBindings() {
         bindConfigList(queueControlChangeConfigs, bindQueueControlChange);
         bindSearchInputActions(queryInput);
+        bindShortcutHintAction(shortcutHintBtn);
         bindFocusChipActions(focusChipsEl);
         bindDetailModeActions();
         bindConfigList(listFilterChangeConfigs, bindListFilterChangeConfig);
