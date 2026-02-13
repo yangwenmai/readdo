@@ -2836,14 +2836,17 @@ const html = `<!doctype html>
               id: config.id,
               label: config.label,
               action: async () => {
-                try {
-                  clearPreviewContinuation();
-                  const previewOffset = normalizedPreviewOffset();
-                  await loadAndRenderPreview(config.kind, previewOffset);
-                } catch (err) {
-                  clearPreviewState();
-                  throw new Error(config.errorPrefix + String(err));
-                }
+                await withActionError(
+                  config.errorPrefix,
+                  async () => {
+                    clearPreviewContinuation();
+                    const previewOffset = normalizedPreviewOffset();
+                    await loadAndRenderPreview(config.kind, previewOffset);
+                  },
+                  () => {
+                    clearPreviewState();
+                  },
+                );
               },
             },
             { button, localFeedbackEl: queueActionBannerEl },
@@ -2859,6 +2862,17 @@ const html = `<!doctype html>
             await loadItems();
           },
         });
+      }
+
+      async function withActionError(errorPrefix, action, onError = null) {
+        try {
+          return await action();
+        } catch (err) {
+          if (typeof onError === "function") {
+            onError();
+          }
+          throw new Error(errorPrefix + String(err));
+        }
       }
 
       [
@@ -2893,8 +2907,8 @@ const html = `<!doctype html>
             id: "queue_retry_failed",
             label: "Retry Failed Batch",
             action: async () => {
-              clearPreviewState();
-              try {
+              await withActionError("Retry failed batch action failed: ", async () => {
+                clearPreviewState();
                 const previewRes = await loadBatchPreview("retry");
                 const eligiblePipeline = Number(previewRes.eligible_pipeline ?? 0);
                 const eligibleExport = Number(previewRes.eligible_export ?? 0);
@@ -2908,9 +2922,7 @@ const html = `<!doctype html>
                 const batchRes = await executeBatchByKind("retry");
                 const exportSummary = await exportItemsForRetry(batchRes.eligible_export_item_ids);
                 renderRetryBatchDoneOutput(batchRes, exportSummary);
-              } catch (err) {
-                throw new Error("Retry failed batch action failed: " + String(err));
-              }
+              });
             },
           },
           retryFailedBtn,
@@ -2923,7 +2935,7 @@ const html = `<!doctype html>
             id: "queue_archive_failed",
             label: "Archive Failed Batch",
             action: async () => {
-              try {
+              await withActionError("Archive blocked failed: ", async () => {
                 clearPreviewState();
                 const preview = await loadBatchPreview("archive");
                 const eligible = Number(preview.eligible ?? 0);
@@ -2936,9 +2948,7 @@ const html = `<!doctype html>
                 if (!handleBatchConfirmation(confirmed, "Archive blocked action cancelled.")) return;
                 const result = await executeBatchByKind("archive");
                 renderArchiveBatchDoneOutput(result);
-              } catch (err) {
-                throw new Error("Archive blocked failed: " + String(err));
-              }
+              });
             },
           },
           archiveBlockedBtn,
@@ -2952,18 +2962,21 @@ const html = `<!doctype html>
             id: "queue_preview_next",
             label: "Preview Next",
             action: async () => {
-              try {
-                const nextOffset = Number(previewContinuation.next_offset);
-                const continuationKind = previewContinuation.kind;
-                if (!isPreviewKind(continuationKind)) {
-                  clearPreviewContinuation();
-                  return;
-                }
-                await loadAndRenderPreview(continuationKind, nextOffset);
-              } catch (err) {
-                clearPreviewState();
-                throw new Error("Preview next failed: " + String(err));
-              }
+              await withActionError(
+                "Preview next failed: ",
+                async () => {
+                  const nextOffset = Number(previewContinuation.next_offset);
+                  const continuationKind = previewContinuation.kind;
+                  if (!isPreviewKind(continuationKind)) {
+                    clearPreviewContinuation();
+                    return;
+                  }
+                  await loadAndRenderPreview(continuationKind, nextOffset);
+                },
+                () => {
+                  clearPreviewState();
+                },
+              );
             },
           },
           { button: previewNextBtn, localFeedbackEl: queueActionBannerEl },
@@ -2976,7 +2989,7 @@ const html = `<!doctype html>
             id: "queue_unarchive_batch",
             label: "Unarchive Batch",
             action: async () => {
-              try {
+              await withActionError("Unarchive batch failed: ", async () => {
                 clearPreviewState();
                 const preview = await loadBatchPreview("unarchive");
                 const eligible = Number(preview.eligible ?? 0);
@@ -2988,9 +3001,7 @@ const html = `<!doctype html>
                 if (!handleBatchConfirmation(confirmed, "Unarchive action cancelled.")) return;
                 const result = await executeBatchByKind("unarchive");
                 renderUnarchiveBatchDoneOutput(result);
-              } catch (err) {
-                throw new Error("Unarchive batch failed: " + String(err));
-              }
+              });
             },
           },
           unarchiveBatchBtn,
