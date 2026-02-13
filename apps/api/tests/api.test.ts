@@ -2284,6 +2284,25 @@ test("capture validates url and source_type", async () => {
     assert.equal(dataDomainDetailRes.statusCode, 200);
     const dataDomainDetail = dataDomainDetailRes.json() as { item: { domain: string | null } };
     assert.equal(dataDomainDetail.item.domain, "data.domain");
+
+    const dataHashUrlRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,hash-fragment#part",
+        source_type: "web",
+        intent_text: "strip hash fragment for data URL storage",
+      },
+    });
+    assert.equal(dataHashUrlRes.statusCode, 201);
+    const dataHashUrlId = (dataHashUrlRes.json() as { item: { id: string } }).item.id;
+    const dataHashUrlDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${dataHashUrlId}`,
+    });
+    assert.equal(dataHashUrlDetailRes.statusCode, 200);
+    const dataHashUrlDetail = dataHashUrlDetailRes.json() as { item: { url: string } };
+    assert.equal(dataHashUrlDetail.item.url, "data:text/plain,hash-fragment");
   } finally {
     await app.close();
   }
