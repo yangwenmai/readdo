@@ -618,6 +618,24 @@ const html = `<!doctype html>
         detail_advanced: false,
         collapsed_groups: defaultCollapsedGroups,
       };
+      const queueActionCopy = {
+        preview_error_prefix: {
+          archive: "Archive preview failed: ",
+          retry: "Retry preview failed: ",
+          unarchive: "Unarchive preview failed: ",
+          next: "Preview next failed: ",
+        },
+        batch_error_prefix: {
+          retry: "Retry failed batch action failed: ",
+          archive: "Archive blocked failed: ",
+          unarchive: "Unarchive batch failed: ",
+        },
+        batch_cancelled: {
+          retry: "Retry failed action cancelled.",
+          archive: "Archive blocked action cancelled.",
+          unarchive: "Unarchive action cancelled.",
+        },
+      };
 
       function statusByFocusChip(focus) {
         if (focus === "ready") return "READY";
@@ -2888,7 +2906,7 @@ const html = `<!doctype html>
           return;
         }
         const confirmed = confirm(buildRetryBatchConfirmMessage(previewRes, eligiblePipeline, eligibleExport));
-        if (!handleBatchConfirmation(confirmed, "Retry failed action cancelled.")) return;
+        if (!handleBatchConfirmation(confirmed, queueActionCopy.batch_cancelled.retry)) return;
         errorEl.textContent = "Retrying failed items...";
         const batchRes = await executeBatchByKind("retry");
         const exportSummary = await exportItemsForRetry(batchRes.eligible_export_item_ids);
@@ -3140,7 +3158,7 @@ const html = `<!doctype html>
             button,
             id: "queue_preview_next",
             label: "Preview Next",
-            errorPrefix: "Preview next failed: ",
+            errorPrefix: queueActionCopy.preview_error_prefix.next,
           },
           {
             run: async () => {
@@ -3161,21 +3179,21 @@ const html = `<!doctype html>
           id: "queue_preview_archive",
           label: "Preview Archive",
           kind: "archive",
-          errorPrefix: "Archive preview failed: ",
+          errorPrefix: queueActionCopy.preview_error_prefix.archive,
         },
         {
           button: previewRetryBtn,
           id: "queue_preview_retry",
           label: "Preview Retry",
           kind: "retry",
-          errorPrefix: "Retry preview failed: ",
+          errorPrefix: queueActionCopy.preview_error_prefix.retry,
         },
         {
           button: previewUnarchiveBtn,
           id: "queue_preview_unarchive",
           label: "Preview Unarchive",
           kind: "unarchive",
-          errorPrefix: "Unarchive preview failed: ",
+          errorPrefix: queueActionCopy.preview_error_prefix.unarchive,
         },
       ];
 
@@ -3184,20 +3202,20 @@ const html = `<!doctype html>
           button: retryFailedBtn,
           id: "queue_retry_failed",
           label: "Retry Failed Batch",
-          errorPrefix: "Retry failed batch action failed: ",
+          errorPrefix: queueActionCopy.batch_error_prefix.retry,
           run: runRetryBatchFlow,
         },
         {
           button: archiveBlockedBtn,
           id: "queue_archive_failed",
           label: "Archive Failed Batch",
-          errorPrefix: "Archive blocked failed: ",
+          errorPrefix: queueActionCopy.batch_error_prefix.archive,
           run: createSimpleBatchRunner({
             kind: "archive",
             renderNoEligible: renderArchiveNoEligibleOutput,
             renderPreview: renderArchivePreviewOutput,
             buildConfirm: buildArchiveBatchConfirmMessage,
-            cancelledMessage: "Archive blocked action cancelled.",
+            cancelledMessage: queueActionCopy.batch_cancelled.archive,
             renderDone: renderArchiveBatchDoneOutput,
           }),
         },
@@ -3205,12 +3223,12 @@ const html = `<!doctype html>
           button: unarchiveBatchBtn,
           id: "queue_unarchive_batch",
           label: "Unarchive Batch",
-          errorPrefix: "Unarchive batch failed: ",
+          errorPrefix: queueActionCopy.batch_error_prefix.unarchive,
           run: createSimpleBatchRunner({
             kind: "unarchive",
             renderNoEligible: renderUnarchiveNoEligibleOutput,
             buildConfirm: buildUnarchiveBatchConfirmMessage,
-            cancelledMessage: "Unarchive action cancelled.",
+            cancelledMessage: queueActionCopy.batch_cancelled.unarchive,
             renderDone: renderUnarchiveBatchDoneOutput,
           }),
         },
