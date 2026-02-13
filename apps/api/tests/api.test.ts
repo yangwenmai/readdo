@@ -642,6 +642,42 @@ test("items endpoint applies retryable filter before limit truncation", async ()
   }
 });
 
+test("items endpoint clamps limit to maximum 100", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-list-limit-max-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    for (let i = 0; i < 105; i += 1) {
+      const captureRes = await app.inject({
+        method: "POST",
+        url: "/api/capture",
+        payload: {
+          url: `data:text/plain,limit-max-case-${i}`,
+          title: `Limit Max ${i}`,
+          domain: "example.items.limit.max",
+          source_type: "web",
+          intent_text: `create item for max limit case ${i}`,
+        },
+      });
+      assert.equal(captureRes.statusCode, 201);
+    }
+
+    const listRes = await app.inject({
+      method: "GET",
+      url: "/api/items?limit=999",
+    });
+    assert.equal(listRes.statusCode, 200);
+    const items = (listRes.json() as { items: Array<{ id: string }> }).items;
+    assert.equal(items.length, 100);
+  } finally {
+    await app.close();
+  }
+});
+
 test("user edit creates new artifact version and exposes history", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-edit-"));
   const app = await createApp({
