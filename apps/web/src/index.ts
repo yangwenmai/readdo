@@ -5293,7 +5293,7 @@ const html = `<!doctype html>
       function isTextEditingTarget(target) {
         if (!(target instanceof HTMLElement)) return false;
         const tag = target.tagName.toLowerCase();
-        return tag === "input" || tag === "textarea" || target.isContentEditable;
+        return tag === "input" || tag === "textarea" || tag === "select" || target.isContentEditable;
       }
 
       function refreshItemsWithErrorHandling() {
