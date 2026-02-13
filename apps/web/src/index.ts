@@ -403,20 +403,35 @@ const html = `<!doctype html>
             previewEl.textContent = JSON.stringify(selectedArtifact, null, 2);
 
             const latestArtifact = detail.artifacts?.[type] ?? null;
-            const latestText = JSON.stringify(latestArtifact?.payload ?? null, null, 2) || "";
-            const selectedText = JSON.stringify(selectedArtifact?.payload ?? null, null, 2) || "";
-            if (latestText === selectedText) {
+            const latestVersion = Number(latestArtifact?.version ?? 0);
+            const selectedVersion = Number(selectedArtifact?.version ?? 0);
+            if (!latestVersion || !selectedVersion) {
+              diffEl.textContent = "Diff unavailable: invalid version metadata.";
+              return;
+            }
+            if (latestVersion === selectedVersion) {
               diffEl.textContent = "No payload difference between selected and latest version.";
             } else {
-              const latestLines = latestText.split("\\n");
-              const selectedLines = selectedText.split("\\n");
-              const maxLines = Math.max(latestLines.length, selectedLines.length);
-              const changed = latestLines.filter((line, idx) => line !== selectedLines[idx]).length;
+              const compare = await request(
+                "/items/" +
+                  detail.item.id +
+                  "/artifacts/" +
+                  type +
+                  "/compare?base_version=" +
+                  selectedVersion +
+                  "&target_version=" +
+                  latestVersion,
+              );
+              const changedPaths = compare?.summary?.changed_paths ?? [];
+              const addedPaths = compare?.summary?.added_paths ?? [];
+              const removedPaths = compare?.summary?.removed_paths ?? [];
+              const pathPreview = changedPaths.concat(addedPaths, removedPaths).slice(0, 8);
               diffEl.textContent =
                 "Payload differs from latest.\\n" +
-                "changed_lines=" + changed + " / compared_lines=" + maxLines + "\\n" +
-                "latest_version=v" + (latestArtifact?.version ?? "N/A") +
-                ", selected_version=v" + (selectedArtifact?.version ?? "N/A");
+                "changed_lines=" + (compare?.summary?.changed_line_count ?? "N/A") +
+                " / compared_lines=" + (compare?.summary?.compared_line_count ?? "N/A") + "\\n" +
+                "latest_version=v" + latestVersion + ", selected_version=v" + selectedVersion + "\\n" +
+                "changed_paths_preview=" + JSON.stringify(pathPreview);
             }
           } catch (err) {
             previewEl.textContent = "Load failed: " + String(err);

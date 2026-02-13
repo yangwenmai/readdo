@@ -508,3 +508,79 @@ test("capture validates url and source_type", async () => {
     await app.close();
   }
 });
+
+test("artifact compare endpoint returns structured diff summary", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-compare-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20entry%20is%20for%20testing%20artifact%20compare%20endpoint%20and%20diff%20summary.",
+        title: "Artifact Compare",
+        domain: "example.compare",
+        source_type: "web",
+        intent_text: "Need to compare versions",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const detailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}?include_history=true`,
+    });
+    assert.equal(detailRes.statusCode, 200);
+    const detail = detailRes.json() as {
+      artifacts: {
+        todos: {
+          version: number;
+          payload: {
+            todos: Array<{ title: string; eta: string; type?: string; why?: string }>;
+          };
+        };
+      };
+    };
+
+    const editedPayload = structuredClone(detail.artifacts.todos.payload);
+    editedPayload.todos[0].title = "Draft a changed action title for compare endpoint";
+    const editRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/artifacts/todos`,
+      payload: { payload: editedPayload },
+    });
+    assert.equal(editRes.statusCode, 201);
+
+    const compareRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}/artifacts/todos/compare?base_version=1&target_version=2`,
+    });
+    assert.equal(compareRes.statusCode, 200);
+    const compare = compareRes.json() as {
+      artifact_type: string;
+      base: { version: number };
+      target: { version: number };
+      summary: {
+        changed_paths: string[];
+        changed_line_count: number;
+        compared_line_count: number;
+      };
+    };
+    assert.equal(compare.artifact_type, "todos");
+    assert.equal(compare.base.version, 1);
+    assert.equal(compare.target.version, 2);
+    assert.ok(compare.summary.changed_paths.length >= 1);
+    assert.ok(compare.summary.changed_line_count >= 1);
+    assert.ok(compare.summary.compared_line_count >= compare.summary.changed_line_count);
+  } finally {
+    await app.close();
+  }
+});

@@ -423,6 +423,92 @@ function selectedArtifacts(db: DatabaseSync, itemId: string, versionOverrides: R
   }, {});
 }
 
+function artifactVersionRow(
+  db: DatabaseSync,
+  itemId: string,
+  artifactType: string,
+  version: number,
+): ArtifactDbRow | undefined {
+  return db
+    .prepare(
+      `
+      SELECT artifact_type, version, created_by, created_at, meta_json, payload_json
+      FROM artifacts
+      WHERE item_id = ? AND artifact_type = ? AND version = ?
+      LIMIT 1
+      `,
+    )
+    .get(itemId, artifactType, version) as ArtifactDbRow | undefined;
+}
+
+function flattenPayload(
+  value: unknown,
+  path: string,
+  output: Map<string, string>,
+): void {
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      output.set(path, "[]");
+      return;
+    }
+    value.forEach((entry, index) => {
+      const nextPath = path ? `${path}[${index}]` : `[${index}]`;
+      flattenPayload(entry, nextPath, output);
+    });
+    return;
+  }
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>);
+    if (entries.length === 0) {
+      output.set(path, "{}");
+      return;
+    }
+    for (const [key, entry] of entries) {
+      const nextPath = path ? `${path}.${key}` : key;
+      flattenPayload(entry, nextPath, output);
+    }
+    return;
+  }
+  output.set(path || "$", JSON.stringify(value));
+}
+
+function comparePayloads(basePayload: unknown, targetPayload: unknown): {
+  added_paths: string[];
+  removed_paths: string[];
+  changed_paths: string[];
+  changed_line_count: number;
+  compared_line_count: number;
+} {
+  const baseMap = new Map<string, string>();
+  const targetMap = new Map<string, string>();
+  flattenPayload(basePayload, "", baseMap);
+  flattenPayload(targetPayload, "", targetMap);
+
+  const addedPaths = Array.from(targetMap.keys()).filter((path) => !baseMap.has(path)).sort();
+  const removedPaths = Array.from(baseMap.keys()).filter((path) => !targetMap.has(path)).sort();
+  const changedPaths = Array.from(baseMap.keys())
+    .filter((path) => targetMap.has(path) && baseMap.get(path) !== targetMap.get(path))
+    .sort();
+
+  const baseLines = JSON.stringify(basePayload, null, 2).split("\n");
+  const targetLines = JSON.stringify(targetPayload, null, 2).split("\n");
+  const comparedLineCount = Math.max(baseLines.length, targetLines.length);
+  let changedLineCount = 0;
+  for (let i = 0; i < comparedLineCount; i += 1) {
+    if ((baseLines[i] ?? "") !== (targetLines[i] ?? "")) {
+      changedLineCount += 1;
+    }
+  }
+
+  return {
+    added_paths: addedPaths,
+    removed_paths: removedPaths,
+    changed_paths: changedPaths,
+    changed_line_count: changedLineCount,
+    compared_line_count: comparedLineCount,
+  };
+}
+
 function writeArtifact(
   db: DatabaseSync,
   params: {
@@ -791,6 +877,50 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       },
       artifact: latest,
     });
+  });
+
+  app.get("/api/items/:id/artifacts/:artifactType/compare", async (request, reply) => {
+    const id = (request.params as { id: string }).id;
+    const artifactType = (request.params as { artifactType: string }).artifactType;
+    const item = db.prepare("SELECT id FROM items WHERE id = ?").get(id) as { id: string } | undefined;
+    if (!item) {
+      return reply.status(404).send(failure("NOT_FOUND", "Item not found"));
+    }
+
+    const query = request.query as Record<string, unknown>;
+    const baseVersion = Number(query.base_version);
+    const targetVersion = Number(query.target_version);
+    if (!Number.isInteger(baseVersion) || baseVersion < 1 || !Number.isInteger(targetVersion) || targetVersion < 1) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "base_version and target_version must be integers >= 1"));
+    }
+
+    const baseRow = artifactVersionRow(db, id, artifactType, baseVersion);
+    const targetRow = artifactVersionRow(db, id, artifactType, targetVersion);
+    if (!baseRow || !targetRow) {
+      return reply.status(404).send(failure("NOT_FOUND", "Artifact version not found", { artifact_type: artifactType }));
+    }
+
+    const basePayload = JSON.parse(baseRow.payload_json) as unknown;
+    const targetPayload = JSON.parse(targetRow.payload_json) as unknown;
+    const summary = comparePayloads(basePayload, targetPayload);
+
+    return {
+      item_id: id,
+      artifact_type: artifactType,
+      base: {
+        version: baseRow.version,
+        created_by: baseRow.created_by,
+        created_at: baseRow.created_at,
+        payload: basePayload,
+      },
+      target: {
+        version: targetRow.version,
+        created_by: targetRow.created_by,
+        created_at: targetRow.created_at,
+        payload: targetPayload,
+      },
+      summary,
+    };
   });
 
   app.post("/api/items/:id/process", async (request, reply) => {

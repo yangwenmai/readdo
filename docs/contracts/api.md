@@ -119,6 +119,7 @@ Artifacts payload 必须满足 `docs/contracts/schemas/*.schema.json`。
 * GET  `/items/{id}`
 * POST `/items/{id}/intent`（intent 编辑）
 * POST `/items/{id}/artifacts/{artifact_type}`（user edit -> new version）
+* GET  `/items/{id}/artifacts/{artifact_type}/compare`（版本差异）
 * POST `/items/{id}/process`
 * POST `/items/{id}/export`
 * POST `/items/{id}/archive`
@@ -429,6 +430,42 @@ Headers:
 * 400 VALIDATION_ERROR
 * 404 NOT_FOUND
 * 409 PROCESSING_IN_PROGRESS
+
+---
+
+## 6.7 GET /items/{id}/artifacts/{artifact_type}/compare（版本差异）
+
+### 6.7.1 目的
+
+对比同一 item 的同类型 artifact 两个版本，返回结构化差异摘要。
+
+### 6.7.2 Query Params
+
+* `base_version`（必填，int>=1）
+* `target_version`（必填，int>=1）
+
+### 6.7.3 Response 200
+
+```json
+{
+  "item_id": "itm_...",
+  "artifact_type": "todos",
+  "base": { "version": 1, "created_by": "system", "payload": {} },
+  "target": { "version": 2, "created_by": "user", "payload": {} },
+  "summary": {
+    "added_paths": [],
+    "removed_paths": [],
+    "changed_paths": ["todos[0].title"],
+    "changed_line_count": 3,
+    "compared_line_count": 22
+  }
+}
+```
+
+### 6.7.4 错误
+
+* 400 VALIDATION_ERROR（版本参数非法）
+* 404 NOT_FOUND（item 或版本不存在）
 
 ---
 
