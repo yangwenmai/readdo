@@ -2478,12 +2478,20 @@ const html = `<!doctype html>
         return "q=" + (payload.q_filter || "all");
       }
 
+      function retryableFilterLabel(payload) {
+        return payload.retryable_filter == null ? "all" : String(payload.retryable_filter);
+      }
+
+      function unarchiveModeLabel(payload) {
+        return payload.regenerate ? "regenerate" : "smart";
+      }
+
       function renderArchivePreviewOutput(preview) {
         errorEl.textContent =
           "Archive preview: " +
           scanWindowSummary(preview) +
           ", retryable=" +
-          (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
+          retryableFilterLabel(preview) +
           ", " +
           failureFilterSummary(preview) +
           ", " +
@@ -2497,7 +2505,7 @@ const html = `<!doctype html>
         retryPreviewOutputEl.textContent = JSON.stringify(
           {
             preview_type: "archive_blocked",
-            retryable_filter: preview.retryable_filter == null ? "all" : preview.retryable_filter,
+            retryable_filter: retryableFilterLabel(preview),
             q_filter: preview.q_filter || null,
             filter: preview.failure_step_filter || "all",
             scanned: preview.scanned ?? 0,
@@ -2552,7 +2560,7 @@ const html = `<!doctype html>
           "Unarchive preview: " +
           scanWindowSummary(preview) +
           ", mode=" +
-          (preview.regenerate ? "regenerate" : "smart") +
+          unarchiveModeLabel(preview) +
           ", " +
           qFilterSummary(preview) +
           ", " +
@@ -2566,7 +2574,7 @@ const html = `<!doctype html>
         retryPreviewOutputEl.textContent = JSON.stringify(
           {
             preview_type: "unarchive_batch",
-            mode: preview.regenerate ? "regenerate" : "smart",
+            mode: unarchiveModeLabel(preview),
             q_filter: preview.q_filter || null,
             scanned: preview.scanned ?? 0,
             scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
@@ -2595,7 +2603,7 @@ const html = `<!doctype html>
           "No failed items matching archive filter. " +
           scanWindowSummary(preview) +
           ", retryable=" +
-          (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
+          retryableFilterLabel(preview) +
           ", " +
           failureFilterSummary(preview) +
           ".";
@@ -2606,7 +2614,7 @@ const html = `<!doctype html>
           "No archived items to unarchive. " +
           scanWindowSummary(preview) +
           ", mode=" +
-          (preview.regenerate ? "regenerate" : "smart") +
+          unarchiveModeLabel(preview) +
           ", " +
           qFilterSummary(preview) +
           ".";
@@ -2644,7 +2652,7 @@ const html = `<!doctype html>
           ", " +
           qFilterSummary(result) +
           ", retryable=" +
-          (result.retryable_filter == null ? "all" : String(result.retryable_filter)) +
+          retryableFilterLabel(result) +
           ", filter=" +
           (result.failure_step_filter || "all") +
           ", " +
@@ -2661,7 +2669,7 @@ const html = `<!doctype html>
           ", " +
           scanWindowSummary(result) +
           ", mode=" +
-          (result.regenerate ? "regenerate" : "smart") +
+          unarchiveModeLabel(result) +
           ", " +
           qFilterSummary(result) +
           ", " +
@@ -2690,7 +2698,7 @@ const html = `<!doctype html>
           eligible +
           " failed items" +
           " [retryable=" +
-          (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
+          retryableFilterLabel(preview) +
           ", " +
           qFilterSummary(preview) +
           "]" +
@@ -2704,7 +2712,7 @@ const html = `<!doctype html>
           "Unarchive " +
           eligible +
           " archived items [mode=" +
-          (preview.regenerate ? "regenerate" : "smart") +
+          unarchiveModeLabel(preview) +
           ", " +
           qFilterSummary(preview) +
           "]?"
