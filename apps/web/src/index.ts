@@ -33,6 +33,7 @@ const queueBatchLabels = {
   archive: { trigger: "Archive Failed", action: "Archive Failed Batch" },
   unarchive: { trigger: "Unarchive Archived", action: "Unarchive Batch" },
 };
+const queueSpotlightBadgeText = "Aha Now";
 
 const html = `<!doctype html>
 <html lang="en">
@@ -177,8 +178,49 @@ const html = `<!doctype html>
       .item-card.priority-worth-it { border-left: 4px solid #7c3aed; }
       .item-card.priority-if-time { border-left: 4px solid #14b8a6; }
       .item-card.priority-default { border-left: 4px solid #94a3b8; }
+      .item-card.is-spotlight {
+        border-color: #93c5fd;
+        box-shadow: 0 12px 26px rgba(59, 130, 246, 0.26);
+        position: relative;
+        overflow: hidden;
+      }
+      .item-card.is-spotlight::after {
+        content: "";
+        position: absolute;
+        inset: 0 auto auto 0;
+        width: 100%;
+        height: 2px;
+        background: linear-gradient(90deg, rgba(29, 78, 216, 0.85), rgba(56, 189, 248, 0.82));
+      }
+      .item-card.spotlight-recover::after {
+        background: linear-gradient(90deg, rgba(220, 38, 38, 0.9), rgba(251, 191, 36, 0.88));
+      }
+      .item-card.spotlight-process::after {
+        background: linear-gradient(90deg, rgba(124, 58, 237, 0.9), rgba(59, 130, 246, 0.9));
+      }
       .item-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 8px; }
       .intent { font-weight: 700; margin: 4px 0; color: #0f172a; }
+      .spotlight-note {
+        margin-top: 6px;
+        border: 1px solid #bfdbfe;
+        border-radius: 10px;
+        background: linear-gradient(145deg, #eff6ff, #f8fafc);
+        padding: 6px 8px;
+        color: #1e3a8a;
+        font-size: 12px;
+      }
+      .spotlight-note .spotlight-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 1px 8px;
+        border-radius: 999px;
+        border: 1px solid #93c5fd;
+        background: #dbeafe;
+        color: #1d4ed8;
+        font-size: 11px;
+        font-weight: 700;
+        margin-right: 6px;
+      }
       .muted { color: #64748b; font-size: 12px; }
       .status { font-size: 11px; padding: 3px 9px; border-radius: 999px; letter-spacing: 0.03em; font-weight: 700; border: 1px solid transparent; }
       .status-ready, .status-shipped { background: #dcfce7; color: #166534; border-color: #86efac; }
@@ -394,12 +436,31 @@ const html = `<!doctype html>
         padding: 10px;
         margin-bottom: 10px;
       }
+      .aha-nudge.nudge-recover {
+        border-color: #fca5a5;
+        background: linear-gradient(145deg, #fee2e2, #fff7ed);
+      }
+      .aha-nudge.nudge-process {
+        border-color: #c4b5fd;
+        background: linear-gradient(145deg, #ede9fe, #eff6ff);
+      }
       .aha-nudge h4 {
         margin: 0 0 6px;
         color: #1e3a8a;
         font-size: 13px;
       }
+      .aha-nudge.nudge-recover h4 {
+        color: #991b1b;
+      }
+      .aha-nudge.nudge-process h4 {
+        color: #5b21b6;
+      }
       .aha-nudge .muted { margin-bottom: 8px; display: block; color: #334155; }
+      .aha-nudge .nudge-context {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px dashed rgba(148, 163, 184, 0.5);
+      }
       .aha-label { color: #1e3a8a; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
       .aha-value { color: #0f172a; font-size: 24px; font-weight: 800; line-height: 1; }
       .aha-meta { color: #475569; font-size: 12px; margin-top: 6px; }
@@ -708,6 +769,7 @@ const html = `<!doctype html>
       const SHORTCUT_TRIGGER_KEY = ${JSON.stringify(shortcutTriggerKey)};
       const QUEUE_PREVIEW_LABELS = ${JSON.stringify(queuePreviewLabels)};
       const QUEUE_BATCH_LABELS = ${JSON.stringify(queueBatchLabels)};
+      const QUEUE_SPOTLIGHT_BADGE_TEXT = ${JSON.stringify(queueSpotlightBadgeText)};
       const inboxEl = document.getElementById("inbox");
       const detailEl = document.getElementById("detail");
       const detailModeChipsEl = document.getElementById("detailModeChips");
@@ -826,6 +888,13 @@ const html = `<!doctype html>
           failure_step: "Failure Step Filter",
         },
       };
+      const emptyQueueNudgeState = {
+        itemId: null,
+        tone: "ship",
+        actionLabel: "",
+        context: "",
+      };
+      let queueNudgeState = { ...emptyQueueNudgeState };
 
       function statusByFocusChip(focus) {
         if (focus === "ready") return "READY";
@@ -1066,6 +1135,19 @@ const html = `<!doctype html>
           .sort((a, b) => Number(b.match_score ?? -1) - Number(a.match_score ?? -1))[0];
       }
 
+      function setQueueNudgeState(state = {}) {
+        queueNudgeState = { ...emptyQueueNudgeState, ...state };
+      }
+
+      function queueNudgeForItem(item) {
+        if (!item || queueNudgeState.itemId == null || item.id !== queueNudgeState.itemId) return null;
+        return {
+          tone: queueNudgeState.tone || "ship",
+          actionLabel: queueNudgeState.actionLabel || "Take recommended action",
+          context: queueNudgeState.context || "This is the current highest-impact item.",
+        };
+      }
+
       function countItemsByStatus(items) {
         const counts = {
           CAPTURED: 0,
@@ -1195,10 +1277,16 @@ const html = `<!doctype html>
         const capturedCandidate = items.find((item) => item.status === "CAPTURED");
         let title = "Next Recommended Move";
         let message = "Capture or process more items to keep the decision queue active.";
+        let nudgeTone = "ship";
+        let nudgeItemId = null;
+        let nudgeContext = "";
         let ctaOp = null;
         if (candidate) {
           title = "Ship momentum available";
           message = "Top ready item score " + Number(candidate.match_score ?? 0).toFixed(1) + ". Ship now to keep output velocity.";
+          nudgeTone = "ship";
+          nudgeItemId = candidate.id;
+          nudgeContext = "Highest score READY item";
           ctaOp = {
             id: "nudge_export_top",
             label: "Open & Export Top Item",
@@ -1210,6 +1298,9 @@ const html = `<!doctype html>
         } else if (retryableFailed) {
           title = "Recover blocked value";
           message = "A retryable failed item is waiting. Recover it first to unblock downstream output.";
+          nudgeTone = "recover";
+          nudgeItemId = retryableFailed.id;
+          nudgeContext = "Retryable failure with recoverable value";
           ctaOp = {
             id: "nudge_retry_failed",
             label: "Retry First Failed Item",
@@ -1220,6 +1311,9 @@ const html = `<!doctype html>
         } else if (capturedCandidate) {
           title = "Convert captured into artifacts";
           message = "You still have captured items not processed. Turn one into actionable artifacts now.";
+          nudgeTone = "process";
+          nudgeItemId = capturedCandidate.id;
+          nudgeContext = "Fresh capture awaiting first process run";
           ctaOp = {
             id: "nudge_process_captured",
             label: "Process First Captured Item",
@@ -1228,9 +1322,22 @@ const html = `<!doctype html>
             },
           };
         }
+        setQueueNudgeState({
+          itemId: nudgeItemId,
+          tone: nudgeTone,
+          actionLabel: ctaOp?.label || "",
+          context: nudgeContext,
+        });
+        ahaNudgeEl.className = "aha-nudge" + (nudgeTone ? " nudge-" + nudgeTone : "");
         ahaNudgeEl.innerHTML = '<h4>' + title + '</h4><span class="muted">' + message + "</span>";
         setActionFeedback(queueActionBannerEl, "", "Ready.");
         if (ctaOp) {
+          if (nudgeContext) {
+            const context = document.createElement("div");
+            context.className = "nudge-context muted";
+            context.textContent = QUEUE_SPOTLIGHT_BADGE_TEXT + ": " + nudgeContext;
+            ahaNudgeEl.appendChild(context);
+          }
           const btn = document.createElement("button");
           btn.type = "button";
           btn.className = "primary";
@@ -1491,10 +1598,24 @@ const html = `<!doctype html>
       function renderItem(item) {
         const card = document.createElement("div");
         const isSelected = selectedId === item.id;
-        card.className = "item-card clickable priority-" + priorityTone(item.priority) + (isSelected ? " is-selected" : "");
+        const spotlight = queueNudgeForItem(item);
+        card.className =
+          "item-card clickable priority-" +
+          priorityTone(item.priority) +
+          (isSelected ? " is-selected" : "") +
+          (spotlight ? " is-spotlight spotlight-" + spotlight.tone : "");
         const title = item.title || item.url;
         const score = item.match_score != null ? Number(item.match_score).toFixed(1) : "—";
         const retry = retryInfo(item);
+        const spotlightNoteHtml = spotlight
+          ? '<div class="spotlight-note"><span class="spotlight-badge">' +
+            QUEUE_SPOTLIGHT_BADGE_TEXT +
+            "</span>" +
+            spotlight.actionLabel +
+            " · " +
+            spotlight.context +
+            "</div>"
+          : "";
         let failureNoteHtml = "";
         if (item.status.startsWith("FAILED_") && retry.retryLimit > 0) {
           if (retry.retryable) {
@@ -1518,6 +1639,7 @@ const html = `<!doctype html>
           <div class="intent">\${item.intent_text}</div>
           <div>\${title}</div>
           <div class="muted">\${item.domain || ""}</div>
+          \${spotlightNoteHtml}
           \${failureNoteHtml}
           <div class="actions"></div>
         \`;
