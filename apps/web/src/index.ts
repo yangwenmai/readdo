@@ -2864,32 +2864,6 @@ const html = `<!doctype html>
         renderRetryBatchDoneOutput(batchRes, exportSummary);
       }
 
-      function bindPreviewAction(config) {
-        const button = config.button;
-        button.addEventListener("click", async () => {
-          await runQueueAction(
-            {
-              id: config.id,
-              label: config.label,
-              action: async () => {
-                await withActionError(
-                  config.errorPrefix,
-                  async () => {
-                    clearPreviewContinuation();
-                    const previewOffset = normalizedPreviewOffset();
-                    await loadAndRenderPreview(config.kind, previewOffset);
-                  },
-                  () => {
-                    clearPreviewState();
-                  },
-                );
-              },
-            },
-            { button },
-          );
-        });
-      }
-
       async function runQueueAction(op, options = {}) {
         await runActionWithFeedback(op, {
           button: options.button,
@@ -3052,19 +3026,42 @@ const html = `<!doctype html>
         }
       }
 
-      function bindQueueBatchAction(config) {
+      function bindQueueAction(config, options = {}) {
         const button = config.button;
+        const run = typeof options.run === "function" ? options.run : config.run;
+        const onError = typeof options.onError === "function" ? options.onError : null;
         button.addEventListener("click", async () => {
-          await runQueueBatchAction(
-            {
-              id: config.id,
-              label: config.label,
-              action: async () => {
-                await withActionError(config.errorPrefix, config.run);
-              },
+          const op = {
+            id: config.id,
+            label: config.label,
+            action: async () => {
+              await withActionError(config.errorPrefix, run, onError);
             },
-            button,
-          );
+          };
+          if (options.useBatchRunner) {
+            await runQueueBatchAction(op, button);
+            return;
+          }
+          await runQueueAction(op, { button });
+        });
+      }
+
+      function bindPreviewAction(config) {
+        bindQueueAction(config, {
+          run: async () => {
+            clearPreviewContinuation();
+            const previewOffset = normalizedPreviewOffset();
+            await loadAndRenderPreview(config.kind, previewOffset);
+          },
+          onError: () => {
+            clearPreviewState();
+          },
+        });
+      }
+
+      function bindQueueBatchAction(config) {
+        bindQueueAction(config, {
+          useBatchRunner: true,
         });
       }
 
