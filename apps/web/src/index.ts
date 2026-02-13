@@ -3002,34 +3002,27 @@ const html = `<!doctype html>
         });
       }
 
+      const shortcutActionMap = {
+        [SHORTCUT_TRIGGER_KEY]: () => {
+          showShortcutHint();
+        },
+        "/": () => {
+          queryInput.focus();
+          queryInput.select();
+        },
+        f: () => {
+          setDetailAdvancedEnabled(false);
+        },
+        a: () => {
+          setDetailAdvancedEnabled(true);
+        },
+        r: () => {
+          refreshItemsWithErrorHandling();
+        },
+      };
+
       function shortcutActionByKey(key) {
-        if (key === SHORTCUT_TRIGGER_KEY) {
-          return () => {
-            showShortcutHint();
-          };
-        }
-        if (key === "/") {
-          return () => {
-            queryInput.focus();
-            queryInput.select();
-          };
-        }
-        if (key === "f") {
-          return () => {
-            setDetailAdvancedEnabled(false);
-          };
-        }
-        if (key === "a") {
-          return () => {
-            setDetailAdvancedEnabled(true);
-          };
-        }
-        if (key === "r") {
-          return () => {
-            refreshItemsWithErrorHandling();
-          };
-        }
-        return null;
+        return shortcutActionMap[key] || null;
       }
 
       function handleGlobalShortcutKey(event) {
