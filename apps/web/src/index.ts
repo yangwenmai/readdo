@@ -108,6 +108,7 @@ const html = `<!doctype html>
           Preview Offset
           <input id="previewOffsetInput" type="number" min="0" step="1" value="0" style="width:72px;" />
         </label>
+        <button id="resetControlsBtn" type="button">Reset Controls</button>
         <button class="primary" id="refreshBtn">Refresh</button>
       </div>
     </header>
@@ -130,6 +131,7 @@ const html = `<!doctype html>
       const errorEl = document.getElementById("error");
       const retryPreviewOutputEl = document.getElementById("retryPreviewOutput");
       const refreshBtn = document.getElementById("refreshBtn");
+      const resetControlsBtn = document.getElementById("resetControlsBtn");
       const queryInput = document.getElementById("queryInput");
       const statusFilter = document.getElementById("statusFilter");
       const retryableFilter = document.getElementById("retryableFilter");
@@ -156,6 +158,17 @@ const html = `<!doctype html>
       let autoRefreshTimer = null;
       let previewContinuation = null;
       const controlsStorageKey = "readdo.web.controls.v1";
+      const controlDefaults = {
+        q: "",
+        status: "",
+        retryable: "",
+        failure_step: "",
+        archive_retryable: "false",
+        unarchive_mode: "smart",
+        batch_limit: 100,
+        preview_offset: 0,
+        auto_refresh: false,
+      };
 
       function clearPreviewContinuation() {
         previewContinuation = null;
@@ -214,6 +227,18 @@ const html = `<!doctype html>
         } catch {
           // ignore malformed storage payloads
         }
+      }
+
+      function applyControlDefaults() {
+        queryInput.value = controlDefaults.q;
+        statusFilter.value = controlDefaults.status;
+        retryableFilter.value = controlDefaults.retryable;
+        failureStepFilter.value = controlDefaults.failure_step;
+        archiveRetryableFilter.value = controlDefaults.archive_retryable;
+        unarchiveModeFilter.value = controlDefaults.unarchive_mode;
+        batchLimitInput.value = String(controlDefaults.batch_limit);
+        previewOffsetInput.value = String(controlDefaults.preview_offset);
+        autoRefreshToggle.checked = controlDefaults.auto_refresh;
       }
 
       function groupedItems(items) {
@@ -1039,6 +1064,19 @@ const html = `<!doctype html>
           await loadItems();
         } catch (err) {
           errorEl.textContent = String(err);
+        }
+      });
+
+      resetControlsBtn.addEventListener("click", async () => {
+        try {
+          clearPreviewContinuation();
+          applyControlDefaults();
+          localStorage.removeItem(controlsStorageKey);
+          setAutoRefresh(false);
+          errorEl.textContent = "Controls reset to defaults.";
+          await loadItems();
+        } catch (err) {
+          errorEl.textContent = "Reset controls failed: " + String(err);
         }
       });
 
