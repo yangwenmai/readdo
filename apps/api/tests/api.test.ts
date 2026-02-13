@@ -1954,6 +1954,42 @@ test("capture validates url and source_type", async () => {
     const inferredSourceTypeDetail = inferredSourceTypeDetailRes.json() as { item: { source_type: string } };
     assert.equal(inferredSourceTypeDetail.item.source_type, "youtube");
 
+    const inferredNewsletterRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://writer.substack.com/p/weekly-brief",
+        intent_text: "infer newsletter source type from URL",
+      },
+    });
+    assert.equal(inferredNewsletterRes.statusCode, 201);
+    const inferredNewsletterId = (inferredNewsletterRes.json() as { item: { id: string } }).item.id;
+    const inferredNewsletterDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${inferredNewsletterId}`,
+    });
+    assert.equal(inferredNewsletterDetailRes.statusCode, 200);
+    const inferredNewsletterDetail = inferredNewsletterDetailRes.json() as { item: { source_type: string } };
+    assert.equal(inferredNewsletterDetail.item.source_type, "newsletter");
+
+    const inferredDataSourceRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,source-type-infer-data",
+        intent_text: "infer fallback source type for data URL",
+      },
+    });
+    assert.equal(inferredDataSourceRes.statusCode, 201);
+    const inferredDataSourceId = (inferredDataSourceRes.json() as { item: { id: string } }).item.id;
+    const inferredDataSourceDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${inferredDataSourceId}`,
+    });
+    assert.equal(inferredDataSourceDetailRes.statusCode, 200);
+    const inferredDataSourceDetail = inferredDataSourceDetailRes.json() as { item: { source_type: string } };
+    assert.equal(inferredDataSourceDetail.item.source_type, "other");
+
     const normalizedSourceTypeRes = await app.inject({
       method: "POST",
       url: "/api/capture",
