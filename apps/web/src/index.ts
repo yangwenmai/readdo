@@ -37,6 +37,7 @@ const queueSpotlightBadgeText = "Aha Now";
 const queueNudgeFocusLabel = "Focus Recommended Item";
 const queueRecoveryCopyLabel = "Copy Recovery Summary";
 const queueRecoveryClearLabel = "Clear Radar";
+const queueRecoveryDownloadLabel = "Download Summary";
 
 const html = `<!doctype html>
 <html lang="en">
@@ -961,6 +962,7 @@ const html = `<!doctype html>
           </div>
           <div class="recovery-radar-actions">
             <button type="button" disabled>${queueRecoveryCopyLabel}</button>
+            <button type="button" class="secondary" disabled>${queueRecoveryDownloadLabel}</button>
             <button type="button" class="secondary" disabled>${queueRecoveryClearLabel}</button>
           </div>
         </div>
@@ -996,6 +998,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_FOCUS_LABEL = ${JSON.stringify(queueNudgeFocusLabel)};
       const QUEUE_RECOVERY_COPY_LABEL = ${JSON.stringify(queueRecoveryCopyLabel)};
       const QUEUE_RECOVERY_CLEAR_LABEL = ${JSON.stringify(queueRecoveryClearLabel)};
+      const QUEUE_RECOVERY_DOWNLOAD_LABEL = ${JSON.stringify(queueRecoveryDownloadLabel)};
       const inboxEl = document.getElementById("inbox");
       const detailEl = document.getElementById("detail");
       const detailModeChipsEl = document.getElementById("detailModeChips");
@@ -1432,6 +1435,25 @@ const html = `<!doctype html>
         }
       }
 
+      function downloadRecoverySummary(summary) {
+        if (!summary) return;
+        const payload = JSON.stringify(summary, null, 2);
+        const blob = new Blob([payload], { type: "application/json;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        const summaryLabel =
+          String(summary.label || "recovery")
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "_")
+            .replace(/^_+|_+$/g, "") || "recovery";
+        anchor.href = url;
+        anchor.download = "recovery_summary_" + summaryLabel + ".json";
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        URL.revokeObjectURL(url);
+      }
+
       function renderRecoveryRadar(summary = null) {
         if (!recoveryRadarEl) return;
         if (!summary) {
@@ -1440,6 +1462,8 @@ const html = `<!doctype html>
             '<div class="recovery-radar-actions">' +
             '<button type="button" disabled>' +
             QUEUE_RECOVERY_COPY_LABEL +
+            '</button><button type="button" class="secondary" disabled>' +
+            QUEUE_RECOVERY_DOWNLOAD_LABEL +
             '</button><button type="button" class="secondary" disabled>' +
             QUEUE_RECOVERY_CLEAR_LABEL +
             "</button></div>";
@@ -1467,6 +1491,8 @@ const html = `<!doctype html>
           '<div class="recovery-radar-actions">' +
           '<button type="button" id="copyRecoverySummaryBtn">' +
           QUEUE_RECOVERY_COPY_LABEL +
+          '</button><button type="button" class="secondary" id="downloadRecoverySummaryBtn">' +
+          QUEUE_RECOVERY_DOWNLOAD_LABEL +
           '</button><button type="button" class="secondary" id="clearRecoverySummaryBtn">' +
           QUEUE_RECOVERY_CLEAR_LABEL +
           "</button></div>";
@@ -1538,6 +1564,10 @@ const html = `<!doctype html>
         const copyBtn = recoveryRadarEl.querySelector("#copyRecoverySummaryBtn");
         copyBtn?.addEventListener("click", async () => {
           await copyRecoverySummary(summary);
+        });
+        const downloadBtn = recoveryRadarEl.querySelector("#downloadRecoverySummaryBtn");
+        downloadBtn?.addEventListener("click", () => {
+          downloadRecoverySummary(summary);
         });
         const clearBtn = recoveryRadarEl.querySelector("#clearRecoverySummaryBtn");
         clearBtn?.addEventListener("click", () => {
