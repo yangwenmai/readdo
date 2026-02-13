@@ -1145,6 +1145,11 @@ const html = `<!doctype html>
         return Math.max(raw, 0);
       }
 
+      function resetPreviewOffset() {
+        previewOffsetInput.value = String(controlDefaults.preview_offset);
+        persistControls();
+      }
+
       function syncPreviewOffsetFromResponse(preview) {
         const requestedOffset = Number(preview?.requested_offset ?? 0);
         previewOffsetInput.value = String(Number.isInteger(requestedOffset) ? Math.max(requestedOffset, 0) : 0);
@@ -1399,6 +1404,20 @@ const html = `<!doctype html>
           errorEl.textContent =
             "Archive blocked done. archived=" +
             (result.archived ?? 0) +
+            ", scanned=" +
+            (result.scanned ?? 0) +
+            "/" +
+            (result.scanned_total ?? result.scanned ?? 0) +
+            ", limit=" +
+            (result.requested_limit ?? normalizedBatchLimit()) +
+            ", offset=" +
+            (result.requested_offset ?? 0) +
+            ", q=" +
+            (result.q_filter || "all") +
+            ", truncated=" +
+            (result.scan_truncated ? "yes" : "no") +
+            ", next_offset=" +
+            (result.next_offset == null ? "null" : String(result.next_offset)) +
             ", skipped_retryable_mismatch=" +
             (result.skipped_retryable_mismatch ?? 0) +
             ".";
@@ -1671,6 +1690,22 @@ const html = `<!doctype html>
           errorEl.textContent =
             "Unarchive done. unarchived=" +
             (result.unarchived ?? 0) +
+            ", scanned=" +
+            (result.scanned ?? 0) +
+            "/" +
+            (result.scanned_total ?? result.scanned ?? 0) +
+            ", limit=" +
+            (result.requested_limit ?? normalizedBatchLimit()) +
+            ", offset=" +
+            (result.requested_offset ?? 0) +
+            ", mode=" +
+            (result.regenerate ? "regenerate" : "smart") +
+            ", q=" +
+            (result.q_filter || "all") +
+            ", truncated=" +
+            (result.scan_truncated ? "yes" : "no") +
+            ", next_offset=" +
+            (result.next_offset == null ? "null" : String(result.next_offset)) +
             ", queued_jobs_created=" +
             (result.queued_jobs_created ?? 0) +
             ".";
@@ -1684,6 +1719,7 @@ const html = `<!doctype html>
 
       archiveRetryableFilter.addEventListener("change", async () => {
         persistControls();
+        resetPreviewOffset();
         clearPreviewContinuation();
         clearPreviewOutput();
         await loadWorkerStats();
@@ -1691,6 +1727,7 @@ const html = `<!doctype html>
 
       unarchiveModeFilter.addEventListener("change", () => {
         persistControls();
+        resetPreviewOffset();
         clearPreviewContinuation();
         clearPreviewOutput();
       });
@@ -1698,6 +1735,7 @@ const html = `<!doctype html>
       batchLimitInput.addEventListener("change", () => {
         batchLimitInput.value = String(normalizedBatchLimit());
         persistControls();
+        resetPreviewOffset();
         clearPreviewContinuation();
         clearPreviewOutput();
       });
@@ -1714,6 +1752,7 @@ const html = `<!doctype html>
         try {
           errorEl.textContent = "";
           persistControls();
+          resetPreviewOffset();
           clearPreviewContinuation();
           clearPreviewOutput();
           await loadItems();
@@ -1726,6 +1765,7 @@ const html = `<!doctype html>
         try {
           errorEl.textContent = "";
           persistControls();
+          resetPreviewOffset();
           clearPreviewContinuation();
           clearPreviewOutput();
           await loadItems();
@@ -1738,6 +1778,7 @@ const html = `<!doctype html>
         try {
           errorEl.textContent = "";
           persistControls();
+          resetPreviewOffset();
           clearPreviewContinuation();
           clearPreviewOutput();
           await loadItems();
@@ -1750,6 +1791,7 @@ const html = `<!doctype html>
         try {
           errorEl.textContent = "";
           persistControls();
+          resetPreviewOffset();
           clearPreviewContinuation();
           clearPreviewOutput();
           await loadItems();

@@ -66,8 +66,8 @@ UI 提供 `Preview Next` 按钮，可直接基于 `next_offset` 连续翻页预�
 也可通过 `Preview Offset` 输入框从任意 offset 起始预览（例如跳到第 200 条后再看）。
 批量执行（Retry/Archive/Unarchive）会使用当前 `Preview Offset`，保证“预览页即执行页”。
 `Reset Controls` 可一键恢复筛选/批量参数默认值，并关闭自动刷新。
-筛选条件与 Batch Limit、Auto refresh 会在浏览器本地持久化，刷新页面后自动恢复。
-当切换筛选条件或调整批量参数时，旧的预览结果会自动清空，避免误读。
+筛选条件、Batch Limit、Preview Offset、Auto refresh 会在浏览器本地持久化，刷新页面后自动恢复。
+当切换筛选条件或调整批量参数时，旧的预览结果会自动清空，并将 `Preview Offset` 归零，避免跨上下文误读。
 
 ### 4) Load Chrome Extension
 
