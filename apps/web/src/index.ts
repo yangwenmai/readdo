@@ -3173,44 +3173,46 @@ const html = `<!doctype html>
         );
       }
 
+      function createPreviewActionConfig(button, id, label, kind) {
+        return {
+          button,
+          id,
+          label,
+          kind,
+          errorPrefix: queueActionCopy.preview_error_prefix[kind],
+        };
+      }
+
+      function createBatchActionConfig(button, id, label, kind, run) {
+        return {
+          button,
+          id,
+          label,
+          run,
+          errorPrefix: queueActionCopy.batch_error_prefix[kind],
+        };
+      }
+
       const previewActionConfigs = [
-        {
-          button: previewArchiveBtn,
-          id: "queue_preview_archive",
-          label: "Preview Archive",
-          kind: "archive",
-          errorPrefix: queueActionCopy.preview_error_prefix.archive,
-        },
-        {
-          button: previewRetryBtn,
-          id: "queue_preview_retry",
-          label: "Preview Retry",
-          kind: "retry",
-          errorPrefix: queueActionCopy.preview_error_prefix.retry,
-        },
-        {
-          button: previewUnarchiveBtn,
-          id: "queue_preview_unarchive",
-          label: "Preview Unarchive",
-          kind: "unarchive",
-          errorPrefix: queueActionCopy.preview_error_prefix.unarchive,
-        },
+        createPreviewActionConfig(previewArchiveBtn, "queue_preview_archive", "Preview Archive", "archive"),
+        createPreviewActionConfig(previewRetryBtn, "queue_preview_retry", "Preview Retry", "retry"),
+        createPreviewActionConfig(previewUnarchiveBtn, "queue_preview_unarchive", "Preview Unarchive", "unarchive"),
       ];
 
       const batchActionConfigs = [
-        {
-          button: retryFailedBtn,
-          id: "queue_retry_failed",
-          label: "Retry Failed Batch",
-          errorPrefix: queueActionCopy.batch_error_prefix.retry,
-          run: runRetryBatchFlow,
-        },
-        {
-          button: archiveBlockedBtn,
-          id: "queue_archive_failed",
-          label: "Archive Failed Batch",
-          errorPrefix: queueActionCopy.batch_error_prefix.archive,
-          run: createSimpleBatchRunner({
+        createBatchActionConfig(
+          retryFailedBtn,
+          "queue_retry_failed",
+          "Retry Failed Batch",
+          "retry",
+          runRetryBatchFlow,
+        ),
+        createBatchActionConfig(
+          archiveBlockedBtn,
+          "queue_archive_failed",
+          "Archive Failed Batch",
+          "archive",
+          createSimpleBatchRunner({
             kind: "archive",
             renderNoEligible: renderArchiveNoEligibleOutput,
             renderPreview: renderArchivePreviewOutput,
@@ -3218,20 +3220,20 @@ const html = `<!doctype html>
             cancelledMessage: queueActionCopy.batch_cancelled.archive,
             renderDone: renderArchiveBatchDoneOutput,
           }),
-        },
-        {
-          button: unarchiveBatchBtn,
-          id: "queue_unarchive_batch",
-          label: "Unarchive Batch",
-          errorPrefix: queueActionCopy.batch_error_prefix.unarchive,
-          run: createSimpleBatchRunner({
+        ),
+        createBatchActionConfig(
+          unarchiveBatchBtn,
+          "queue_unarchive_batch",
+          "Unarchive Batch",
+          "unarchive",
+          createSimpleBatchRunner({
             kind: "unarchive",
             renderNoEligible: renderUnarchiveNoEligibleOutput,
             buildConfirm: buildUnarchiveBatchConfirmMessage,
             cancelledMessage: queueActionCopy.batch_cancelled.unarchive,
             renderDone: renderUnarchiveBatchDoneOutput,
           }),
-        },
+        ),
       ];
 
       const queueControlChangeConfigs = [
