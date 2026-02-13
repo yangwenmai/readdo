@@ -2269,7 +2269,7 @@ test("capture validates url and source_type", async () => {
       method: "POST",
       url: "/api/capture",
       payload: {
-        url: "https://Example.com/path?b=2&utm_source=x&A=1&FbClId=foo#section",
+        url: "https://Example.com/path?b=2&utm_source=x&UTM_MEDIUM=z&A=1&FbClId=foo&GcLiD=bar#section",
         source_type: "web",
         intent_text: "strip tracking params and normalize query order before storage",
       },
