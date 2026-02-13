@@ -1260,6 +1260,7 @@ const html = `<!doctype html>
             method: "POST",
             body: JSON.stringify(retryFailedPayload(false, executionOffset))
           });
+          syncPreviewOffsetFromResponse(batchRes);
           const exportItemIds = batchRes.eligible_export_item_ids || [];
           for (const itemId of exportItemIds) {
             try {
@@ -1289,6 +1290,8 @@ const html = `<!doctype html>
             (batchRes.requested_offset ?? 0) +
             ", q=" +
             (batchRes.q_filter || "all") +
+            ", filter=" +
+            (batchRes.failure_step_filter || "all") +
             ", truncated=" +
             (batchRes.scan_truncated ? "yes" : "no") +
             ", next_offset=" +
@@ -1424,6 +1427,7 @@ const html = `<!doctype html>
             method: "POST",
             body: JSON.stringify(archiveBlockedPayload(false, previewOffset))
           });
+          syncPreviewOffsetFromResponse(result);
           errorEl.textContent =
             "Archive blocked done. archived=" +
             (result.archived ?? 0) +
@@ -1437,6 +1441,10 @@ const html = `<!doctype html>
             (result.requested_offset ?? 0) +
             ", q=" +
             (result.q_filter || "all") +
+            ", retryable=" +
+            (result.retryable_filter == null ? "all" : String(result.retryable_filter)) +
+            ", filter=" +
+            (result.failure_step_filter || "all") +
             ", truncated=" +
             (result.scan_truncated ? "yes" : "no") +
             ", next_offset=" +
@@ -1710,6 +1718,7 @@ const html = `<!doctype html>
             method: "POST",
             body: JSON.stringify(unarchiveBatchPayload(false, previewOffset))
           });
+          syncPreviewOffsetFromResponse(result);
           errorEl.textContent =
             "Unarchive done. unarchived=" +
             (result.unarchived ?? 0) +
