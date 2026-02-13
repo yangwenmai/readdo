@@ -38,6 +38,7 @@ const queueNudgeFocusLabel = "Focus Recommended Item";
 const queueRecoveryCopyLabel = "Copy Recovery Summary";
 const queueRecoveryClearLabel = "Clear Radar";
 const queueRecoveryDownloadLabel = "Download Summary";
+const queueRecoveryHistoryHint = "History keeps last 5 recovery runs.";
 
 const html = `<!doctype html>
 <html lang="en">
@@ -543,6 +544,25 @@ const html = `<!doctype html>
         background: #ffffff;
         color: #334155;
       }
+      .recovery-radar-timeline {
+        margin-top: 8px;
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .recovery-radar-timeline .timeline-chip {
+        border: 1px solid #dbe2ea;
+        border-radius: 999px;
+        background: #ffffff;
+        color: #334155;
+        padding: 4px 10px;
+        font-size: 11px;
+      }
+      .recovery-radar-timeline .timeline-chip.active {
+        border-color: #1d4ed8;
+        color: #1d4ed8;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.22);
+      }
       .legend-item {
         border: 1px solid #dbe2ea;
         border-radius: 999px;
@@ -965,6 +985,7 @@ const html = `<!doctype html>
             <button type="button" class="secondary" disabled>${queueRecoveryDownloadLabel}</button>
             <button type="button" class="secondary" disabled>${queueRecoveryClearLabel}</button>
           </div>
+          <div id="recoveryRadarTimeline" class="recovery-radar-timeline muted">${queueRecoveryHistoryHint}</div>
         </div>
         <div id="focusChips" class="focus-chips">
           <button type="button" class="focus-chip active" data-focus="all">All</button>
@@ -999,6 +1020,8 @@ const html = `<!doctype html>
       const QUEUE_RECOVERY_COPY_LABEL = ${JSON.stringify(queueRecoveryCopyLabel)};
       const QUEUE_RECOVERY_CLEAR_LABEL = ${JSON.stringify(queueRecoveryClearLabel)};
       const QUEUE_RECOVERY_DOWNLOAD_LABEL = ${JSON.stringify(queueRecoveryDownloadLabel)};
+      const QUEUE_RECOVERY_HISTORY_HINT = ${JSON.stringify(queueRecoveryHistoryHint)};
+      const RECOVERY_HISTORY_LIMIT = 5;
       const inboxEl = document.getElementById("inbox");
       const detailEl = document.getElementById("detail");
       const detailModeChipsEl = document.getElementById("detailModeChips");
@@ -1047,6 +1070,8 @@ const html = `<!doctype html>
       let previewContinuation = null;
       let detailAdvancedEnabled = false;
       let latestRecoverySummary = null;
+      let recoveryRadarHistory = [];
+      let activeRecoverySummaryId = null;
       const controlsStorageKey = "readdo.web.controls.v1";
       const defaultCollapsedGroups = {
         read_next: false,
@@ -1423,6 +1448,44 @@ const html = `<!doctype html>
         list.push(normalized);
       }
 
+      function cloneRecoverySummary(summary) {
+        try {
+          return JSON.parse(JSON.stringify(summary));
+        } catch {
+          return summary ? { ...summary } : null;
+        }
+      }
+
+      function normalizeRecoverySummary(summary) {
+        const cloned = cloneRecoverySummary(summary);
+        if (!cloned || typeof cloned !== "object") return null;
+        return {
+          ...cloned,
+          summary_id: cloned.summary_id || crypto.randomUUID(),
+          created_at: cloned.created_at || new Date().toISOString(),
+          totals: cloned.totals || {},
+          step_buckets: cloned.step_buckets || emptyRecoveryStepBuckets(),
+        };
+      }
+
+      function recoverySummaryById(summaryId) {
+        if (!summaryId) return null;
+        return recoveryRadarHistory.find((entry) => entry.summary_id === summaryId) || null;
+      }
+
+      function activeRecoverySummary() {
+        const active = recoverySummaryById(activeRecoverySummaryId);
+        if (active) return active;
+        return recoveryRadarHistory[0] || null;
+      }
+
+      function recoveryTimelineLabel(summary, index) {
+        const label = String(summary?.label || "Recovery Run");
+        const timeText = String(summary?.created_at || "").split("T")[1]?.slice(0, 8) || "";
+        const prefix = index === 0 ? "Latest" : "Run " + String(index + 1);
+        return prefix + " · " + label + (timeText ? " · " + timeText : "");
+      }
+
       async function copyRecoverySummary(summary) {
         if (!summary) return false;
         try {
@@ -1456,7 +1519,8 @@ const html = `<!doctype html>
 
       function renderRecoveryRadar(summary = null) {
         if (!recoveryRadarEl) return;
-        if (!summary) {
+        const activeSummary = summary || activeRecoverySummary();
+        if (!activeSummary) {
           recoveryRadarEl.innerHTML =
             '<div class="recovery-radar-head"><h4>Recovery Radar</h4><span class="muted">No recovery runs yet.</span></div>' +
             '<div class="recovery-radar-actions">' +
@@ -1466,14 +1530,17 @@ const html = `<!doctype html>
             QUEUE_RECOVERY_DOWNLOAD_LABEL +
             '</button><button type="button" class="secondary" disabled>' +
             QUEUE_RECOVERY_CLEAR_LABEL +
-            "</button></div>";
+            "</button></div>" +
+            '<div id="recoveryRadarTimeline" class="recovery-radar-timeline muted">' +
+            QUEUE_RECOVERY_HISTORY_HINT +
+            "</div>";
           return;
         }
-        const totals = summary.totals || {};
-        const stepBuckets = summary.step_buckets || emptyRecoveryStepBuckets();
+        const totals = activeSummary.totals || {};
+        const stepBuckets = activeSummary.step_buckets || emptyRecoveryStepBuckets();
         recoveryRadarEl.innerHTML =
           '<div class="recovery-radar-head"><h4>Recovery Radar</h4><span class="muted">' +
-          (summary.label || "Latest recovery run") +
+          (activeSummary.label || "Latest recovery run") +
           "</span></div>" +
           '<div class="recovery-radar-kpi">' +
           '<div class="cell"><div class="label">Targeted</div><div class="value">' +
@@ -1563,22 +1630,57 @@ const html = `<!doctype html>
         recoveryRadarEl.appendChild(stepGrid);
         const copyBtn = recoveryRadarEl.querySelector("#copyRecoverySummaryBtn");
         copyBtn?.addEventListener("click", async () => {
-          await copyRecoverySummary(summary);
+          await copyRecoverySummary(activeSummary);
         });
         const downloadBtn = recoveryRadarEl.querySelector("#downloadRecoverySummaryBtn");
         downloadBtn?.addEventListener("click", () => {
-          downloadRecoverySummary(summary);
+          downloadRecoverySummary(activeSummary);
         });
         const clearBtn = recoveryRadarEl.querySelector("#clearRecoverySummaryBtn");
         clearBtn?.addEventListener("click", () => {
           latestRecoverySummary = null;
+          recoveryRadarHistory = [];
+          activeRecoverySummaryId = null;
           renderRecoveryRadar(null);
         });
+        const timelineEl = document.createElement("div");
+        timelineEl.id = "recoveryRadarTimeline";
+        timelineEl.className = "recovery-radar-timeline";
+        if (recoveryRadarHistory.length <= 1) {
+          const hint = document.createElement("span");
+          hint.className = "muted";
+          hint.textContent = QUEUE_RECOVERY_HISTORY_HINT;
+          timelineEl.appendChild(hint);
+        } else {
+          recoveryRadarHistory.forEach((entry, index) => {
+            const chip = document.createElement("button");
+            chip.type = "button";
+            chip.className = "timeline-chip";
+            if (entry.summary_id === activeSummary.summary_id) {
+              chip.classList.add("active");
+            }
+            chip.textContent = recoveryTimelineLabel(entry, index);
+            chip.addEventListener("click", () => {
+              activeRecoverySummaryId = entry.summary_id;
+              latestRecoverySummary = entry;
+              renderRecoveryRadar(entry);
+            });
+            timelineEl.appendChild(chip);
+          });
+        }
+        recoveryRadarEl.appendChild(timelineEl);
       }
 
       function setLatestRecoverySummary(summary) {
-        latestRecoverySummary = summary;
-        renderRecoveryRadar(summary);
+        const normalized = normalizeRecoverySummary(summary);
+        if (!normalized) return;
+        recoveryRadarHistory = [
+          normalized,
+          ...recoveryRadarHistory.filter((entry) => entry.summary_id !== normalized.summary_id),
+        ].slice(0, RECOVERY_HISTORY_LIMIT);
+        latestRecoverySummary = normalized;
+        activeRecoverySummaryId = normalized.summary_id;
+        renderRecoveryRadar(normalized);
       }
 
       function lastAttemptRetryCandidates(items) {
