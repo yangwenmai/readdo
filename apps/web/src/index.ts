@@ -2907,6 +2907,14 @@ const html = `<!doctype html>
         });
       }
 
+      function syncControlsWithPreviewState(options = {}) {
+        persistControls();
+        if (options.resetOffset !== false) {
+          resetPreviewOffset();
+        }
+        clearPreviewState();
+      }
+
       async function withActionError(errorPrefix, action, onError = null) {
         try {
           return await action();
@@ -3048,9 +3056,7 @@ const html = `<!doctype html>
         await applyQueueControlMutation(
           "Archive Scope",
           () => {
-            persistControls();
-            resetPreviewOffset();
-            clearPreviewState();
+            syncControlsWithPreviewState();
           },
           { refresh_worker_stats: true },
         );
@@ -3058,26 +3064,21 @@ const html = `<!doctype html>
 
       unarchiveModeFilter.addEventListener("change", () => {
         void applyQueueControlMutation("Unarchive Mode", () => {
-          persistControls();
-          resetPreviewOffset();
-          clearPreviewState();
+          syncControlsWithPreviewState();
         });
       });
 
       batchLimitInput.addEventListener("change", () => {
         void applyQueueControlMutation("Batch Limit", () => {
           batchLimitInput.value = String(normalizedBatchLimit());
-          persistControls();
-          resetPreviewOffset();
-          clearPreviewState();
+          syncControlsWithPreviewState();
         });
       });
 
       previewOffsetInput.addEventListener("change", () => {
         void applyQueueControlMutation("Preview Offset", () => {
           previewOffsetInput.value = String(normalizedPreviewOffset());
-          persistControls();
-          clearPreviewState();
+          syncControlsWithPreviewState({ resetOffset: false });
         });
       });
 
@@ -3087,9 +3088,7 @@ const html = `<!doctype html>
       });
 
       queryInput.addEventListener("input", () => {
-        persistControls();
-        resetPreviewOffset();
-        clearPreviewState();
+        syncControlsWithPreviewState();
       });
 
       if (focusChipsEl) {
