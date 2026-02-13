@@ -34,7 +34,10 @@ export function canonicalizeUrlForCapture(url) {
 }
 
 export async function stableCaptureKey(url, intentText) {
-  const input = new TextEncoder().encode(`${url}\n${intentText}`);
+  const normalizedIntent = String(intentText ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const input = new TextEncoder().encode(`${url}\n${normalizedIntent}`);
   const digest = await crypto.subtle.digest("SHA-256", input);
   const bytes = Array.from(new Uint8Array(digest)).slice(0, 16);
   const hex = bytes.map((b) => b.toString(16).padStart(2, "0")).join("");

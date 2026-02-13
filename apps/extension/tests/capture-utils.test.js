@@ -43,3 +43,9 @@ test("stableCaptureKey is deterministic for same input", async () => {
   assert.notEqual(a, c);
   assert.match(a, /^extcap_[0-9a-f]{32}$/);
 });
+
+test("stableCaptureKey normalizes whitespace in intent text", async () => {
+  const a = await stableCaptureKey("https://example.com/path", "keep   this");
+  const b = await stableCaptureKey("https://example.com/path", "  keep this  ");
+  assert.equal(a, b);
+});
