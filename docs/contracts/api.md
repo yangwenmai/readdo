@@ -262,6 +262,7 @@ Headers:
 
 约束：
 
+* 不接受任何 query 参数（传入任意 query key 返回 `400 VALIDATION_ERROR`）
 * body 若提供，必须是对象
 * 不接受任何 body 字段（传入任意字段返回 `400 VALIDATION_ERROR`）
 

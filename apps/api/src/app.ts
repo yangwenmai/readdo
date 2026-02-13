@@ -886,6 +886,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   });
 
   app.post("/api/system/worker/run-once", async (request, reply) => {
+    const query = request.query as Record<string, unknown>;
+    if (Object.keys(query).length > 0) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "run-once does not accept query parameters"));
+    }
     if (request.body !== undefined && !isObjectRecord(request.body)) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "request body must be an object when provided"));
     }

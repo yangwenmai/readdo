@@ -4679,6 +4679,15 @@ test("manual worker run endpoint drains one queued job", async () => {
     assert.equal(runOnceUnknownBodyKeyPayload.error.code, "VALIDATION_ERROR");
     assert.match(runOnceUnknownBodyKeyPayload.error.message, /run-once does not accept request body fields/i);
 
+    const runOnceUnknownQueryRes = await app.inject({
+      method: "POST",
+      url: "/api/system/worker/run-once?verbose=true",
+    });
+    assert.equal(runOnceUnknownQueryRes.statusCode, 400);
+    const runOnceUnknownQueryPayload = runOnceUnknownQueryRes.json() as { error: { code: string; message: string } };
+    assert.equal(runOnceUnknownQueryPayload.error.code, "VALIDATION_ERROR");
+    assert.match(runOnceUnknownQueryPayload.error.message, /run-once does not accept query parameters/i);
+
     const captureRes = await app.inject({
       method: "POST",
       url: "/api/capture",
