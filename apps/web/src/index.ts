@@ -250,7 +250,7 @@ const html = `<!doctype html>
           <input id="autoRefreshToggle" type="checkbox" />
           Auto refresh
         </label>
-        <input id="queryInput" placeholder="Search title/domain/intent" />
+        <input id="queryInput" placeholder="Search title/domain/intent (press /)" />
         <select id="statusFilter">
           <option value="">All Status</option>
           <option value="CAPTURED">CAPTURED</option>
@@ -670,7 +670,9 @@ const html = `<!doctype html>
           if (target instanceof HTMLElement && (target.closest("button") || target.closest("a"))) {
             return;
           }
-          void selectItem(item.id);
+          void selectItem(item.id).catch((err) => {
+            errorEl.textContent = String(err);
+          });
         });
         for (const op of ops) {
           const btn = document.createElement("button");
@@ -862,7 +864,14 @@ const html = `<!doctype html>
         if (allItems.length) {
           renderInbox(allItems);
         }
-        const detail = await request("/items/" + id + "?include_history=true");
+        detailEl.innerHTML = '<div class="item-card"><div class="muted">Loading detail…</div></div>';
+        let detail;
+        try {
+          detail = await request("/items/" + id + "?include_history=true");
+        } catch (err) {
+          detailEl.innerHTML = '<div class="empty">Failed to load detail. Try refresh.</div>';
+          throw err;
+        }
         selectedDetail = detail;
         detailEl.innerHTML = "";
 
@@ -2306,6 +2315,22 @@ const html = `<!doctype html>
       autoRefreshToggle.addEventListener("change", () => {
         persistControls();
         setAutoRefresh(Boolean(autoRefreshToggle.checked));
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.defaultPrevented) return;
+        const target = event.target;
+        if (target instanceof HTMLElement) {
+          const tag = target.tagName.toLowerCase();
+          if (tag === "input" || tag === "textarea" || target.isContentEditable) {
+            return;
+          }
+        }
+        if (event.key === "/") {
+          event.preventDefault();
+          queryInput.focus();
+          queryInput.select();
+        }
       });
     </script>
   </body>
