@@ -216,6 +216,19 @@ const html = `<!doctype html>
         background: linear-gradient(145deg, #eff6ff, #ffffff);
         min-height: 86px;
       }
+      .aha-nudge {
+        border: 1px solid #bfdbfe;
+        border-radius: 12px;
+        background: linear-gradient(145deg, #dbeafe, #eff6ff);
+        padding: 10px;
+        margin-bottom: 10px;
+      }
+      .aha-nudge h4 {
+        margin: 0 0 6px;
+        color: #1e3a8a;
+        font-size: 13px;
+      }
+      .aha-nudge .muted { margin-bottom: 8px; display: block; color: #334155; }
       .aha-label { color: #1e3a8a; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
       .aha-value { color: #0f172a; font-size: 24px; font-weight: 800; line-height: 1; }
       .aha-meta { color: #475569; font-size: 12px; margin-top: 6px; }
@@ -476,6 +489,7 @@ const html = `<!doctype html>
         <h2>Decision Queue</h2>
         <p class="panel-subtitle">系统会自动提炼优先级与行动项，下面是当前最有产出的执行视图。</p>
         <div id="queueHighlights" class="aha-strip"></div>
+        <div id="ahaNudge" class="aha-nudge"></div>
         <div id="focusChips" class="focus-chips">
           <button type="button" class="focus-chip active" data-focus="all">All</button>
           <button type="button" class="focus-chip" data-focus="ready">Ready</button>
@@ -509,6 +523,7 @@ const html = `<!doctype html>
       const detailSectionNavEl = document.getElementById("detailSectionNav");
       const errorEl = document.getElementById("error");
       const queueHighlightsEl = document.getElementById("queueHighlights");
+      const ahaNudgeEl = document.getElementById("ahaNudge");
       const focusChipsEl = document.getElementById("focusChips");
       const statusLegendEl = document.getElementById("statusLegend");
       const retryPreviewOutputEl = document.getElementById("retryPreviewOutput");
@@ -836,6 +851,57 @@ const html = `<!doctype html>
           queueHighlightsEl.appendChild(metricCard);
         }
         queueHighlightsEl.title = "Queue momentum: " + momentum;
+
+        if (!ahaNudgeEl) return;
+        const retryableFailed = items.find((item) => isRetryableFailedItem(item));
+        const capturedCandidate = items.find((item) => item.status === "CAPTURED");
+        let title = "Next Recommended Move";
+        let message = "Capture or process more items to keep the decision queue active.";
+        let ctaLabel = "";
+        let ctaAction = null;
+        if (candidate) {
+          title = "Ship momentum available";
+          message = "Top ready item score " + Number(candidate.match_score ?? 0).toFixed(1) + ". Ship now to keep output velocity.";
+          ctaLabel = "Open & Export Top Item";
+          ctaAction = async () => {
+            await selectItem(candidate.id);
+            await exportItem(candidate.id);
+          };
+        } else if (retryableFailed) {
+          title = "Recover blocked value";
+          message = "A retryable failed item is waiting. Recover it first to unblock downstream output.";
+          ctaLabel = "Retry First Failed Item";
+          ctaAction = async () => {
+            await processItem(retryableFailed.id, "RETRY");
+          };
+        } else if (capturedCandidate) {
+          title = "Convert captured into artifacts";
+          message = "You still have captured items not processed. Turn one into actionable artifacts now.";
+          ctaLabel = "Process First Captured Item";
+          ctaAction = async () => {
+            await processItem(capturedCandidate.id, "PROCESS");
+          };
+        }
+        ahaNudgeEl.innerHTML = '<h4>' + title + '</h4><span class="muted">' + message + "</span>";
+        if (ctaAction && ctaLabel) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "primary";
+          btn.textContent = ctaLabel;
+          btn.addEventListener("click", async () => {
+            const previous = btn.disabled;
+            btn.disabled = true;
+            try {
+              errorEl.textContent = "";
+              await ctaAction();
+            } catch (err) {
+              errorEl.textContent = String(err);
+            } finally {
+              btn.disabled = previous;
+            }
+          });
+          ahaNudgeEl.appendChild(btn);
+        }
       }
 
       function renderStatusLegend(items) {

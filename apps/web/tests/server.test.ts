@@ -39,6 +39,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Preview Offset/u);
     assert.match(text, /press \//u);
     assert.match(text, /id="queueHighlights"/u);
+    assert.match(text, /id="ahaNudge"/u);
     assert.match(text, /id="focusChips"/u);
     assert.match(text, /id="statusLegend"/u);
     assert.match(text, /id="detailModeChips"/u);
@@ -53,6 +54,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Maintain Queue/u);
     assert.match(text, /Recovery Playbook/u);
     assert.match(text, /Shipping Playbook/u);
+    assert.match(text, /Next Recommended Move/u);
     assert.match(text, /Export Snapshot/u);
     assert.match(text, /Copy Latest Paths/u);
     assert.match(text, /Artifacts JSON/u);
