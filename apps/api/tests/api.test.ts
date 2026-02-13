@@ -4195,6 +4195,26 @@ test("manual worker run endpoint drains one queued job", async () => {
   });
 
   try {
+    const runOnceNonObjectBodyRes = await app.inject({
+      method: "POST",
+      url: "/api/system/worker/run-once",
+      payload: [],
+    });
+    assert.equal(runOnceNonObjectBodyRes.statusCode, 400);
+    const runOnceNonObjectBodyPayload = runOnceNonObjectBodyRes.json() as { error: { code: string; message: string } };
+    assert.equal(runOnceNonObjectBodyPayload.error.code, "VALIDATION_ERROR");
+    assert.match(runOnceNonObjectBodyPayload.error.message, /request body must be an object/i);
+
+    const runOnceUnknownBodyKeyRes = await app.inject({
+      method: "POST",
+      url: "/api/system/worker/run-once",
+      payload: { dry_run: true },
+    });
+    assert.equal(runOnceUnknownBodyKeyRes.statusCode, 400);
+    const runOnceUnknownBodyKeyPayload = runOnceUnknownBodyKeyRes.json() as { error: { code: string; message: string } };
+    assert.equal(runOnceUnknownBodyKeyPayload.error.code, "VALIDATION_ERROR");
+    assert.match(runOnceUnknownBodyKeyPayload.error.message, /run-once does not accept request body fields/i);
+
     const captureRes = await app.inject({
       method: "POST",
       url: "/api/capture",

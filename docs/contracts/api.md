@@ -246,7 +246,14 @@ Headers:
 
 手动触发一次 worker 轮询（领取一个 QUEUED job 并执行），主要用于本地调试与演示。
 
-### 4.7.2 Response 200
+### 4.7.2 Request
+
+约束：
+
+* body 若提供，必须是对象
+* 不接受任何 body 字段（传入任意字段返回 `400 VALIDATION_ERROR`）
+
+### 4.7.3 Response 200
 
 ```json
 {
@@ -258,6 +265,10 @@ Headers:
   "timestamp": "2026-02-13T12:00:00Z"
 }
 ```
+
+### 4.7.4 错误
+
+* 400 VALIDATION_ERROR
 
 ---
 

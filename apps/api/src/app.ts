@@ -849,7 +849,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     };
   });
 
-  app.post("/api/system/worker/run-once", async () => {
+  app.post("/api/system/worker/run-once", async (request, reply) => {
+    if (request.body !== undefined && !isObjectRecord(request.body)) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "request body must be an object when provided"));
+    }
+    const body = (isObjectRecord(request.body) ? request.body : {}) as Record<string, unknown>;
+    if (Object.keys(body).length > 0) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "run-once does not accept request body fields"));
+    }
     await runWorkerOnce();
     const queueRows = db
       .prepare("SELECT status, COUNT(1) AS count FROM jobs GROUP BY status")
