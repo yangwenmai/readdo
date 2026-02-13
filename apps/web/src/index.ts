@@ -2962,6 +2962,12 @@ const html = `<!doctype html>
         });
       }
 
+      function showShortcutHint() {
+        const hint = "Shortcuts: / Search · F Focus Mode · A Advanced Panels · R Refresh";
+        setActionFeedback(queueActionBannerEl, "done", hint);
+        setActionFeedback(detailActionBannerEl(), "done", hint);
+      }
+
       function bindGlobalKeyboardShortcuts() {
         document.addEventListener("keydown", (event) => {
           if (event.defaultPrevented) return;
@@ -2972,6 +2978,11 @@ const html = `<!doctype html>
 
       function handleGlobalShortcutKey(event) {
         const key = event.key.toLowerCase();
+        if (event.key === "?") {
+          event.preventDefault();
+          showShortcutHint();
+          return;
+        }
         if (event.key === "/") {
           event.preventDefault();
           queryInput.focus();
