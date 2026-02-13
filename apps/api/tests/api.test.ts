@@ -318,6 +318,46 @@ test("export idempotency replays old export_key beyond recent window", async () 
   }
 });
 
+test("export rejects mismatched header idempotency key and export_key", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-mismatch-idempotent-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20request%20validates%20export%20idempotency%20key%20mismatch%20rejection.",
+        title: "Export Mismatch",
+        domain: "example.export.mismatch",
+        source_type: "web",
+        intent_text: "validate export key mismatch",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const exportRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      headers: { "Idempotency-Key": "export-header-key-1" },
+      payload: { export_key: "export-body-key-2", formats: ["md"] },
+    });
+    assert.equal(exportRes.statusCode, 400);
+    const errPayload = exportRes.json() as { error: { code: string; message: string } };
+    assert.equal(errPayload.error.code, "VALIDATION_ERROR");
+    assert.match(errPayload.error.message, /Idempotency-Key and export_key must match/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("process mode must match current status", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-"));
   const app = await createApp({

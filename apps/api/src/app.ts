@@ -1503,7 +1503,13 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   app.post("/api/items/:id/export", async (request, reply) => {
     const id = (request.params as { id: string }).id;
     const body = (request.body ?? {}) as Record<string, unknown>;
-    const exportKey = String(body.export_key ?? request.headers["idempotency-key"] ?? `exp_${nanoid(8)}`);
+    const headerExportRaw = request.headers["idempotency-key"];
+    const headerExportKey = typeof headerExportRaw === "string" ? headerExportRaw.trim() : "";
+    const bodyExportKey = typeof body.export_key === "string" ? body.export_key.trim() : "";
+    if (headerExportKey && bodyExportKey && headerExportKey !== bodyExportKey) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "Idempotency-Key and export_key must match when both are provided"));
+    }
+    const exportKey = bodyExportKey || headerExportKey || `exp_${nanoid(8)}`;
     const formats = normalizeQueryList(body.formats).length ? normalizeQueryList(body.formats) : ["png", "md", "caption"];
 
     const item = db.prepare("SELECT * FROM items WHERE id = ?").get(id) as DbItemRow | undefined;

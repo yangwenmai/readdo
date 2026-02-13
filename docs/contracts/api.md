@@ -774,6 +774,10 @@ Headers:
 }
 ```
 
+约束：
+
+* 若同时提供 `Idempotency-Key` 与 `export_key`，两者必须一致；不一致返回 `400 VALIDATION_ERROR`
+
 ### 8.4 Response 200
 
 ```json
