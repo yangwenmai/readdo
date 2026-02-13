@@ -2915,6 +2915,27 @@ const html = `<!doctype html>
         clearPreviewState();
       }
 
+      function bindQueueControlChange(config) {
+        config.element.addEventListener("change", () => {
+          void applyQueueControlMutation(
+            config.label,
+            () => {
+              if (typeof config.beforeSync === "function") {
+                config.beforeSync();
+              }
+              syncControlsWithPreviewState(config.syncOptions || {});
+            },
+            config.options || {},
+          );
+        });
+      }
+
+      function bindListFilterChange(element, label) {
+        element.addEventListener("change", () => {
+          void applyListContextAndReload(label);
+        });
+      }
+
       async function withActionError(errorPrefix, action, onError = null) {
         try {
           return await action();
@@ -3052,34 +3073,32 @@ const html = `<!doctype html>
 
       bindPreviewNextAction(previewNextBtn);
 
-      archiveRetryableFilter.addEventListener("change", async () => {
-        await applyQueueControlMutation(
-          "Archive Scope",
-          () => {
-            syncControlsWithPreviewState();
-          },
-          { refresh_worker_stats: true },
-        );
+      bindQueueControlChange({
+        element: archiveRetryableFilter,
+        label: "Archive Scope",
+        options: { refresh_worker_stats: true },
       });
 
-      unarchiveModeFilter.addEventListener("change", () => {
-        void applyQueueControlMutation("Unarchive Mode", () => {
-          syncControlsWithPreviewState();
-        });
+      bindQueueControlChange({
+        element: unarchiveModeFilter,
+        label: "Unarchive Mode",
       });
 
-      batchLimitInput.addEventListener("change", () => {
-        void applyQueueControlMutation("Batch Limit", () => {
+      bindQueueControlChange({
+        element: batchLimitInput,
+        label: "Batch Limit",
+        beforeSync: () => {
           batchLimitInput.value = String(normalizedBatchLimit());
-          syncControlsWithPreviewState();
-        });
+        },
       });
 
-      previewOffsetInput.addEventListener("change", () => {
-        void applyQueueControlMutation("Preview Offset", () => {
+      bindQueueControlChange({
+        element: previewOffsetInput,
+        label: "Preview Offset",
+        beforeSync: () => {
           previewOffsetInput.value = String(normalizedPreviewOffset());
-          syncControlsWithPreviewState({ resetOffset: false });
-        });
+        },
+        syncOptions: { resetOffset: false },
       });
 
       queryInput.addEventListener("keydown", async (event) => {
@@ -3113,17 +3132,9 @@ const html = `<!doctype html>
         setDetailAdvancedEnabled(true);
       });
 
-      statusFilter.addEventListener("change", async () => {
-        await applyListContextAndReload("Status Filter");
-      });
-
-      retryableFilter.addEventListener("change", async () => {
-        await applyListContextAndReload("Retryable Filter");
-      });
-
-      failureStepFilter.addEventListener("change", async () => {
-        await applyListContextAndReload("Failure Step Filter");
-      });
+      bindListFilterChange(statusFilter, "Status Filter");
+      bindListFilterChange(retryableFilter, "Retryable Filter");
+      bindListFilterChange(failureStepFilter, "Failure Step Filter");
 
       restoreControls();
       setAutoRefresh(Boolean(autoRefreshToggle.checked));
