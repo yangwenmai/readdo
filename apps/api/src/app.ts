@@ -1628,6 +1628,23 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       .prepare("UPDATE items SET status = 'QUEUED', updated_at = ?, failure_json = NULL WHERE id = ? AND status = ?")
       .run(ts, id, item.status);
     if (updateRes.changes === 0) {
+      if (explicitProcessKey) {
+        const replayJob = db.prepare("SELECT id FROM jobs WHERE request_key = ?").get(requestKey) as { id: string } | undefined;
+        if (replayJob) {
+          const latestItem = db.prepare("SELECT id, status, updated_at FROM items WHERE id = ?").get(id) as
+            | { id: string; status: string; updated_at: string }
+            | undefined;
+          return reply.status(202).send({
+            item: {
+              id,
+              status: latestItem?.status ?? item.status,
+              updated_at: latestItem?.updated_at ?? item.updated_at,
+            },
+            mode,
+            idempotent_replay: true,
+          });
+        }
+      }
       return reply.status(409).send(
         failure("STATE_CONFLICT", "Item status changed before queueing, please retry", {
           item_id: id,

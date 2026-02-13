@@ -763,6 +763,58 @@ test("process endpoint replays idempotent request with same key", async () => {
   }
 });
 
+test("process handles concurrent same-key requests with idempotent replay", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-idempotent-concurrent-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20content%20is%20used%20to%20verify%20concurrent%20process%20idempotency%20replay%20behavior.",
+        title: "Process Concurrent Replay",
+        domain: "example.process.concurrent",
+        source_type: "web",
+        intent_text: "validate concurrent process idempotency replay",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const requestKey = "process-concurrent-key-1";
+    const [firstRes, secondRes] = await Promise.all([
+      app.inject({
+        method: "POST",
+        url: `/api/items/${itemId}/process`,
+        headers: { "Idempotency-Key": requestKey },
+        payload: { mode: "REGENERATE" },
+      }),
+      app.inject({
+        method: "POST",
+        url: `/api/items/${itemId}/process`,
+        headers: { "Idempotency-Key": requestKey },
+        payload: { mode: "REGENERATE" },
+      }),
+    ]);
+
+    assert.equal(firstRes.statusCode, 202);
+    assert.equal(secondRes.statusCode, 202);
+
+    const payloads = [firstRes.json(), secondRes.json()] as Array<{ idempotent_replay: boolean }>;
+    assert.equal(payloads.some((x) => x.idempotent_replay === true), true);
+    assert.equal(payloads.some((x) => x.idempotent_replay === false), true);
+  } finally {
+    await app.close();
+  }
+});
+
 test("process accepts repeated idempotency header values by using first key", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-idempotent-header-array-"));
   const app = await createApp({
