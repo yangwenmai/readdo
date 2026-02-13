@@ -33,6 +33,7 @@ const html = `<!doctype html>
       textarea { width: 100%; min-height: 180px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
       .editor-row { display: flex; gap: 8px; margin: 8px 0; align-items: center; flex-wrap: wrap; }
       .hint { font-size: 12px; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 6px 8px; margin-top: 6px; }
+      .diff { font-size: 12px; color: #1f2937; background: #ecfeff; border: 1px solid #a5f3fc; border-radius: 6px; padding: 6px 8px; margin-top: 6px; white-space: pre-wrap; }
       @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
     </style>
   </head>
@@ -349,6 +350,7 @@ const html = `<!doctype html>
             <select id="versionSelect"></select>
             <button id="loadVersionBtn" type="button">Load Selected Version</button>
           </div>
+          <div class="diff" id="versionDiffSummary">Select a version to compare with latest.</div>
           <pre id="versionArtifactPreview"></pre>
         \`;
 
@@ -356,6 +358,7 @@ const html = `<!doctype html>
         const versionSelect = card.querySelector("#versionSelect");
         const loadBtn = card.querySelector("#loadVersionBtn");
         const previewEl = card.querySelector("#versionArtifactPreview");
+        const diffEl = card.querySelector("#versionDiffSummary");
 
         for (const type of artifactTypes) {
           const opt = document.createElement("option");
@@ -391,9 +394,28 @@ const html = `<!doctype html>
           const query = encodeURIComponent(JSON.stringify({ [type]: version }));
           try {
             const pinned = await request("/items/" + detail.item.id + "?artifact_versions=" + query);
-            previewEl.textContent = JSON.stringify(pinned.artifacts?.[type] ?? null, null, 2);
+            const selectedArtifact = pinned.artifacts?.[type] ?? null;
+            previewEl.textContent = JSON.stringify(selectedArtifact, null, 2);
+
+            const latestArtifact = detail.artifacts?.[type] ?? null;
+            const latestText = JSON.stringify(latestArtifact?.payload ?? null, null, 2) || "";
+            const selectedText = JSON.stringify(selectedArtifact?.payload ?? null, null, 2) || "";
+            if (latestText === selectedText) {
+              diffEl.textContent = "No payload difference between selected and latest version.";
+            } else {
+              const latestLines = latestText.split("\\n");
+              const selectedLines = selectedText.split("\\n");
+              const maxLines = Math.max(latestLines.length, selectedLines.length);
+              const changed = latestLines.filter((line, idx) => line !== selectedLines[idx]).length;
+              diffEl.textContent =
+                "Payload differs from latest.\\n" +
+                "changed_lines=" + changed + " / compared_lines=" + maxLines + "\\n" +
+                "latest_version=v" + (latestArtifact?.version ?? "N/A") +
+                ", selected_version=v" + (selectedArtifact?.version ?? "N/A");
+            }
           } catch (err) {
             previewEl.textContent = "Load failed: " + String(err);
+            diffEl.textContent = "Diff unavailable due to load failure.";
           }
         });
 
