@@ -1,4 +1,10 @@
-import { canonicalizeUrlForCapture, detectSourceType, normalizeIntentText, stableCaptureKey } from "./capture-utils.js";
+import {
+  canonicalizeUrlForCapture,
+  detectSourceType,
+  isSupportedCaptureUrl,
+  normalizeIntentText,
+  stableCaptureKey,
+} from "./capture-utils.js";
 
 const intentEl = document.getElementById("intent");
 const resultEl = document.getElementById("result");
@@ -19,6 +25,10 @@ captureBtn?.addEventListener("click", async () => {
 
   if (!tab?.url || !intentText) {
     resultEl.textContent = "Intent and URL are required.";
+    return;
+  }
+  if (!isSupportedCaptureUrl(tab.url)) {
+    resultEl.textContent = "Unsupported page URL. Please capture from an http/https page.";
     return;
   }
 

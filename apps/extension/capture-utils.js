@@ -7,6 +7,15 @@ export function detectSourceType(url) {
   return "other";
 }
 
+export function isSupportedCaptureUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" || parsed.protocol === "data:";
+  } catch {
+    return false;
+  }
+}
+
 export function normalizeIntentText(intentText) {
   return String(intentText ?? "")
     .replace(/\s+/g, " ")
