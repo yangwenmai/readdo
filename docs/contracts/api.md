@@ -350,7 +350,8 @@ Headers:
 {
   "limit": 50,
   "dry_run": false,
-  "regenerate": false
+  "regenerate": false,
+  "q": "optional keyword"
 }
 ```
 
@@ -359,6 +360,7 @@ Headers:
 * `limit` 可选，范围建议 `1..200`，默认 50
 * `dry_run=true` 时仅返回预估结果，不会修改 item 状态
 * `regenerate=true` 时不走 READY 快速恢复，统一入队重跑
+* `q` 可选，按 `title/domain/intent_text/url` 模糊过滤 archived 候选
 
 ### 4.10.3 Response 200
 
@@ -367,6 +369,7 @@ Headers:
   "requested_limit": 50,
   "dry_run": false,
   "regenerate": false,
+  "q_filter": "optional keyword",
   "scanned": 6,
   "eligible": 6,
   "eligible_ready": 4,

@@ -899,17 +899,25 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 50;
     const dryRun = Boolean(body.dry_run);
     const regenerate = Boolean(body.regenerate);
+    const q = typeof body.q === "string" ? body.q.trim() : "";
 
+    const whereParts = ["status = 'ARCHIVED'"];
+    const params: Array<string | number> = [];
+    if (q) {
+      whereParts.push("(title LIKE ? OR domain LIKE ? OR intent_text LIKE ? OR url LIKE ?)");
+      const token = `%${q}%`;
+      params.push(token, token, token, token);
+    }
     const archivedItems = db
       .prepare(
         `
         SELECT * FROM items
-        WHERE status = 'ARCHIVED'
+        WHERE ${whereParts.join(" AND ")}
         ORDER BY updated_at ASC
         LIMIT ?
       `,
       )
-      .all(limit) as DbItemRow[];
+      .all(...params, limit) as DbItemRow[];
 
     let eligibleReady = 0;
     let eligibleQueued = 0;
@@ -952,6 +960,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       requested_limit: limit,
       dry_run: dryRun,
       regenerate,
+      q_filter: q || null,
       scanned: archivedItems.length,
       eligible: eligibleReady + eligibleQueued,
       eligible_ready: eligibleReady,

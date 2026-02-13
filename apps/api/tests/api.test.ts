@@ -748,6 +748,7 @@ test("unarchive-batch endpoint supports dry-run and regenerate mode", async () =
     assert.equal(previewRes.statusCode, 200);
     const preview = previewRes.json() as {
       dry_run: boolean;
+      q_filter?: string | null;
       scanned: number;
       eligible: number;
       eligible_ready: number;
@@ -766,6 +767,26 @@ test("unarchive-batch endpoint supports dry-run and regenerate mode", async () =
     assert.ok(preview.eligible_queued_item_ids.includes(capturedId));
     assert.equal(preview.unarchived, 0);
     assert.equal(preview.queued_jobs_created, 0);
+    assert.equal(preview.q_filter ?? null, null);
+
+    const previewWithQueryRes = await app.inject({
+      method: "POST",
+      url: "/api/items/unarchive-batch",
+      payload: { limit: 10, dry_run: true, regenerate: false, q: "Ready Archive Candidate" },
+    });
+    assert.equal(previewWithQueryRes.statusCode, 200);
+    const previewWithQuery = previewWithQueryRes.json() as {
+      q_filter: string | null;
+      scanned: number;
+      eligible_ready: number;
+      eligible_queued: number;
+      eligible_ready_item_ids: string[];
+    };
+    assert.equal(previewWithQuery.q_filter, "Ready Archive Candidate");
+    assert.equal(previewWithQuery.scanned, 1);
+    assert.equal(previewWithQuery.eligible_ready, 1);
+    assert.equal(previewWithQuery.eligible_queued, 0);
+    assert.ok(previewWithQuery.eligible_ready_item_ids.includes(readyId));
 
     const runRes = await app.inject({
       method: "POST",

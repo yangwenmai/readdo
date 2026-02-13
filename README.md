@@ -56,6 +56,7 @@ Web Inbox 还支持 `Failure Step` 下拉筛选（extract/pipeline/export），�
 `Archive Scope` 支持 blocked / retryable / all failed 三种归档范围。
 点击 `Archive Failed` 可批量归档匹配范围的失败项（先预览再确认执行）。
 点击 `Preview Unarchive` / `Unarchive Archived` 可批量恢复归档项，并支持 smart/regenerate 模式。
+若输入搜索关键词，Unarchive 预览/执行会仅作用于匹配关键词的 archived 项。
 
 ### 4) Load Chrome Extension
 
@@ -167,7 +168,7 @@ curl -X POST "http://localhost:8787/api/items/archive-failed" \
 # Dry-run preview for batch unarchive
 curl -X POST "http://localhost:8787/api/items/unarchive-batch" \
   -H "content-type: application/json" \
-  -d '{"limit":20,"dry_run":true,"regenerate":false}'
+  -d '{"limit":20,"dry_run":true,"regenerate":false,"q":"AI-native"}'
 ```
 
 ---

@@ -65,6 +65,7 @@ Last Updated: 2026-02-13
 - `Preview Unarchive`（dry-run）：调用 `/items/unarchive-batch` 且 `dry_run=true`，建议展示 `eligible_ready_item_ids / eligible_queued_item_ids`。
 - `Unarchive Archived`（批量）：调用 `/items/unarchive-batch` 执行取消归档；
   - 可选增加 `Unarchive Mode`（`smart/regenerate`），对应 `regenerate=false/true`。
+  - 可透传当前搜索词 `q`，仅恢复匹配的 archived 项（所见即所执行）。
 
 ### 1.2 Shipped
 包含状态：

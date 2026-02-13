@@ -997,7 +997,12 @@ const html = `<!doctype html>
 
       function unarchiveBatchPayload(dryRun) {
         const regenerate = unarchiveModeFilter.value === "regenerate";
-        return { limit: 100, dry_run: dryRun, regenerate };
+        const payload = { limit: 100, dry_run: dryRun, regenerate };
+        const q = queryInput.value.trim();
+        if (q) {
+          return { ...payload, q };
+        }
+        return payload;
       }
 
       previewArchiveBtn.addEventListener("click", async () => {
@@ -1198,6 +1203,8 @@ const html = `<!doctype html>
             (preview.scanned ?? 0) +
             ", mode=" +
             (preview.regenerate ? "regenerate" : "smart") +
+            ", q=" +
+            (preview.q_filter || "all") +
             ", eligible_ready=" +
             (preview.eligible_ready ?? 0) +
             ", eligible_queued=" +
@@ -1208,6 +1215,7 @@ const html = `<!doctype html>
             {
               preview_type: "unarchive_batch",
               mode: preview.regenerate ? "regenerate" : "smart",
+              q_filter: preview.q_filter || null,
               eligible_ready_item_ids: preview.eligible_ready_item_ids || [],
               eligible_queued_item_ids: preview.eligible_queued_item_ids || [],
             },
@@ -1242,6 +1250,8 @@ const html = `<!doctype html>
               " archived items" +
               " [mode=" +
               modeLabel +
+              ", q=" +
+              (preview.q_filter || "all") +
               "]?",
           );
           if (!confirmed) {
