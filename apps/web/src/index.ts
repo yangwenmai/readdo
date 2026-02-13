@@ -2779,6 +2779,13 @@ const html = `<!doctype html>
         return preview;
       }
 
+      async function loadBatchPreview(kind) {
+        const previewOffset = normalizedPreviewOffset();
+        const preview = await requestPreviewByKind(kind, previewOffset);
+        syncPreviewOffsetFromResponse(preview);
+        return preview;
+      }
+
       function bindPreviewAction(button, config) {
         button.addEventListener("click", async () => {
           await runActionWithFeedback(
@@ -2829,9 +2836,7 @@ const html = `<!doctype html>
               let exportFailed = 0;
               let exportReplayed = 0;
               try {
-                const executionOffset = normalizedPreviewOffset();
-                const previewRes = await requestPreviewByKind("retry", executionOffset);
-                syncPreviewOffsetFromResponse(previewRes);
+                const previewRes = await loadBatchPreview("retry");
                 const eligiblePipeline = Number(previewRes.eligible_pipeline ?? 0);
                 const eligibleExport = Number(previewRes.eligible_export ?? 0);
                 if (eligiblePipeline <= 0 && eligibleExport <= 0) {
@@ -2896,9 +2901,7 @@ const html = `<!doctype html>
             action: async () => {
               try {
                 clearPreviewState();
-                const previewOffset = normalizedPreviewOffset();
-                const preview = await requestPreviewByKind("archive", previewOffset);
-                syncPreviewOffsetFromResponse(preview);
+                const preview = await loadBatchPreview("archive");
                 const eligible = Number(preview.eligible ?? 0);
                 if (!eligible) {
                   renderArchiveNoEligibleOutput(preview);
@@ -2963,9 +2966,7 @@ const html = `<!doctype html>
             action: async () => {
               try {
                 clearPreviewState();
-                const previewOffset = normalizedPreviewOffset();
-                const preview = await requestPreviewByKind("unarchive", previewOffset);
-                syncPreviewOffsetFromResponse(preview);
+                const preview = await loadBatchPreview("unarchive");
                 const eligible = Number(preview.eligible ?? 0);
                 if (!eligible) {
                   renderUnarchiveNoEligibleOutput(preview);
