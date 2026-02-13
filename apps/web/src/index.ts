@@ -1280,6 +1280,7 @@ const html = `<!doctype html>
       let focusedFilterControl = null;
       let focusedFilterControlTimer = null;
       let recoveryContextFocusMode = "smart";
+      const inFlightActionIds = new Set();
       const controlsStorageKey = "readdo.web.controls.v1";
       const recoveryRadarStorageKey = "readdo.web.recovery-radar.v1";
       const defaultCollapsedGroups = {
@@ -3246,9 +3247,17 @@ const html = `<!doctype html>
         const button = options.button;
         const label = options.label || op.label || "Action";
         const localFeedbackEl = options.localFeedbackEl || null;
+        const actionId = typeof op?.id === "string" ? op.id : "";
         const disableAll = typeof options.disableAll === "function" ? options.disableAll : null;
         const onStart = typeof options.onStart === "function" ? options.onStart : null;
         const onFinally = typeof options.onFinally === "function" ? options.onFinally : null;
+        if (actionId && inFlightActionIds.has(actionId)) {
+          setActionFeedbackPair("pending", "Already running: " + label, localFeedbackEl);
+          return;
+        }
+        if (actionId) {
+          inFlightActionIds.add(actionId);
+        }
         if (disableAll) disableAll(true);
         const previousDisabled = button ? button.disabled : false;
         if (button) {
@@ -3267,6 +3276,9 @@ const html = `<!doctype html>
           setActionFeedbackPair("error", actionFeedbackText("error", label, message), localFeedbackEl);
           errorEl.textContent = message;
         } finally {
+          if (actionId) {
+            inFlightActionIds.delete(actionId);
+          }
           if (button) {
             button.disabled = previousDisabled;
           }
