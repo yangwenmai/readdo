@@ -1581,6 +1581,20 @@ const html = `<!doctype html>
         failureStepFilter.value = controlDefaults.failure_step;
       }
 
+      function groupKeyForItem(item) {
+        if (!item) return null;
+        if (item.status === "ARCHIVED") return "archived";
+        if (item.status === "SHIPPED") return "shipped";
+        if (item.status === "READY") {
+          if (item.priority === "READ_NEXT") return "read_next";
+          if (item.priority === "WORTH_IT") return "worth_it";
+          if (item.priority === "IF_TIME") return "if_time";
+          return "skip";
+        }
+        if (String(item.status || "").startsWith("FAILED_")) return "needs_attention";
+        return "in_progress";
+      }
+
       function groupedItems(items) {
         const groups = {
           read_next: [],
@@ -2142,7 +2156,7 @@ const html = `<!doctype html>
               const targetId = sampleId != null ? sampleId : fallbackItem?.id;
               if (targetId != null) {
                 await selectItem(targetId);
-                focusQueueItemCard(targetId);
+                focusQueueItemCard(targetId, { revealCollapsed: true });
                 if (sampleId == null && fallbackItem?.id != null) {
                   errorEl.textContent =
                     "No step sample in summary. Opened fallback failed item for " + step + ".";
@@ -2432,7 +2446,7 @@ const html = `<!doctype html>
               label: "Open " + def.label + " sample",
               action: async () => {
                 await selectItem(sampleId);
-                focusQueueItemCard(sampleId);
+                focusQueueItemCard(sampleId, { revealCollapsed: true });
               },
             };
             sampleBtn.addEventListener("click", async () => {
@@ -2666,8 +2680,27 @@ const html = `<!doctype html>
         return null;
       }
 
-      function focusQueueItemCard(itemId) {
-        const card = queueItemCardById(itemId);
+      function revealCollapsedGroupForItem(itemId) {
+        if (itemId == null) return false;
+        const targetItem = allItems.find((item) => String(item?.id) === String(itemId));
+        if (!targetItem) return false;
+        const groupKey = groupKeyForItem(targetItem);
+        if (!groupKey) return false;
+        if (!collapsedGroups[groupKey]) return false;
+        collapsedGroups[groupKey] = false;
+        persistControls();
+        renderInbox(allItems);
+        return true;
+      }
+
+      function focusQueueItemCard(itemId, options = {}) {
+        let card = queueItemCardById(itemId);
+        if (!card && options.revealCollapsed === true) {
+          const revealed = revealCollapsedGroupForItem(itemId);
+          if (revealed) {
+            card = queueItemCardById(itemId);
+          }
+        }
         if (!card) return false;
         card.scrollIntoView({ behavior: "smooth", block: "center" });
         card.classList.remove("focus-flash");
@@ -2810,7 +2843,7 @@ const html = `<!doctype html>
               }
               setDetailAdvancedEnabled(true, false);
               await selectItem(firstBlocked.id);
-              focusQueueItemCard(firstBlocked.id);
+              focusQueueItemCard(firstBlocked.id, { revealCollapsed: true });
             },
           };
           blockedDetailBtn.addEventListener("click", async () => {
@@ -4567,7 +4600,7 @@ const html = `<!doctype html>
             label: QUEUE_NUDGE_FOCUS_LABEL,
             action: async () => {
               await selectItem(itemId);
-              const focused = focusQueueItemCard(itemId);
+              const focused = focusQueueItemCard(itemId, { revealCollapsed: true });
               if (!focused) {
                 errorEl.textContent = "Recommended item selected, but hidden by current list filters.";
               }
