@@ -57,6 +57,14 @@ type JobRow = {
   lease_owner: string | null;
   lease_expires_at: string | null;
   request_key: string | null;
+  options_json: string | null;
+};
+
+type ProcessTemplateProfile = "engineer" | "creator" | "manager";
+
+type ProcessJobOptions = {
+  template_profile?: ProcessTemplateProfile;
+  force_regenerate?: boolean;
 };
 
 type ArtifactDbRow = {
@@ -103,6 +111,27 @@ function isObjectRecord(value: unknown): value is Record<string, unknown> {
 function parseFailurePayload(rawValue: string | null): Record<string, unknown> | undefined {
   const parsed = safeParseJson(rawValue);
   return isObjectRecord(parsed) ? parsed : undefined;
+}
+
+function parseProcessJobOptions(rawValue: string | null): ProcessJobOptions | undefined {
+  const parsed = safeParseJson(rawValue);
+  if (!isObjectRecord(parsed)) {
+    return undefined;
+  }
+  const templateProfileValue = parsed.template_profile;
+  const forceRegenerateValue = parsed.force_regenerate;
+  const templateProfile =
+    typeof templateProfileValue === "string" && ["engineer", "creator", "manager"].includes(templateProfileValue)
+      ? (templateProfileValue as ProcessTemplateProfile)
+      : undefined;
+  const forceRegenerate = typeof forceRegenerateValue === "boolean" ? forceRegenerateValue : undefined;
+  if (!templateProfile && forceRegenerate === undefined) {
+    return undefined;
+  }
+  return {
+    ...(templateProfile ? { template_profile: templateProfile } : {}),
+    ...(forceRegenerate !== undefined ? { force_regenerate: forceRegenerate } : {}),
+  };
 }
 
 function normalizeText(input: string): string {
@@ -176,6 +205,7 @@ function openDatabase(dbPath: string): DatabaseSync {
       attempts INTEGER NOT NULL DEFAULT 0,
       lease_owner TEXT,
       lease_expires_at TEXT,
+      options_json TEXT,
       request_key TEXT UNIQUE,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -184,6 +214,11 @@ function openDatabase(dbPath: string): DatabaseSync {
     CREATE INDEX IF NOT EXISTS idx_jobs_status_created ON jobs(status, created_at);
     CREATE INDEX IF NOT EXISTS idx_jobs_item_kind ON jobs(item_id, kind);
   `);
+  const jobsColumns = db.prepare("PRAGMA table_info(jobs)").all() as Array<{ name: string }>;
+  const hasOptionsJsonColumn = jobsColumns.some((column) => column.name === "options_json");
+  if (!hasOptionsJsonColumn) {
+    db.exec("ALTER TABLE jobs ADD COLUMN options_json TEXT");
+  }
   return db;
 }
 
@@ -690,7 +725,7 @@ function writeArtifact(
   );
 }
 
-function createProcessJob(db: DatabaseSync, itemId: string, requestKey: string): void {
+function createProcessJob(db: DatabaseSync, itemId: string, requestKey: string, processOptions?: ProcessJobOptions): void {
   const exists = db
     .prepare("SELECT id FROM jobs WHERE request_key = ?")
     .get(requestKey) as { id: string } | undefined;
@@ -701,10 +736,10 @@ function createProcessJob(db: DatabaseSync, itemId: string, requestKey: string):
   const ts = nowIso();
   db.prepare(
     `
-      INSERT INTO jobs(id, item_id, kind, status, run_id, attempts, request_key, created_at, updated_at)
-      VALUES(?, ?, 'PROCESS', 'QUEUED', ?, 0, ?, ?, ?)
+      INSERT INTO jobs(id, item_id, kind, status, run_id, attempts, options_json, request_key, created_at, updated_at)
+      VALUES(?, ?, 'PROCESS', 'QUEUED', ?, 0, ?, ?, ?, ?)
     `,
-  ).run(`job_${nanoid(10)}`, itemId, `run_${nanoid(10)}`, requestKey, ts, ts);
+  ).run(`job_${nanoid(10)}`, itemId, `run_${nanoid(10)}`, processOptions ? JSON.stringify(processOptions) : null, requestKey, ts, ts);
 }
 
 function findExportPayloadByKey(db: DatabaseSync, itemId: string, exportKey: string): Record<string, unknown> | null {
@@ -1697,6 +1732,15 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     if (optionsPayload?.force_regenerate !== undefined && typeof optionsPayload.force_regenerate !== "boolean") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "options.force_regenerate must be a boolean when provided"));
     }
+    const processOptions: ProcessJobOptions | undefined = optionsPayload
+      ? {
+          ...(templateProfileRaw ? { template_profile: templateProfileRaw as ProcessTemplateProfile } : {}),
+          ...(optionsPayload.force_regenerate !== undefined
+            ? { force_regenerate: optionsPayload.force_regenerate as boolean }
+            : {}),
+        }
+      : undefined;
+
     const modeRaw = (typeof body.mode === "string" ? body.mode : "PROCESS").trim().toUpperCase();
     const allowedModes = ["PROCESS", "RETRY", "REGENERATE"] as const;
     const mode = allowedModes.includes(modeRaw as ProcessMode) ? (modeRaw as ProcessMode) : null;
@@ -1789,7 +1833,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
         }),
       );
     }
-    createProcessJob(db, id, requestKey);
+    createProcessJob(db, id, requestKey, processOptions);
 
     return reply.status(202).send({
       item: {
@@ -2101,6 +2145,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     db.prepare("UPDATE jobs SET run_id = ?, attempts = attempts + 1, updated_at = ? WHERE id = ?").run(runId, nowIso(), job.id);
     db.prepare("UPDATE items SET status = 'PROCESSING', updated_at = ?, failure_json = NULL WHERE id = ?").run(nowIso(), item.id);
 
+    const jobOptions = parseProcessJobOptions(job.options_json);
+    const profile = jobOptions?.template_profile ?? defaultProfile;
+
     try {
       const extraction = await extractFromUrl(item.url);
       const extractionPayload = {
@@ -2121,7 +2168,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       const engineInputBase = {
         intent_text: item.intent_text,
         extracted_text: extraction.normalized_text,
-        profile: defaultProfile,
+        profile,
         source_type: item.source_type as "web" | "youtube" | "newsletter" | "other",
         engine_version: engineVersion,
         run_id: runId,

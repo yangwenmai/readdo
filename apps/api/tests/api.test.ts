@@ -1548,6 +1548,98 @@ test("process endpoint validates options payload shapes", async () => {
   }
 });
 
+test("process options template_profile overrides engine profile for regeneration", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-options-template-profile-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20item%20is%20used%20to%20verify%20template_profile%20override%20for%20regenerate%20jobs.",
+        title: "Process Template Profile Override",
+        domain: "example.process.template.profile.override",
+        source_type: "web",
+        intent_text: "validate template_profile option is applied during regenerate",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const regenerateEngineerRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      headers: { "Idempotency-Key": "process-template-profile-engineer-1" },
+      payload: {
+        mode: "REGENERATE",
+        options: {
+          template_profile: "engineer",
+          force_regenerate: true,
+        },
+      },
+    });
+    assert.equal(regenerateEngineerRes.statusCode, 202);
+    await app.runWorkerOnce();
+
+    const detailAfterEngineerRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}?include_history=true`,
+    });
+    assert.equal(detailAfterEngineerRes.statusCode, 200);
+    const detailAfterEngineerPayload = detailAfterEngineerRes.json() as {
+      artifacts: {
+        summary: {
+          meta: { template_version: string };
+        };
+      };
+    };
+    assert.equal(detailAfterEngineerPayload.artifacts.summary.meta.template_version, "summary.engineer.v1");
+
+    const regenerateCreatorRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      headers: { "Idempotency-Key": "process-template-profile-creator-1" },
+      payload: {
+        mode: "REGENERATE",
+        options: {
+          template_profile: "creator",
+        },
+      },
+    });
+    assert.equal(regenerateCreatorRes.statusCode, 202);
+    await app.runWorkerOnce();
+
+    const detailAfterCreatorRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}?include_history=true`,
+    });
+    assert.equal(detailAfterCreatorRes.statusCode, 200);
+    const detailAfterCreatorPayload = detailAfterCreatorRes.json() as {
+      artifacts: {
+        summary: {
+          version: number;
+          meta: { template_version: string };
+        };
+      };
+      artifact_history: {
+        summary: Array<{ version: number; meta: { template_version: string } }>;
+      };
+    };
+    assert.equal(detailAfterCreatorPayload.artifacts.summary.meta.template_version, "summary.creator.v1");
+    assert.ok(detailAfterCreatorPayload.artifact_history.summary.length >= 3);
+    assert.equal(detailAfterCreatorPayload.artifact_history.summary[0]?.meta.template_version, "summary.creator.v1");
+  } finally {
+    await app.close();
+  }
+});
+
 test("process endpoint replays idempotent request with same key", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-idempotent-"));
   const app = await createApp({
