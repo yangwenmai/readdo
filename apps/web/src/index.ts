@@ -1692,6 +1692,21 @@ const html = `<!doctype html>
         return failureStepFilter.value === step;
       }
 
+      function failedStepOfItem(item) {
+        const rawStep = String(item?.failure?.failed_step || "").toLowerCase();
+        if (rawStep === "extract" || rawStep === "pipeline" || rawStep === "export") return rawStep;
+        return "unknown";
+      }
+
+      function firstFailedItemForStep(step, items) {
+        const failedItems = (items || []).filter((item) => String(item?.status || "").startsWith("FAILED_"));
+        const byScoreDesc = (a, b) => Number(b?.match_score ?? -1) - Number(a?.match_score ?? -1);
+        const stepMatched = failedItems.filter((item) => failedStepOfItem(item) === step).sort(byScoreDesc);
+        if (stepMatched.length) return stepMatched[0];
+        const fallback = [...failedItems].sort(byScoreDesc);
+        return fallback[0] || null;
+      }
+
       async function focusRecoveryStepFromTrend(step, summary, button) {
         const sampleId = recoverySampleIdByStep(summary, step);
         const stepFilter = step === "unknown" ? "" : step;
@@ -1708,9 +1723,17 @@ const html = `<!doctype html>
               resetPreviewOffset();
               clearPreviewState();
               await loadItems();
-              if (sampleId != null) {
-                await selectItem(sampleId);
-                focusQueueItemCard(sampleId);
+              const fallbackItem = firstFailedItemForStep(step, allItems);
+              const targetId = sampleId != null ? sampleId : fallbackItem?.id;
+              if (targetId != null) {
+                await selectItem(targetId);
+                focusQueueItemCard(targetId);
+                if (sampleId == null && fallbackItem?.id != null) {
+                  errorEl.textContent =
+                    "No step sample in summary. Opened fallback failed item for " + step + ".";
+                }
+              } else {
+                errorEl.textContent = "No failed items found for step: " + step + ".";
               }
             },
           },
