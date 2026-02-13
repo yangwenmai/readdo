@@ -506,7 +506,7 @@ test("capture accepts comma-joined idempotency header values by using first key"
     const firstCaptureRes = await app.inject({
       method: "POST",
       url: "/api/capture",
-      headers: { "Idempotency-Key": `${captureKey}, ${captureKey}` },
+      headers: { "Idempotency-Key": `, ${captureKey}, ${captureKey}` },
       payload: {
         capture_id: captureKey,
         url: "https://example.com/comma-header",
@@ -815,7 +815,7 @@ test("export accepts comma-joined idempotency header values by using first key",
     const firstRes = await app.inject({
       method: "POST",
       url: `/api/items/${itemId}/export`,
-      headers: { "Idempotency-Key": "export-header-comma-key-1, export-header-comma-key-1" },
+      headers: { "Idempotency-Key": ", export-header-comma-key-1, export-header-comma-key-1" },
       payload: { export_key: "export-header-comma-key-1", formats: ["md"] },
     });
     assert.equal(firstRes.statusCode, 200);
@@ -1171,7 +1171,7 @@ test("process accepts comma-joined idempotency header values by using first key"
     const firstProcessRes = await app.inject({
       method: "POST",
       url: `/api/items/${itemId}/process`,
-      headers: { "Idempotency-Key": "process-header-comma-key-1, process-header-comma-key-1" },
+      headers: { "Idempotency-Key": ", process-header-comma-key-1, process-header-comma-key-1" },
       payload: { mode: "REGENERATE", process_request_id: "process-header-comma-key-1" },
     });
     assert.equal(firstProcessRes.statusCode, 202);

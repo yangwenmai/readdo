@@ -261,8 +261,11 @@ function normalizeIdempotencyKey(rawValue: unknown): string {
 function normalizeIdempotencyHeaderKey(rawValue: unknown): string {
   const key = normalizeIdempotencyKey(rawValue);
   if (!key.includes(",")) return key;
-  const first = key.split(",")[0];
-  return first?.trim() ?? "";
+  const segments = key
+    .split(",")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  return segments[0] ?? "";
 }
 
 function normalizeCaptureIdempotencyKey(rawValue: unknown, fromHeader = false): string {
