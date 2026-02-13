@@ -430,6 +430,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   });
 
   app.post("/api/items/:id/process", async (request, reply) => {
+    type ProcessMode = "PROCESS" | "RETRY" | "REGENERATE";
+
     const id = (request.params as { id: string }).id;
     const item = db.prepare("SELECT * FROM items WHERE id = ?").get(id) as DbItemRow | undefined;
     if (!item) {
@@ -440,11 +442,34 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     }
 
     const body = (request.body ?? {}) as Record<string, unknown>;
+    const modeRaw = String(body.mode ?? "PROCESS").toUpperCase();
+    const allowedModes = ["PROCESS", "RETRY", "REGENERATE"] as const;
+    const mode = allowedModes.includes(modeRaw as ProcessMode) ? (modeRaw as ProcessMode) : null;
+    if (!mode) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "mode must be PROCESS | RETRY | REGENERATE"));
+    }
+
+    const allowedStatuses: Record<ProcessMode, string[]> = {
+      PROCESS: ["CAPTURED", "FAILED_EXTRACTION", "FAILED_AI", "FAILED_EXPORT"],
+      RETRY: ["FAILED_EXTRACTION", "FAILED_AI", "FAILED_EXPORT"],
+      REGENERATE: ["READY", "ARCHIVED"],
+    };
+
+    if (!allowedStatuses[mode].includes(item.status)) {
+      return reply.status(409).send(
+        failure("PROCESS_NOT_ALLOWED", `mode=${mode} is not allowed from status=${item.status}`, {
+          item_id: id,
+          status: item.status,
+          mode,
+        }),
+      );
+    }
+
     const processKey = String(request.headers["idempotency-key"] ?? body.process_request_id ?? `manual_${nanoid(8)}`);
-    createProcessJob(db, id, `process:${id}:${processKey}`);
+    createProcessJob(db, id, `process:${id}:${mode}:${processKey}`);
 
     const ts = nowIso();
-    db.prepare("UPDATE items SET status = 'QUEUED', updated_at = ? WHERE id = ?").run(ts, id);
+    db.prepare("UPDATE items SET status = 'QUEUED', updated_at = ?, failure_json = NULL WHERE id = ?").run(ts, id);
 
     return reply.status(202).send({
       item: {
@@ -452,6 +477,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
         status: "QUEUED",
         updated_at: ts,
       },
+      mode,
     });
   });
 

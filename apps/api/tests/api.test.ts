@@ -64,3 +64,49 @@ test("capture -> worker -> ready -> export", async () => {
     await app.close();
   }
 });
+
+test("process mode must match current status", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20article%20provides%20clear%20steps%20for%20orchestrating%20an%20AI%20pipeline%20with%20schema%20validation.",
+        title: "Process Mode Test",
+        domain: "example.test",
+        source_type: "web",
+        intent_text: "I need to test process mode transitions.",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    const invalidModeRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      payload: { mode: "REGENERATE" },
+    });
+    assert.equal(invalidModeRes.statusCode, 409);
+    assert.equal((invalidModeRes.json() as { error: { code: string } }).error.code, "PROCESS_NOT_ALLOWED");
+
+    await app.runWorkerOnce();
+
+    const regenerateRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      payload: { mode: "REGENERATE" },
+      headers: { "Idempotency-Key": "regen-key-1" },
+    });
+    assert.equal(regenerateRes.statusCode, 202);
+    assert.equal((regenerateRes.json() as { mode: string }).mode, "REGENERATE");
+  } finally {
+    await app.close();
+  }
+});

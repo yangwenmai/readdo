@@ -115,8 +115,12 @@ const html = `<!doctype html>
       function buttonsFor(item) {
         const ops = [];
         ops.push({ label: "Detail", action: () => selectItem(item.id) });
-        if (["CAPTURED", "FAILED_EXTRACTION", "FAILED_AI", "FAILED_EXPORT", "ARCHIVED", "READY", "SHIPPED"].includes(item.status)) {
-          ops.push({ label: item.status === "READY" ? "Regenerate" : "Process", action: () => processItem(item.id) });
+        if (item.status === "READY") {
+          ops.push({ label: "Regenerate", action: () => processItem(item.id, "REGENERATE") });
+        } else if (["FAILED_EXTRACTION", "FAILED_AI", "FAILED_EXPORT"].includes(item.status)) {
+          ops.push({ label: "Retry", action: () => processItem(item.id, "RETRY") });
+        } else if (item.status === "CAPTURED") {
+          ops.push({ label: "Process", action: () => processItem(item.id, "PROCESS") });
         }
         if (["READY", "SHIPPED", "FAILED_EXPORT"].includes(item.status)) {
           ops.push({ label: item.status === "SHIPPED" ? "Re-export" : "Export", action: () => exportItem(item.id) });
@@ -223,12 +227,12 @@ const html = `<!doctype html>
         detailEl.appendChild(wrap);
       }
 
-      async function processItem(id) {
+      async function processItem(id, mode) {
         await request("/items/" + id + "/process", {
           method: "POST",
           body: JSON.stringify({
             process_request_id: crypto.randomUUID(),
-            mode: "PROCESS"
+            mode
           }),
           headers: { "Idempotency-Key": crypto.randomUUID() }
         });
