@@ -763,6 +763,7 @@ options（MVP 可选）：
 
 > 当 `failure.retryable=false`（达到导出重试上限）时，再次调用 export 返回 `409 RETRY_LIMIT_REACHED`。
 > 当重复使用同一 `export_key`（或同一幂等键语义）请求同一 item 导出时，应返回历史已存在的导出结果，不重复创建新版本 artifact。
+> 服务端在写入 export artifact 前会再次检查同 `export_key` 历史记录，以降低并发同 key 请求下的重复版本风险。
 
 ### 8.3 Request
 
@@ -808,6 +809,7 @@ Headers:
 
 > `path` 为本地文件路径（MVP）；未来可扩展为 blob/url。
 > 若命中历史 `export_key` 重放，则 `idempotent_replay=true` 且返回历史导出 payload，不创建新版本。
+> 命中历史重放时，item 状态会置为 `SHIPPED`，并清理历史 `FAILED_EXPORT` 残留 failure 信息。
 
 ### 8.5 错误
 
