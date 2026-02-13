@@ -389,6 +389,12 @@ const html = `<!doctype html>
         line-height: 1.2;
         margin-top: 2px;
       }
+      .pulse-segment .meta {
+        display: block;
+        margin-top: 2px;
+        font-size: 10px;
+        opacity: 0.86;
+      }
       .pulse-segment.is-empty {
         opacity: 0.75;
       }
@@ -1256,6 +1262,7 @@ const html = `<!doctype html>
       function renderQueueFlowPulse(items, counts) {
         if (!queueFlowPulseEl) return;
         const total = Math.max(items.length, 1);
+        const flowHealth = Math.round(((counts.READY + counts.SHIPPED) / total) * 100);
         const stages = [
           { label: "Captured", status: "CAPTURED", tone: "captured", count: counts.CAPTURED },
           { label: "Queued", status: "QUEUED", tone: "queued", count: counts.QUEUED },
@@ -1275,13 +1282,16 @@ const html = `<!doctype html>
           segment.className = "pulse-segment pulse-" + stage.tone;
           if (!stage.count) segment.classList.add("is-empty");
           if (statusFilter.value === stage.status) segment.classList.add("active");
+          const stagePercent = Math.round((stage.count / total) * 100);
           segment.innerHTML =
             '<span class="label">' +
             stage.label +
             '</span><span class="value">' +
             stage.count +
-            "</span>";
-          segment.title = stage.label + ": " + stage.count + " (" + Math.round((stage.count / total) * 100) + "%)";
+            '</span><span class="meta">' +
+            stagePercent +
+            "%</span>";
+          segment.title = stage.label + ": " + stage.count + " (" + stagePercent + "%)";
           segment.addEventListener("click", async () => {
             await applyListContextAndReload("Flow: " + stage.label, {
               button: segment,
@@ -1295,7 +1305,12 @@ const html = `<!doctype html>
         queueFlowPulseEl.appendChild(track);
         const meta = document.createElement("div");
         meta.className = "queue-flow-meta muted";
-        meta.innerHTML = "Blocked now: <strong>" + counts.FAILED + "</strong> failed items · Click stage to filter";
+        meta.innerHTML =
+          "Flow health: <strong>" +
+          flowHealth +
+          "%</strong> ready-or-shipped · Blocked now: <strong>" +
+          counts.FAILED +
+          "</strong> failed items · Click stage to filter";
         if (counts.FAILED > 0) {
           const failedBtn = document.createElement("button");
           failedBtn.type = "button";
