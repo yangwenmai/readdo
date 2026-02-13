@@ -1212,6 +1212,26 @@ test("export rejects unsupported formats without mutating item status", async ()
 
     await app.runWorkerOnce();
 
+    const invalidFormatsTypeRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: "invalid-format-type-key-1", formats: 1234 },
+    });
+    assert.equal(invalidFormatsTypeRes.statusCode, 400);
+    const invalidFormatsTypePayload = invalidFormatsTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidFormatsTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidFormatsTypePayload.error.message, /formats must be a string or an array of strings/i);
+
+    const invalidFormatsElementTypeRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: "invalid-format-type-key-2", formats: ["md", 1234] },
+    });
+    assert.equal(invalidFormatsElementTypeRes.statusCode, 400);
+    const invalidFormatsElementTypePayload = invalidFormatsElementTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidFormatsElementTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidFormatsElementTypePayload.error.message, /formats must be a string or an array of strings/i);
+
     const invalidFormatRes = await app.inject({
       method: "POST",
       url: `/api/items/${itemId}/export`,

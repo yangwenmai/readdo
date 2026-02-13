@@ -1811,6 +1811,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     if (body.card_version != null && (!Number.isInteger(body.card_version) || Number(body.card_version) < 1)) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "card_version must be an integer >= 1 when provided"));
     }
+    const formatsInput = body.formats;
+    if (
+      formatsInput !== undefined &&
+      typeof formatsInput !== "string" &&
+      (!Array.isArray(formatsInput) || formatsInput.some((entry) => typeof entry !== "string"))
+    ) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "formats must be a string or an array of strings when provided"));
+    }
     const requestedCardVersion = typeof body.card_version === "number" ? body.card_version : undefined;
     const headerExportRaw = request.headers["idempotency-key"];
     const headerExportKey = normalizeIdempotencyHeaderKey(headerExportRaw);
@@ -1819,7 +1827,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       return reply.status(400).send(failure("VALIDATION_ERROR", "Idempotency-Key and export_key must match when both are provided"));
     }
     const exportKey = bodyExportKey || headerExportKey || `exp_${nanoid(8)}`;
-    const requestedFormats = normalizeQueryList(body.formats).map((x) => x.toLowerCase());
+    const requestedFormats = normalizeQueryList(formatsInput).map((x) => x.toLowerCase());
     if (body.formats !== undefined && requestedFormats.length === 0) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "formats must include at least one of png|md|caption"));
     }
