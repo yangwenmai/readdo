@@ -547,6 +547,16 @@ test("items endpoint applies retryable filter before limit truncation", async ()
     const retryableItems = (retryableRes.json() as { items: Array<{ status: string }> }).items;
     assert.equal(retryableItems.length, 1);
     assert.ok(retryableItems[0].status.startsWith("FAILED_"));
+
+    const failureStepRes = await app.inject({
+      method: "GET",
+      url: "/api/items?failure_step=extract&limit=1",
+    });
+    assert.equal(failureStepRes.statusCode, 200);
+    const failureStepItems = (failureStepRes.json() as { items: Array<{ status: string; failure?: { failed_step?: string } }> }).items;
+    assert.equal(failureStepItems.length, 1);
+    assert.equal(failureStepItems[0].status, "FAILED_EXTRACTION");
+    assert.equal(failureStepItems[0].failure?.failed_step, "extract");
   } finally {
     await app.close();
   }
