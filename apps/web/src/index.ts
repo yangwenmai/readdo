@@ -20,6 +20,7 @@ const shortcutGuideItems = [
   { key: "N", label: "Focus Recommended Item" },
   { key: "M", label: "Run Primary Item Action" },
   { key: "O", label: "Open Selected Source" },
+  { key: "Y", label: "Copy Selected Source" },
   { key: "Shift+G", label: "Clear Step Focus" },
   { key: "Esc", label: "Clear Step Focus" },
   { key: "1", label: "Focus extract step" },
@@ -2175,16 +2176,46 @@ const html = `<!doctype html>
         );
       }
 
+      async function copyTextToClipboard(text, messages = {}) {
+        const value = String(text ?? "");
+        const successMessage = messages.success || "Copied to clipboard.";
+        const failureMessage = messages.failure || "Copy failed.";
+        let copied = false;
+        if (navigator?.clipboard?.writeText) {
+          try {
+            await navigator.clipboard.writeText(value);
+            copied = true;
+          } catch {
+            copied = false;
+          }
+        }
+        if (!copied) {
+          const textarea = document.createElement("textarea");
+          textarea.value = value;
+          textarea.setAttribute("readonly", "true");
+          textarea.style.position = "fixed";
+          textarea.style.opacity = "0";
+          textarea.style.left = "-9999px";
+          document.body.appendChild(textarea);
+          textarea.select();
+          try {
+            copied = document.execCommand("copy");
+          } catch {
+            copied = false;
+          } finally {
+            document.body.removeChild(textarea);
+          }
+        }
+        errorEl.textContent = copied ? successMessage : failureMessage;
+        return copied;
+      }
+
       async function copyRecoverySummary(summary) {
         if (!summary) return false;
-        try {
-          await navigator.clipboard.writeText(JSON.stringify(summary, null, 2));
-          errorEl.textContent = "Copied recovery summary.";
-          return true;
-        } catch {
-          errorEl.textContent = "Copy recovery summary failed.";
-          return false;
-        }
+        return copyTextToClipboard(JSON.stringify(summary, null, 2), {
+          success: "Copied recovery summary.",
+          failure: "Copy recovery summary failed.",
+        });
       }
 
       function downloadRecoverySummary(summary) {
@@ -4029,12 +4060,10 @@ const html = `<!doctype html>
         }
         if (copyLatestBtn) {
           copyLatestBtn.addEventListener("click", async () => {
-            try {
-              await navigator.clipboard.writeText(latestFiles.map((file) => String(file.path || "")).filter(Boolean).join("\\n"));
-              errorEl.textContent = "Copied latest export file paths.";
-            } catch {
-              errorEl.textContent = "Copy latest paths failed.";
-            }
+            await copyTextToClipboard(
+              latestFiles.map((file) => String(file.path || "")).filter(Boolean).join("\\n"),
+              { success: "Copied latest export file paths.", failure: "Copy latest paths failed." },
+            );
           });
         }
         if (openLatestBtn) {
@@ -4074,12 +4103,10 @@ const html = `<!doctype html>
               \`;
               const copyBtn = row.querySelector("button");
               copyBtn.addEventListener("click", async () => {
-                try {
-                  await navigator.clipboard.writeText(file.path);
-                  errorEl.textContent = "Copied path: " + file.path;
-                } catch {
-                  errorEl.textContent = "Copy failed for path: " + file.path;
-                }
+                await copyTextToClipboard(file.path, {
+                  success: "Copied path: " + file.path,
+                  failure: "Copy failed for path: " + file.path,
+                });
               });
               fileListEl.appendChild(row);
             }
@@ -4301,12 +4328,10 @@ const html = `<!doctype html>
 
         copyDiffBtn.addEventListener("click", async () => {
           if (!lastCompareResult) return;
-          try {
-            await navigator.clipboard.writeText(JSON.stringify(lastCompareResult, null, 2));
-            errorEl.textContent = "Copied diff summary to clipboard.";
-          } catch {
-            errorEl.textContent = "Copy diff summary failed.";
-          }
+          await copyTextToClipboard(JSON.stringify(lastCompareResult, null, 2), {
+            success: "Copied diff summary to clipboard.",
+            failure: "Copy diff summary failed.",
+          });
         });
 
         exportDiffBtn.addEventListener("click", () => {
@@ -4699,6 +4724,39 @@ const html = `<!doctype html>
               const opened = window.open(url, "_blank", "noopener,noreferrer");
               if (!opened) {
                 throw new Error("Popup blocked. Please allow popups for this site.");
+              }
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
+      async function runCopySelectedSourceAction(button = null) {
+        const item = selectedQueueItem();
+        if (!item) {
+          const hint = "No selected item. Use J/K to pick one first.";
+          setActionFeedbackPair("done", hint, queueActionBannerEl);
+          errorEl.textContent = hint;
+          return;
+        }
+        const url = String(item.url || "").trim();
+        if (!/^https?:\/\//i.test(url)) {
+          const hint = "Selected item has no valid http(s) source URL.";
+          setActionFeedbackPair("done", hint, queueActionBannerEl);
+          errorEl.textContent = hint;
+          return;
+        }
+        await runActionWithFeedback(
+          {
+            id: "queue_copy_source_" + String(item.id),
+            label: "Copy Selected Source",
+            action: async () => {
+              const copied = await copyTextToClipboard(url, {
+                success: "Copied source URL.",
+                failure: "Copy source URL failed.",
+              });
+              if (!copied) {
+                throw new Error("Copy source URL failed.");
               }
             },
           },
@@ -5547,6 +5605,9 @@ const html = `<!doctype html>
         },
         o: () => {
           void runOpenSelectedSourceAction();
+        },
+        y: () => {
+          void runCopySelectedSourceAction();
         },
         "shift+g": () => {
           clearRecoveryFocusFromShortcut();
