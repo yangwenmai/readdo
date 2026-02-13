@@ -2153,7 +2153,7 @@ test("capture validates url and source_type", async () => {
       url: "/api/capture",
       payload: {
         url: "data:text/plain,domain-source-for-data-url",
-        domain: "Data.Domain",
+        domain: "Data.Domain.",
         source_type: "web",
         intent_text: "preserve explicit domain for data url",
       },

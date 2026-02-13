@@ -1110,7 +1110,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     }
     const isWebLikeUrl = ["http:", "https:"].includes(parsedUrl.protocol);
     const inferredDomain = isWebLikeUrl ? normalizeHostname(parsedUrl.hostname) : "";
-    const domain = (isWebLikeUrl ? inferredDomain : providedDomain).toLowerCase();
+    const normalizedProvidedDomain = normalizeHostname(providedDomain);
+    const domain = isWebLikeUrl ? inferredDomain : normalizedProvidedDomain;
 
     if (idempotencyKey) {
       const existing = db
