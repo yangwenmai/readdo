@@ -970,6 +970,76 @@ test("unarchive-batch endpoint supports dry-run and regenerate mode", async () =
   }
 });
 
+test("single unarchive endpoint enforces archived state and regenerate option", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-unarchive-single-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20item%20validates%20single%20unarchive%20endpoint%20flows.",
+        title: "Single Unarchive",
+        domain: "example.unarchive.single",
+        source_type: "web",
+        intent_text: "verify single unarchive behavior",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const archiveRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/archive`,
+      payload: { reason: "single-unarchive-test" },
+    });
+    assert.equal(archiveRes.statusCode, 200);
+
+    const unarchiveReadyRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/unarchive`,
+      payload: { regenerate: false },
+    });
+    assert.equal(unarchiveReadyRes.statusCode, 200);
+    const unarchiveReadyPayload = unarchiveReadyRes.json() as { item: { status: string } };
+    assert.equal(unarchiveReadyPayload.item.status, "READY");
+
+    const unarchiveConflictRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/unarchive`,
+      payload: { regenerate: false },
+    });
+    assert.equal(unarchiveConflictRes.statusCode, 409);
+    const unarchiveConflictPayload = unarchiveConflictRes.json() as { error: { code: string } };
+    assert.equal(unarchiveConflictPayload.error.code, "STATE_CONFLICT");
+
+    const archiveAgainRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/archive`,
+      payload: { reason: "single-unarchive-test-regenerate" },
+    });
+    assert.equal(archiveAgainRes.statusCode, 200);
+
+    const unarchiveQueuedRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/unarchive`,
+      payload: { regenerate: true },
+    });
+    assert.equal(unarchiveQueuedRes.statusCode, 200);
+    const unarchiveQueuedPayload = unarchiveQueuedRes.json() as { item: { status: string } };
+    assert.equal(unarchiveQueuedPayload.item.status, "QUEUED");
+  } finally {
+    await app.close();
+  }
+});
+
 test("png-only export failure moves item to FAILED_EXPORT", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-fail-"));
   const app = await createApp({
