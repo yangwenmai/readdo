@@ -29,6 +29,7 @@ const shortcutGuideItems = [
   { key: "Y", label: "Copy Selected Source" },
   { key: "I", label: "Copy Selected Context" },
   { key: "U", label: "Copy Aha Snapshot" },
+  { key: "Shift+U", label: "Download Aha Snapshot" },
   { key: "B", label: "Open First Blocked" },
   { key: "X", label: "Rescue Last Retry" },
   { key: "Shift+G", label: "Clear Step Focus" },
@@ -77,6 +78,7 @@ const queueNudgeFocusNextLabel = "Focus Next Aha (Shift+N)";
 const queueNudgeFocusPrevLabel = "Focus Previous Aha (Alt+N)";
 const queueNudgeFocusSecondLabel = "Focus 2nd Aha (Shift+Z)";
 const queueNudgeCopySnapshotLabel = "Copy Aha Snapshot (U)";
+const queueNudgeDownloadSnapshotLabel = "Download Aha Snapshot (Shift+U)";
 const queueNudgeResetCycleLabel = "Reset Aha Cycle (Shift+R)";
 const queueNudgeCandidatesLabel = "Top Aha Candidates";
 const queueNudgeCandidateOpenLabel = "Open Candidate";
@@ -1604,6 +1606,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_FOCUS_PREV_LABEL = ${JSON.stringify(queueNudgeFocusPrevLabel)};
       const QUEUE_NUDGE_FOCUS_SECOND_LABEL = ${JSON.stringify(queueNudgeFocusSecondLabel)};
       const QUEUE_NUDGE_COPY_SNAPSHOT_LABEL = ${JSON.stringify(queueNudgeCopySnapshotLabel)};
+      const QUEUE_NUDGE_DOWNLOAD_SNAPSHOT_LABEL = ${JSON.stringify(queueNudgeDownloadSnapshotLabel)};
       const QUEUE_NUDGE_RESET_CYCLE_LABEL = ${JSON.stringify(queueNudgeResetCycleLabel)};
       const QUEUE_NUDGE_CANDIDATES_LABEL = ${JSON.stringify(queueNudgeCandidatesLabel)};
       const QUEUE_NUDGE_CANDIDATE_OPEN_LABEL = ${JSON.stringify(queueNudgeCandidateOpenLabel)};
@@ -3840,6 +3843,14 @@ const html = `<!doctype html>
             await runCopyAhaSnapshotAction(copySnapshotBtn);
           });
           actionsEl.appendChild(copySnapshotBtn);
+          const downloadSnapshotBtn = document.createElement("button");
+          downloadSnapshotBtn.type = "button";
+          downloadSnapshotBtn.className = "secondary";
+          downloadSnapshotBtn.textContent = QUEUE_NUDGE_DOWNLOAD_SNAPSHOT_LABEL;
+          downloadSnapshotBtn.addEventListener("click", async () => {
+            await runDownloadAhaSnapshotAction(downloadSnapshotBtn);
+          });
+          actionsEl.appendChild(downloadSnapshotBtn);
           ahaNudgeEl.appendChild(actionsEl);
         } else {
           setActionFeedback(queueActionBannerEl, "", "No immediate CTA. Capture or process new items.");
@@ -3854,6 +3865,14 @@ const html = `<!doctype html>
               await runCopyAhaSnapshotAction(copySnapshotBtn);
             });
             actionsEl.appendChild(copySnapshotBtn);
+            const downloadSnapshotBtn = document.createElement("button");
+            downloadSnapshotBtn.type = "button";
+            downloadSnapshotBtn.className = "secondary";
+            downloadSnapshotBtn.textContent = QUEUE_NUDGE_DOWNLOAD_SNAPSHOT_LABEL;
+            downloadSnapshotBtn.addEventListener("click", async () => {
+              await runDownloadAhaSnapshotAction(downloadSnapshotBtn);
+            });
+            actionsEl.appendChild(downloadSnapshotBtn);
             ahaNudgeEl.appendChild(actionsEl);
           }
         }
@@ -5556,6 +5575,34 @@ const html = `<!doctype html>
         );
       }
 
+      async function runDownloadAhaSnapshotAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_download_aha_snapshot",
+            label: "Download Aha Snapshot",
+            action: async () => {
+              const snapshotText = ahaSnapshotText();
+              if (!snapshotText) {
+                errorEl.textContent = "No Aha snapshot available yet.";
+                return;
+              }
+              const fileName = "aha_snapshot_" + new Date().toISOString().replace(/[:.]/g, "-") + ".txt";
+              const blob = new Blob([snapshotText], { type: "text/plain;charset=utf-8" });
+              const url = URL.createObjectURL(blob);
+              const anchor = document.createElement("a");
+              anchor.href = url;
+              anchor.download = fileName;
+              document.body.appendChild(anchor);
+              anchor.click();
+              document.body.removeChild(anchor);
+              URL.revokeObjectURL(url);
+              errorEl.textContent = "Downloaded Aha snapshot.";
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
       async function runFocusTopAhaQueueAction(button = null) {
         await runFocusAhaCandidateByRank(1, button);
       }
@@ -6714,6 +6761,7 @@ const html = `<!doctype html>
           return "alt+" + key;
         }
         if (event.altKey && key === "n") return "alt+n";
+        if (event.shiftKey && key === "u") return "shift+u";
         if (event.shiftKey && key === "p") return "shift+p";
         if (event.shiftKey && key === "n") return "shift+n";
         if (event.shiftKey && key === "r") return "shift+r";
@@ -6816,6 +6864,9 @@ const html = `<!doctype html>
         },
         u: () => {
           void runCopyAhaSnapshotAction();
+        },
+        "shift+u": () => {
+          void runDownloadAhaSnapshotAction();
         },
         b: () => {
           void runOpenFirstBlockedAction();
