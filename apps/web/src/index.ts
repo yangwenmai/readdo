@@ -16,6 +16,7 @@ const shortcutGuideItems = [
   { key: "Shift+P", label: "Focus Priority (reverse)" },
   { key: "G", label: "Edit Context Filters" },
   { key: "Shift+G", label: "Clear Step Focus" },
+  { key: "Esc", label: "Clear Step Focus" },
   { key: "1", label: "Focus extract step" },
   { key: "2", label: "Focus pipeline step" },
   { key: "3", label: "Focus export step" },
@@ -2005,9 +2006,10 @@ const html = `<!doctype html>
         errorEl.textContent = feedback;
       }
 
-      function clearRecoveryFocusFromShortcut() {
+      function clearRecoveryFocusFromShortcut(options = {}) {
         const activeStep = activeFailedStepKey();
         if (!activeStep) {
+          if (options.silent_when_empty) return;
           const hint = "No step focus to clear.";
           setActionFeedbackPair("done", hint, queueActionBannerEl);
           errorEl.textContent = hint;
@@ -5287,6 +5289,12 @@ const html = `<!doctype html>
         if (event.altKey && key === "3") {
           event.preventDefault();
           setRecoveryContextFocusModeFromShortcut("step_first");
+          return;
+        }
+        if (key === "escape") {
+          if (!activeFailedStepKey()) return;
+          event.preventDefault();
+          clearRecoveryFocusFromShortcut({ silent_when_empty: true });
           return;
         }
         if (key === "g" && event.shiftKey) {
