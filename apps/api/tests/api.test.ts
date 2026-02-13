@@ -1,4 +1,5 @@
 import { mkdtempSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -270,6 +271,52 @@ test("capture endpoint replays without explicit key using canonical url plus int
     };
     assert.equal(changedIntentPayload.idempotent_replay, false);
     assert.notEqual(changedIntentPayload.item.id, firstPayload.item.id);
+  } finally {
+    await app.close();
+  }
+});
+
+test("capture endpoint derived key is compatible with extension extcap format", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-capture-derived-extcap-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const canonicalUrl = "https://example.com/path?a=1&b=2";
+    const normalizedIntent = "keep this focused";
+    const extensionStyleKey = `extcap_${createHash("sha256").update(`${canonicalUrl}\n${normalizedIntent}`).digest("hex").slice(0, 32)}`;
+
+    const firstCaptureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://Example.com.:443/path?b=2&utm_source=x&a=1#section",
+        source_type: "web",
+        intent_text: "  keep   this focused  ",
+      },
+    });
+    assert.equal(firstCaptureRes.statusCode, 201);
+    const firstPayload = firstCaptureRes.json() as { item: { id: string }; idempotent_replay: boolean };
+    assert.equal(firstPayload.idempotent_replay, false);
+
+    const explicitReplayRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      headers: { "Idempotency-Key": extensionStyleKey },
+      payload: {
+        capture_id: extensionStyleKey,
+        url: canonicalUrl,
+        source_type: "web",
+        intent_text: normalizedIntent,
+      },
+    });
+    assert.equal(explicitReplayRes.statusCode, 201);
+    const explicitReplayPayload = explicitReplayRes.json() as { item: { id: string }; idempotent_replay: boolean };
+    assert.equal(explicitReplayPayload.idempotent_replay, true);
+    assert.equal(explicitReplayPayload.item.id, firstPayload.item.id);
   } finally {
     await app.close();
   }

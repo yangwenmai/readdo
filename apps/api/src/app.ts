@@ -244,7 +244,7 @@ function deriveCaptureKey(url: string, intentText: string): string {
     .update(`${url}\n${normalizedIntent}`)
     .digest("hex")
     .slice(0, 32);
-  return `srvcap_${digest}`;
+  return `extcap_${digest}`;
 }
 
 function hostMatchesDomain(host: string, domain: string): boolean {
