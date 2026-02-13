@@ -1078,6 +1078,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
             status: existing.status,
             created_at: existing.created_at,
           },
+          idempotent_replay: true,
         });
       }
     }
@@ -1099,6 +1100,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
         status: "CAPTURED",
         created_at: ts,
       },
+      idempotent_replay: false,
     });
   });
 

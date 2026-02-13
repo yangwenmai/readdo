@@ -104,6 +104,59 @@ test("capture -> worker -> ready -> export", async () => {
   }
 });
 
+test("capture endpoint replays idempotent request with same key", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-capture-idempotent-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const firstCaptureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      headers: { "Idempotency-Key": "capture-idempotent-key-1" },
+      payload: {
+        url: "data:text/plain,This%20capture%20validates%20idempotent%20replay%20behavior%20for%20capture%20endpoint.",
+        title: "Capture Idempotency",
+        domain: "example.capture.idempotent",
+        source_type: "web",
+        intent_text: "verify capture idempotency replay",
+      },
+    });
+    assert.equal(firstCaptureRes.statusCode, 201);
+    const firstPayload = firstCaptureRes.json() as {
+      item: { id: string; status: string };
+      idempotent_replay: boolean;
+    };
+    assert.equal(firstPayload.idempotent_replay, false);
+    assert.equal(firstPayload.item.status, "CAPTURED");
+
+    const replayCaptureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      headers: { "Idempotency-Key": "capture-idempotent-key-1" },
+      payload: {
+        url: "data:text/plain,This%20payload%20should%20replay%20the%20same%20captured%20item.",
+        title: "Capture Idempotency Replay",
+        domain: "example.capture.idempotent.replay",
+        source_type: "web",
+        intent_text: "replay capture",
+      },
+    });
+    assert.equal(replayCaptureRes.statusCode, 201);
+    const replayPayload = replayCaptureRes.json() as {
+      item: { id: string; status: string };
+      idempotent_replay: boolean;
+    };
+    assert.equal(replayPayload.idempotent_replay, true);
+    assert.equal(replayPayload.item.id, firstPayload.item.id);
+  } finally {
+    await app.close();
+  }
+});
+
 test("export idempotency replays old export_key beyond recent window", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-idempotent-"));
   const app = await createApp({

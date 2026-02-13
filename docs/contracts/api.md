@@ -174,9 +174,12 @@ Headers:
     "id": "itm_...",
     "status": "CAPTURED",
     "created_at": "..."
-  }
+  },
+  "idempotent_replay": false
 }
 ```
+
+> 当重复使用同一 `Idempotency-Key`（或 `capture_id`）提交 capture 时，服务端返回既有 item，`idempotent_replay=true`，且不重复创建新 item。
 
 ### 4.5 错误
 
