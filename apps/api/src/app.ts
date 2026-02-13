@@ -1585,7 +1585,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       return reply.status(409).send(failure("PROCESSING_IN_PROGRESS", "Item is currently processing"));
     }
 
-    const body = (request.body ?? {}) as { intent_text?: unknown; regenerate?: unknown };
+    if (request.body !== undefined && !isObjectRecord(request.body)) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "request body must be an object when provided"));
+    }
+    const body = (isObjectRecord(request.body) ? request.body : {}) as { intent_text?: unknown; regenerate?: unknown };
+    const unknownIntentKey = Object.keys(body).find((key) => !["intent_text", "regenerate"].includes(key));
+    if (unknownIntentKey) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "intent body supports only intent_text|regenerate"));
+    }
     if (typeof body.intent_text !== "string") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "intent_text must be a string"));
     }
@@ -1632,15 +1639,26 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       return reply.status(404).send(failure("NOT_FOUND", "Item not found"));
     }
 
-    const body = (request.body ?? {}) as { payload?: unknown; template_version?: unknown };
+    if (request.body !== undefined && !isObjectRecord(request.body)) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "request body must be an object when provided"));
+    }
+    const body = (isObjectRecord(request.body) ? request.body : {}) as { payload?: unknown; template_version?: unknown };
+    const unknownArtifactEditKey = Object.keys(body).find((key) => !["payload", "template_version"].includes(key));
+    if (unknownArtifactEditKey) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "artifact edit body supports only payload|template_version"));
+    }
     if (!isObjectRecord(body.payload)) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "payload must be a JSON object"));
     }
+    if (body.template_version !== undefined && typeof body.template_version !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "template_version must be a string when provided"));
+    }
 
-    const templateVersion =
-      typeof body.template_version === "string" && body.template_version.trim()
-        ? body.template_version.trim()
-        : `user.${artifactType}.edit.v1`;
+    const templateVersionRaw = typeof body.template_version === "string" ? body.template_version.trim() : "";
+    if (body.template_version !== undefined && !templateVersionRaw) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "template_version must be a non-empty string when provided"));
+    }
+    const templateVersion = templateVersionRaw || `user.${artifactType}.edit.v1`;
     const runId = `run_user_${nanoid(10)}`;
 
     try {

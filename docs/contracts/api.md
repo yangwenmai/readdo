@@ -584,7 +584,10 @@ Headers:
 
 约束：
 
+* body 若提供，必须是对象
+* body 当前仅支持键：`payload`、`template_version`
 * payload 必须是 JSON 对象，且通过对应 schema 校验
+* `template_version` 若提供，必须是非空字符串
 * 未提供 template_version 时，服务端可自动生成默认值（如 `user.<type>.edit.v1`）
 
 ### 6.5.4 Response 201
@@ -630,6 +633,7 @@ Headers:
 
 约束：
 
+* body 若提供，必须是对象，且当前仅支持键：`intent_text`、`regenerate`
 * intent_text 必填，必须为字符串，且长度 >= 3
 * regenerate 若提供，必须为 boolean
 * regenerate=true 时，item 应转入 QUEUED 并触发处理任务

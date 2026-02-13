@@ -2848,6 +2848,29 @@ test("intent endpoint validates intent_text and regenerate types", async () => {
     const nonBooleanRegeneratePayload = nonBooleanRegenerateRes.json() as { error: { code: string; message: string } };
     assert.equal(nonBooleanRegeneratePayload.error.code, "VALIDATION_ERROR");
     assert.match(nonBooleanRegeneratePayload.error.message, /regenerate must be a boolean/i);
+
+    const nonObjectIntentBodyRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/intent`,
+      payload: [],
+    });
+    assert.equal(nonObjectIntentBodyRes.statusCode, 400);
+    const nonObjectIntentBodyPayload = nonObjectIntentBodyRes.json() as { error: { code: string; message: string } };
+    assert.equal(nonObjectIntentBodyPayload.error.code, "VALIDATION_ERROR");
+    assert.match(nonObjectIntentBodyPayload.error.message, /request body must be an object/i);
+
+    const unknownIntentKeyRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/intent`,
+      payload: {
+        intent_text: "Still valid intent text",
+        unknown_key: true,
+      },
+    });
+    assert.equal(unknownIntentKeyRes.statusCode, 400);
+    const unknownIntentKeyPayload = unknownIntentKeyRes.json() as { error: { code: string; message: string } };
+    assert.equal(unknownIntentKeyPayload.error.code, "VALIDATION_ERROR");
+    assert.match(unknownIntentKeyPayload.error.message, /intent body supports only intent_text\|regenerate/i);
   } finally {
     await app.close();
   }
@@ -2889,6 +2912,55 @@ test("artifact edit rejects non-object payload shapes", async () => {
     const invalidPayload = invalidEditRes.json() as { error: { code: string; message: string } };
     assert.equal(invalidPayload.error.code, "VALIDATION_ERROR");
     assert.match(invalidPayload.error.message, /payload must be a JSON object/i);
+
+    const nonObjectBodyRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/artifacts/todos`,
+      payload: [],
+    });
+    assert.equal(nonObjectBodyRes.statusCode, 400);
+    const nonObjectBodyPayload = nonObjectBodyRes.json() as { error: { code: string; message: string } };
+    assert.equal(nonObjectBodyPayload.error.code, "VALIDATION_ERROR");
+    assert.match(nonObjectBodyPayload.error.message, /request body must be an object/i);
+
+    const unknownArtifactEditKeyRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/artifacts/todos`,
+      payload: {
+        payload: { todos: [] },
+        unknown_key: true,
+      },
+    });
+    assert.equal(unknownArtifactEditKeyRes.statusCode, 400);
+    const unknownArtifactEditKeyPayload = unknownArtifactEditKeyRes.json() as { error: { code: string; message: string } };
+    assert.equal(unknownArtifactEditKeyPayload.error.code, "VALIDATION_ERROR");
+    assert.match(unknownArtifactEditKeyPayload.error.message, /artifact edit body supports only payload\|template_version/i);
+
+    const templateVersionTypeRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/artifacts/todos`,
+      payload: {
+        payload: { todos: [] },
+        template_version: 1234,
+      },
+    });
+    assert.equal(templateVersionTypeRes.statusCode, 400);
+    const templateVersionTypePayload = templateVersionTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(templateVersionTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(templateVersionTypePayload.error.message, /template_version must be a string/i);
+
+    const templateVersionBlankRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/artifacts/todos`,
+      payload: {
+        payload: { todos: [] },
+        template_version: "   ",
+      },
+    });
+    assert.equal(templateVersionBlankRes.statusCode, 400);
+    const templateVersionBlankPayload = templateVersionBlankRes.json() as { error: { code: string; message: string } };
+    assert.equal(templateVersionBlankPayload.error.code, "VALIDATION_ERROR");
+    assert.match(templateVersionBlankPayload.error.message, /template_version must be a non-empty string/i);
   } finally {
     await app.close();
   }
