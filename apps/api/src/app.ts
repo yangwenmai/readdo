@@ -601,6 +601,44 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     return response;
   });
 
+  app.post("/api/items/:id/intent", async (request, reply) => {
+    const id = (request.params as { id: string }).id;
+    const item = db.prepare("SELECT * FROM items WHERE id = ?").get(id) as DbItemRow | undefined;
+    if (!item) {
+      return reply.status(404).send(failure("NOT_FOUND", "Item not found"));
+    }
+    if (item.status === "PROCESSING") {
+      return reply.status(409).send(failure("PROCESSING_IN_PROGRESS", "Item is currently processing"));
+    }
+
+    const body = (request.body ?? {}) as { intent_text?: unknown; regenerate?: unknown };
+    const intentText = String(body.intent_text ?? "").trim();
+    const regenerate = Boolean(body.regenerate);
+    if (intentText.length < 3) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "intent_text must be at least 3 characters"));
+    }
+
+    const ts = nowIso();
+    let nextStatus = item.status;
+    if (regenerate) {
+      nextStatus = "QUEUED";
+      createProcessJob(db, id, `intent-regenerate:${id}:${nanoid(8)}`);
+    }
+
+    db.prepare("UPDATE items SET intent_text = ?, status = ?, updated_at = ? WHERE id = ?").run(intentText, nextStatus, ts, id);
+
+    return {
+      item: {
+        ...rowToItem({
+          ...item,
+          intent_text: intentText,
+          status: nextStatus,
+          updated_at: ts,
+        }),
+      },
+    };
+  });
+
   app.post("/api/items/:id/artifacts/:artifactType", async (request, reply) => {
     const id = (request.params as { id: string }).id;
     const artifactType = (request.params as { artifactType: string }).artifactType;

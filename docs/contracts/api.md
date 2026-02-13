@@ -115,6 +115,7 @@ Artifacts payload 必须满足 `docs/contracts/schemas/*.schema.json`。
 * POST `/capture`
 * GET  `/items`
 * GET  `/items/{id}`
+* POST `/items/{id}/intent`（intent 编辑）
 * POST `/items/{id}/artifacts/{artifact_type}`（user edit -> new version）
 * POST `/items/{id}/process`
 * POST `/items/{id}/export`
@@ -320,6 +321,48 @@ Headers:
 
 * 400 VALIDATION_ERROR（artifact_type 非法或 payload 不合法）
 * 404 NOT_FOUND
+
+---
+
+## 6.6 POST /items/{id}/intent（编辑 intent）
+
+### 6.6.1 目的
+
+更新 item.intent_text；可选触发 regenerate（入队）。
+
+### 6.6.2 Request
+
+```json
+{
+  "intent_text": "Because ...",
+  "regenerate": false
+}
+```
+
+约束：
+
+* intent_text 必填，且长度 >= 3
+* regenerate=true 时，item 应转入 QUEUED 并触发处理任务
+* PROCESSING 状态下不允许更新（返回 409 PROCESSING_IN_PROGRESS）
+
+### 6.6.3 Response 200
+
+```json
+{
+  "item": {
+    "id": "itm_...",
+    "intent_text": "Because ...",
+    "status": "QUEUED",
+    "updated_at": "..."
+  }
+}
+```
+
+### 6.6.4 错误
+
+* 400 VALIDATION_ERROR
+* 404 NOT_FOUND
+* 409 PROCESSING_IN_PROGRESS
 
 ---
 

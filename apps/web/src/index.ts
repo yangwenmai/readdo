@@ -231,7 +231,58 @@ const html = `<!doctype html>
           <pre>\${JSON.stringify(detail.failure || null, null, 2)}</pre>
         \`;
         detailEl.appendChild(wrap);
+        renderIntentEditor(detail);
         renderArtifactEditor(detail);
+      }
+
+      function renderIntentEditor(detail) {
+        const card = document.createElement("div");
+        card.className = "item-card";
+        card.innerHTML = \`
+          <h3>Edit Intent</h3>
+          <textarea id="intentEditor">\${detail.item.intent_text || ""}</textarea>
+          <div class="editor-row">
+            <button id="saveIntentBtn" type="button">Save Intent</button>
+            <button id="saveIntentRegenerateBtn" class="primary" type="button">Save + Regenerate</button>
+          </div>
+          <div id="intentEditorMsg" class="muted"></div>
+        \`;
+
+        const intentEl = card.querySelector("#intentEditor");
+        const saveBtn = card.querySelector("#saveIntentBtn");
+        const saveRegenBtn = card.querySelector("#saveIntentRegenerateBtn");
+        const msgEl = card.querySelector("#intentEditorMsg");
+
+        async function submitIntent(regenerate) {
+          const intentText = intentEl.value.trim();
+          if (!intentText) {
+            msgEl.textContent = "Intent cannot be empty.";
+            return;
+          }
+          try {
+            await request("/items/" + detail.item.id + "/intent", {
+              method: "POST",
+              body: JSON.stringify({
+                intent_text: intentText,
+                regenerate
+              })
+            });
+            msgEl.textContent = regenerate ? "Saved and queued for regenerate." : "Intent saved.";
+            await loadItems();
+            await selectItem(detail.item.id);
+          } catch (err) {
+            msgEl.textContent = "Intent update failed: " + String(err);
+          }
+        }
+
+        saveBtn.addEventListener("click", () => {
+          void submitIntent(false);
+        });
+        saveRegenBtn.addEventListener("click", () => {
+          void submitIntent(true);
+        });
+
+        detailEl.appendChild(card);
       }
 
       function renderArtifactEditor(detail) {

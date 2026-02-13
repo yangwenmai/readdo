@@ -250,3 +250,56 @@ test("user edit creates new artifact version and exposes history", async () => {
     await app.close();
   }
 });
+
+test("intent can be updated and optionally trigger regenerate", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-intent-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20article%20contains%20practical%20guidance%20for%20building%20a%20focus%20workflow.",
+        title: "Intent Update",
+        domain: "example.intent",
+        source_type: "web",
+        intent_text: "Initial intent for this item.",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    const updateOnlyRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/intent`,
+      payload: {
+        intent_text: "Updated intent without regeneration.",
+        regenerate: false,
+      },
+    });
+    assert.equal(updateOnlyRes.statusCode, 200);
+    const updatedItem = (updateOnlyRes.json() as { item: { intent_text: string; status: string } }).item;
+    assert.equal(updatedItem.intent_text, "Updated intent without regeneration.");
+    assert.equal(updatedItem.status, "CAPTURED");
+
+    const regenerateRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/intent`,
+      payload: {
+        intent_text: "Updated intent and regenerate.",
+        regenerate: true,
+      },
+    });
+    assert.equal(regenerateRes.statusCode, 200);
+    const regenerateItem = (regenerateRes.json() as { item: { status: string; intent_text: string } }).item;
+    assert.equal(regenerateItem.status, "QUEUED");
+    assert.equal(regenerateItem.intent_text, "Updated intent and regenerate.");
+  } finally {
+    await app.close();
+  }
+});
