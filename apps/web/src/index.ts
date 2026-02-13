@@ -3281,10 +3281,6 @@ const html = `<!doctype html>
         );
       }
 
-      function createQueueControlChangeConfig(element, label, options = {}) {
-        return { element, label, ...options };
-      }
-
       function queueFilterLabelByKey(group, key) {
         const groupMeta = queueFilterMeta[group];
         const label = groupMeta?.[key];
@@ -3292,16 +3288,8 @@ const html = `<!doctype html>
         return label;
       }
 
-      function createQueueControlChangeConfigByKey(key, element, options = {}) {
-        return createQueueControlChangeConfig(element, queueFilterLabelByKey("controls", key), options);
-      }
-
-      function createListFilterChangeConfig(element, label) {
-        return { element, label };
-      }
-
-      function createListFilterChangeConfigByKey(key, element) {
-        return createListFilterChangeConfig(element, queueFilterLabelByKey("list", key));
+      function createQueueFilterConfigByKey(group, key, element, options = {}) {
+        return { element, label: queueFilterLabelByKey(group, key), ...options };
       }
 
       const previewActionConfigs = [
@@ -3334,23 +3322,23 @@ const html = `<!doctype html>
       ];
 
       const queueControlChangeConfigs = [
-        createQueueControlChangeConfigByKey("archive_scope", archiveRetryableFilter, {
+        createQueueFilterConfigByKey("controls", "archive_scope", archiveRetryableFilter, {
           options: { refresh_worker_stats: true },
         }),
-        createQueueControlChangeConfigByKey("unarchive_mode", unarchiveModeFilter),
-        createQueueControlChangeConfigByKey("batch_limit", batchLimitInput, {
+        createQueueFilterConfigByKey("controls", "unarchive_mode", unarchiveModeFilter),
+        createQueueFilterConfigByKey("controls", "batch_limit", batchLimitInput, {
           beforeSync: normalizeBatchLimitInputValue,
         }),
-        createQueueControlChangeConfigByKey("preview_offset", previewOffsetInput, {
+        createQueueFilterConfigByKey("controls", "preview_offset", previewOffsetInput, {
           beforeSync: normalizePreviewOffsetInputValue,
           syncOptions: { resetOffset: false },
         }),
       ];
 
       const listFilterChangeConfigs = [
-        createListFilterChangeConfigByKey("status", statusFilter),
-        createListFilterChangeConfigByKey("retryable", retryableFilter),
-        createListFilterChangeConfigByKey("failure_step", failureStepFilter),
+        createQueueFilterConfigByKey("list", "status", statusFilter),
+        createQueueFilterConfigByKey("list", "retryable", retryableFilter),
+        createQueueFilterConfigByKey("list", "failure_step", failureStepFilter),
       ];
 
       function setupQueueActionBindings() {
