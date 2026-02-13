@@ -68,6 +68,8 @@ const queueFlowRailNodeLabels = ["Catch", "Queue", "Process", "Ready", "Ship"];
 const queueSpotlightBadgeText = "Aha Now";
 const queueNudgeFocusLabel = "Focus Recommended Item";
 const queueNudgeFocusTopLabel = "Focus Top Aha (Z)";
+const queueNudgeCandidatesLabel = "Top Aha Candidates";
+const queueNudgeCandidateOpenLabel = "Open Candidate";
 const queueRecoveryCopyLabel = "Copy Recovery Summary";
 const queueRecoveryClearLabel = "Clear Radar";
 const queueRecoveryDownloadLabel = "Download Summary";
@@ -1117,6 +1119,29 @@ const html = `<!doctype html>
         background: #f8fbff;
         color: #1d4ed8;
       }
+      .aha-nudge .nudge-candidates {
+        margin-top: 8px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .aha-nudge .nudge-candidates .label {
+        font-size: 11px;
+        color: #334155;
+        font-weight: 700;
+      }
+      .aha-nudge .nudge-candidate-chip {
+        border: 1px solid #bfdbfe;
+        background: #eff6ff;
+        color: #1e3a8a;
+        border-radius: 999px;
+        padding: 4px 8px;
+        font-size: 11px;
+      }
+      .aha-nudge .nudge-candidate-chip:hover {
+        border-color: #60a5fa;
+      }
       .aha-label { color: #1e3a8a; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
       .aha-value { color: #0f172a; font-size: 24px; font-weight: 800; line-height: 1; }
       .aha-meta { color: #475569; font-size: 12px; margin-top: 6px; }
@@ -1514,6 +1539,8 @@ const html = `<!doctype html>
       const QUEUE_SPOTLIGHT_BADGE_TEXT = ${JSON.stringify(queueSpotlightBadgeText)};
       const QUEUE_NUDGE_FOCUS_LABEL = ${JSON.stringify(queueNudgeFocusLabel)};
       const QUEUE_NUDGE_FOCUS_TOP_LABEL = ${JSON.stringify(queueNudgeFocusTopLabel)};
+      const QUEUE_NUDGE_CANDIDATES_LABEL = ${JSON.stringify(queueNudgeCandidatesLabel)};
+      const QUEUE_NUDGE_CANDIDATE_OPEN_LABEL = ${JSON.stringify(queueNudgeCandidateOpenLabel)};
       const QUEUE_RECOVERY_COPY_LABEL = ${JSON.stringify(queueRecoveryCopyLabel)};
       const QUEUE_RECOVERY_CLEAR_LABEL = ${JSON.stringify(queueRecoveryClearLabel)};
       const QUEUE_RECOVERY_DOWNLOAD_LABEL = ${JSON.stringify(queueRecoveryDownloadLabel)};
@@ -2192,6 +2219,18 @@ const html = `<!doctype html>
             return Number(b.match_score ?? -1) - Number(a.match_score ?? -1);
           })[0] || null
         );
+      }
+
+      function topAhaCandidates(items, limit = 3) {
+        if (!Array.isArray(items) || !items.length) return [];
+        return [...items]
+          .filter((item) => item.status !== "ARCHIVED")
+          .sort((a, b) => {
+            const ahaDelta = ahaIndexMetaForItem(b).value - ahaIndexMetaForItem(a).value;
+            if (ahaDelta !== 0) return ahaDelta;
+            return Number(b.match_score ?? -1) - Number(a.match_score ?? -1);
+          })
+          .slice(0, Math.max(0, Number(limit) || 0));
       }
 
       function setQueueNudgeState(state = {}) {
@@ -3531,6 +3570,7 @@ const html = `<!doctype html>
           actionLabel: ctaOp?.label || "",
           context: nudgeContext,
         });
+        const ahaCandidates = topAhaCandidates(items, 3);
         ahaNudgeEl.className = "aha-nudge" + (nudgeTone ? " nudge-" + nudgeTone : "");
         ahaNudgeEl.innerHTML = '<h4>' + title + '</h4><span class="muted">' + message + "</span>";
         setActionFeedback(queueActionBannerEl, "", "Ready.");
@@ -3575,6 +3615,34 @@ const html = `<!doctype html>
           ahaNudgeEl.appendChild(actionsEl);
         } else {
           setActionFeedback(queueActionBannerEl, "", "No immediate CTA. Capture or process new items.");
+        }
+        if (ahaCandidates.length > 1) {
+          const candidatesEl = document.createElement("div");
+          candidatesEl.className = "nudge-candidates";
+          candidatesEl.innerHTML = '<span class="label">' + QUEUE_NUDGE_CANDIDATES_LABEL + "</span>";
+          for (const item of ahaCandidates) {
+            const chip = document.createElement("button");
+            chip.type = "button";
+            chip.className = "nudge-candidate-chip";
+            const aha = ahaIndexMetaForItem(item);
+            chip.textContent =
+              QUEUE_NUDGE_CANDIDATE_OPEN_LABEL + " #" + item.id + " · " + aha.value;
+            chip.addEventListener("click", async () => {
+              await runActionWithFeedback(
+                {
+                  id: "nudge_open_candidate_" + item.id,
+                  label: "Open Aha Candidate #" + item.id,
+                  action: async () => {
+                    await selectItem(item.id);
+                    focusQueueItemCard(item.id, { revealCollapsed: true });
+                  },
+                },
+                { button: chip, localFeedbackEl: queueActionBannerEl },
+              );
+            });
+            candidatesEl.appendChild(chip);
+          }
+          ahaNudgeEl.appendChild(candidatesEl);
         }
       }
 
