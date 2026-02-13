@@ -36,12 +36,13 @@ captureBtn?.addEventListener("click", async () => {
   try {
     const canonicalUrl = canonicalizeUrlForCapture(tab.url);
     const idempotencyKey = await stableCaptureKey(canonicalUrl, intentText);
+    const canonicalParsedUrl = new URL(canonicalUrl);
     const payload = {
       capture_id: idempotencyKey,
-      url: tab.url,
+      url: canonicalUrl,
       title: tab.title ?? "",
-      domain: new URL(tab.url).hostname,
-      source_type: detectSourceType(tab.url),
+      domain: canonicalParsedUrl.hostname,
+      source_type: detectSourceType(canonicalUrl),
       intent_text: intentText,
     };
 
