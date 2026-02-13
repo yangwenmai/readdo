@@ -472,7 +472,7 @@ const html = `<!doctype html>
         </label>
         <input id="queryInput" placeholder="Search title/domain/intent (press /)" />
         <span class="muted">${shortcutDiscoveryText}</span>
-        <button id="shortcutHintBtn" type="button">${shortcutHintButtonText}</button>
+        <button id="shortcutHintBtn" type="button" title="${shortcutSummaryText}" aria-label="${shortcutSummaryText}">${shortcutHintButtonText}</button>
         <select id="statusFilter">
           <option value="">All Status</option>
           <option value="CAPTURED">CAPTURED</option>

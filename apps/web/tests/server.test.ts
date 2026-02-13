@@ -40,6 +40,8 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /press \//u);
     assert.match(text, /Press \? for shortcuts/u);
     assert.match(text, /Shortcuts \(\?\)/u);
+    assert.match(text, /id="shortcutHintBtn"/u);
+    assert.match(text, /aria-label="Shortcuts: \/ Search · F Focus Mode · A Advanced Panels · R Refresh"/u);
     assert.match(text, /Shortcuts: \/ Search · F Focus Mode · A Advanced Panels · R Refresh/u);
     assert.match(text, /id="queueHighlights"/u);
     assert.match(text, /id="ahaNudge"/u);
