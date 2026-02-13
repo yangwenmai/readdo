@@ -1158,6 +1158,24 @@ const html = `<!doctype html>
         await runActionWithFeedback(op, { button, localFeedbackEl: queueActionBannerEl });
       }
 
+      async function applyQueueControlMutation(label, mutate, options = {}) {
+        await runActionWithFeedback(
+          {
+            id: "queue_ctrl_" + String(label).toLowerCase().replace(/[^a-z0-9]+/g, "_"),
+            label,
+            action: async () => {
+              if (typeof mutate === "function") {
+                mutate();
+              }
+              if (options.refresh_worker_stats) {
+                await loadWorkerStats();
+              }
+            },
+          },
+          { localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
       function renderItem(item) {
         const card = document.createElement("div");
         const isSelected = selectedId === item.id;
@@ -3105,33 +3123,44 @@ const html = `<!doctype html>
       });
 
       archiveRetryableFilter.addEventListener("change", async () => {
-        persistControls();
-        resetPreviewOffset();
-        clearPreviewContinuation();
-        clearPreviewOutput();
-        await loadWorkerStats();
+        await applyQueueControlMutation(
+          "Archive Scope",
+          () => {
+            persistControls();
+            resetPreviewOffset();
+            clearPreviewContinuation();
+            clearPreviewOutput();
+          },
+          { refresh_worker_stats: true },
+        );
       });
 
       unarchiveModeFilter.addEventListener("change", () => {
-        persistControls();
-        resetPreviewOffset();
-        clearPreviewContinuation();
-        clearPreviewOutput();
+        void applyQueueControlMutation("Unarchive Mode", () => {
+          persistControls();
+          resetPreviewOffset();
+          clearPreviewContinuation();
+          clearPreviewOutput();
+        });
       });
 
       batchLimitInput.addEventListener("change", () => {
-        batchLimitInput.value = String(normalizedBatchLimit());
-        persistControls();
-        resetPreviewOffset();
-        clearPreviewContinuation();
-        clearPreviewOutput();
+        void applyQueueControlMutation("Batch Limit", () => {
+          batchLimitInput.value = String(normalizedBatchLimit());
+          persistControls();
+          resetPreviewOffset();
+          clearPreviewContinuation();
+          clearPreviewOutput();
+        });
       });
 
       previewOffsetInput.addEventListener("change", () => {
-        previewOffsetInput.value = String(normalizedPreviewOffset());
-        persistControls();
-        clearPreviewContinuation();
-        clearPreviewOutput();
+        void applyQueueControlMutation("Preview Offset", () => {
+          previewOffsetInput.value = String(normalizedPreviewOffset());
+          persistControls();
+          clearPreviewContinuation();
+          clearPreviewOutput();
+        });
       });
 
       queryInput.addEventListener("keydown", async (event) => {
