@@ -671,6 +671,14 @@ test("items endpoint supports status and query filtering", async () => {
     const limitInvalidItems = (limitInvalidRes.json() as { items: Array<{ id: string }> }).items;
     assert.ok(limitInvalidItems.length >= 2);
 
+    const limitFloatRes = await app.inject({
+      method: "GET",
+      url: "/api/items?limit=1.5",
+    });
+    assert.equal(limitFloatRes.statusCode, 200);
+    const limitFloatItems = (limitFloatRes.json() as { items: Array<{ id: string }> }).items;
+    assert.ok(limitFloatItems.length >= 2);
+
     const offsetRes = await app.inject({
       method: "GET",
       url: "/api/items?limit=1&offset=1",
@@ -697,6 +705,15 @@ test("items endpoint supports status and query filtering", async () => {
     const invalidOffsetPayload = invalidOffsetRes.json() as { requested_offset: number; items: Array<{ id: string }> };
     assert.equal(invalidOffsetPayload.requested_offset, 0);
     assert.equal(invalidOffsetPayload.items.length, 1);
+
+    const floatOffsetRes = await app.inject({
+      method: "GET",
+      url: "/api/items?limit=1&offset=1.25",
+    });
+    assert.equal(floatOffsetRes.statusCode, 200);
+    const floatOffsetPayload = floatOffsetRes.json() as { requested_offset: number; items: Array<{ id: string }> };
+    assert.equal(floatOffsetPayload.requested_offset, 0);
+    assert.equal(floatOffsetPayload.items.length, 1);
   } finally {
     await app.close();
   }
