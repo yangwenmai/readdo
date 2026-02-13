@@ -1293,9 +1293,10 @@ const html = `<!doctype html>
             return;
           }
           errorEl.textContent = "Retrying failed items...";
+          const executeOffset = normalizedPreviewOffset();
           const batchRes = await request("/items/retry-failed", {
             method: "POST",
-            body: JSON.stringify(retryFailedPayload(false, executionOffset))
+            body: JSON.stringify(retryFailedPayload(false, executeOffset))
           });
           syncPreviewOffsetFromResponse(batchRes);
           const exportItemIds = batchRes.eligible_export_item_ids || [];
@@ -1460,9 +1461,10 @@ const html = `<!doctype html>
             errorEl.textContent = "Archive blocked action cancelled.";
             return;
           }
+          const executeOffset = normalizedPreviewOffset();
           const result = await request("/items/archive-failed", {
             method: "POST",
-            body: JSON.stringify(archiveBlockedPayload(false, previewOffset))
+            body: JSON.stringify(archiveBlockedPayload(false, executeOffset))
           });
           syncPreviewOffsetFromResponse(result);
           errorEl.textContent =
@@ -1751,9 +1753,10 @@ const html = `<!doctype html>
             errorEl.textContent = "Unarchive action cancelled.";
             return;
           }
+          const executeOffset = normalizedPreviewOffset();
           const result = await request("/items/unarchive-batch", {
             method: "POST",
-            body: JSON.stringify(unarchiveBatchPayload(false, previewOffset))
+            body: JSON.stringify(unarchiveBatchPayload(false, executeOffset))
           });
           syncPreviewOffsetFromResponse(result);
           errorEl.textContent =
