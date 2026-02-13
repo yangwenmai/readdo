@@ -18,6 +18,7 @@ const shortcutGuideItems = [
   { key: "Shift+P", label: "Focus Priority (reverse)" },
   { key: "G", label: "Edit Context Filters" },
   { key: "N", label: "Focus Recommended Item" },
+  { key: "M", label: "Run Primary Item Action" },
   { key: "Shift+G", label: "Clear Step Focus" },
   { key: "Esc", label: "Clear Step Focus" },
   { key: "1", label: "Focus extract step" },
@@ -4636,6 +4637,39 @@ const html = `<!doctype html>
         );
       }
 
+      function selectedQueueItem() {
+        if (selectedId == null) return null;
+        return allItems.find((item) => String(item?.id) === String(selectedId)) || null;
+      }
+
+      async function runSelectedPrimaryItemAction(button = null) {
+        const item = selectedQueueItem();
+        if (!item) {
+          const hint = "No selected item. Use J/K to pick one first.";
+          setActionFeedbackPair("done", hint, queueActionBannerEl);
+          errorEl.textContent = hint;
+          return;
+        }
+        const candidateOps = buttonsFor(item).filter((op) => op.id !== "detail" && !op.disabled);
+        if (!candidateOps.length) {
+          const hint = "Selected item has no available primary action.";
+          setActionFeedbackPair("done", hint, queueActionBannerEl);
+          errorEl.textContent = hint;
+          return;
+        }
+        const primaryOp = candidateOps.find((op) => op.is_primary) || candidateOps[0];
+        await runActionWithFeedback(
+          {
+            id: "queue_selected_primary_" + String(item.id) + "_" + primaryOp.id,
+            label: "Primary Action: " + primaryOp.label,
+            action: async () => {
+              await primaryOp.action();
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
       async function runQueueSelectionNavigationAction(direction) {
         const visibleIds = visibleQueueItemIds();
         if (!visibleIds.length) {
@@ -5471,6 +5505,9 @@ const html = `<!doctype html>
         },
         n: () => {
           void runFocusRecommendedQueueAction();
+        },
+        m: () => {
+          void runSelectedPrimaryItemAction();
         },
         "shift+g": () => {
           clearRecoveryFocusFromShortcut();
