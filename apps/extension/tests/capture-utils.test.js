@@ -51,6 +51,11 @@ test("canonicalizeUrlForCapture trims trailing-dot hostnames", () => {
   assert.equal(canonical, "https://example.com/path?a=1&b=2");
 });
 
+test("canonicalizeUrlForCapture strips URL credentials", () => {
+  const canonical = canonicalizeUrlForCapture("https://alice:secret@example.com/path?a=1");
+  assert.equal(canonical, "https://example.com/path?a=1");
+});
+
 test("canonicalizeUrlForCapture strips tracking params case-insensitively", () => {
   const canonical = canonicalizeUrlForCapture("https://example.com/path?A=1&UTM_SOURCE=x&FbClId=foo&b=2");
   assert.equal(canonical, "https://example.com/path?A=1&b=2");
@@ -135,4 +140,12 @@ test("stableCaptureKey canonicalizes raw URL input internally", async () => {
   const keyFromRaw = await stableCaptureKey(rawUrl, "same intent");
   const keyFromCanonical = await stableCaptureKey(canonicalUrl, "same intent");
   assert.equal(keyFromRaw, keyFromCanonical);
+});
+
+test("stableCaptureKey ignores URL credential differences after canonicalization", async () => {
+  const withAuth = "https://alice:secret@example.com/path?a=1";
+  const withoutAuth = "https://example.com/path?a=1";
+  const keyWithAuth = await stableCaptureKey(withAuth, "same intent");
+  const keyWithoutAuth = await stableCaptureKey(withoutAuth, "same intent");
+  assert.equal(keyWithAuth, keyWithoutAuth);
 });

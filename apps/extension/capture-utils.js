@@ -67,6 +67,8 @@ export function canonicalizeUrlForCapture(url) {
   try {
     const parsed = new URL(url);
     parsed.hash = "";
+    parsed.username = "";
+    parsed.password = "";
     parsed.hostname = parsed.hostname.replace(/\.+$/u, "");
     if ((parsed.protocol === "https:" && parsed.port === "443") || (parsed.protocol === "http:" && parsed.port === "80")) {
       parsed.port = "";
