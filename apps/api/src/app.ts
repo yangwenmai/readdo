@@ -1756,7 +1756,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       return reply.status(409).send(failure("PROCESSING_IN_PROGRESS", "Item is currently processing"));
     }
 
-    const body = (request.body ?? {}) as Record<string, unknown>;
+    if (request.body !== undefined && !isObjectRecord(request.body)) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "request body must be an object when provided"));
+    }
+    const body = (isObjectRecord(request.body) ? request.body : {}) as Record<string, unknown>;
+    const unknownProcessKey = Object.keys(body).find((key) => !["mode", "process_request_id", "options"].includes(key));
+    if (unknownProcessKey) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "process body supports only mode|process_request_id|options"));
+    }
     if (body.mode !== undefined && typeof body.mode !== "string") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "mode must be PROCESS | RETRY | REGENERATE"));
     }
@@ -1804,6 +1811,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const headerProcessRaw = request.headers["idempotency-key"];
     if (body.process_request_id != null && typeof body.process_request_id !== "string") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "process_request_id must be a string when provided"));
+    }
+    if (typeof body.process_request_id === "string" && !body.process_request_id.trim()) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "process_request_id must be a non-empty string when provided"));
     }
     const headerProcessKey = normalizeIdempotencyHeaderKey(headerProcessRaw);
     const bodyProcessKey = normalizeIdempotencyKey(body.process_request_id);

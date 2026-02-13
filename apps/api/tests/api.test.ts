@@ -1571,6 +1571,63 @@ test("process mode must match current status", async () => {
   }
 });
 
+test("process endpoint validates request body shape and allowed keys", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-body-validation-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20item%20is%20used%20to%20validate%20process%20request%20body%20shape%20constraints.",
+        title: "Process Body Validation",
+        domain: "example.process.body.validation",
+        source_type: "web",
+        intent_text: "validate process body object and keys",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    const nonObjectBodyRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      payload: [],
+    });
+    assert.equal(nonObjectBodyRes.statusCode, 400);
+    const nonObjectBodyPayload = nonObjectBodyRes.json() as { error: { code: string; message: string } };
+    assert.equal(nonObjectBodyPayload.error.code, "VALIDATION_ERROR");
+    assert.match(nonObjectBodyPayload.error.message, /request body must be an object/i);
+
+    const unknownKeyRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      payload: { mode: "PROCESS", unknown_key: true },
+    });
+    assert.equal(unknownKeyRes.statusCode, 400);
+    const unknownKeyPayload = unknownKeyRes.json() as { error: { code: string; message: string } };
+    assert.equal(unknownKeyPayload.error.code, "VALIDATION_ERROR");
+    assert.match(unknownKeyPayload.error.message, /process body supports only mode\|process_request_id\|options/i);
+
+    const blankProcessRequestIdRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      payload: { mode: "PROCESS", process_request_id: "   " },
+    });
+    assert.equal(blankProcessRequestIdRes.statusCode, 400);
+    const blankProcessRequestIdPayload = blankProcessRequestIdRes.json() as { error: { code: string; message: string } };
+    assert.equal(blankProcessRequestIdPayload.error.code, "VALIDATION_ERROR");
+    assert.match(blankProcessRequestIdPayload.error.message, /process_request_id must be a non-empty string/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("process endpoint validates options payload shapes", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-options-validation-"));
   const app = await createApp({
