@@ -3240,31 +3240,43 @@ const html = `<!doctype html>
         );
       }
 
-      function createPreviewActionConfig(button, id, label, kind) {
+      function previewActionMetaByKind(kind) {
+        const meta = queueActionMeta.preview[kind];
+        if (!meta) throw new Error("Unsupported preview action kind: " + String(kind));
+        return meta;
+      }
+
+      function batchActionMetaByKind(kind) {
+        const meta = queueActionMeta.batch[kind];
+        if (!meta) throw new Error("Unsupported batch action kind: " + String(kind));
+        return meta;
+      }
+
+      function createPreviewActionConfig(button, kind) {
+        const meta = previewActionMetaByKind(kind);
         return {
           button,
-          id,
-          label,
+          id: meta.id,
+          label: meta.label,
           kind,
           errorPrefix: queueActionCopy.preview_error_prefix[kind],
         };
       }
 
-      function createBatchActionConfig(button, id, label, kind, run) {
+      function createBatchActionConfig(button, kind, run) {
+        const meta = batchActionMetaByKind(kind);
         return {
           button,
-          id,
-          label,
+          id: meta.id,
+          label: meta.label,
           run,
           errorPrefix: queueActionCopy.batch_error_prefix[kind],
         };
       }
 
-      function createSimpleBatchActionConfig(button, id, label, kind, flowConfig) {
+      function createSimpleBatchActionConfig(button, kind, flowConfig) {
         return createBatchActionConfig(
           button,
-          id,
-          label,
           kind,
           createSimpleBatchRunner({
             kind,
@@ -3283,38 +3295,15 @@ const html = `<!doctype html>
       }
 
       const previewActionConfigs = [
-        createPreviewActionConfig(
-          previewArchiveBtn,
-          queueActionMeta.preview.archive.id,
-          queueActionMeta.preview.archive.label,
-          "archive",
-        ),
-        createPreviewActionConfig(
-          previewRetryBtn,
-          queueActionMeta.preview.retry.id,
-          queueActionMeta.preview.retry.label,
-          "retry",
-        ),
-        createPreviewActionConfig(
-          previewUnarchiveBtn,
-          queueActionMeta.preview.unarchive.id,
-          queueActionMeta.preview.unarchive.label,
-          "unarchive",
-        ),
+        createPreviewActionConfig(previewArchiveBtn, "archive"),
+        createPreviewActionConfig(previewRetryBtn, "retry"),
+        createPreviewActionConfig(previewUnarchiveBtn, "unarchive"),
       ];
 
       const batchActionConfigs = [
-        createBatchActionConfig(
-          retryFailedBtn,
-          queueActionMeta.batch.retry.id,
-          queueActionMeta.batch.retry.label,
-          "retry",
-          runRetryBatchFlow,
-        ),
+        createBatchActionConfig(retryFailedBtn, "retry", runRetryBatchFlow),
         createSimpleBatchActionConfig(
           archiveBlockedBtn,
-          queueActionMeta.batch.archive.id,
-          queueActionMeta.batch.archive.label,
           "archive",
           {
             renderNoEligible: renderArchiveNoEligibleOutput,
@@ -3325,8 +3314,6 @@ const html = `<!doctype html>
         ),
         createSimpleBatchActionConfig(
           unarchiveBatchBtn,
-          queueActionMeta.batch.unarchive.id,
-          queueActionMeta.batch.unarchive.label,
           "unarchive",
           {
             renderNoEligible: renderUnarchiveNoEligibleOutput,
