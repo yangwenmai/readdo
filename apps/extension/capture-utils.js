@@ -11,6 +11,9 @@ export function canonicalizeUrlForCapture(url) {
   try {
     const parsed = new URL(url);
     parsed.hash = "";
+    if ((parsed.protocol === "https:" && parsed.port === "443") || (parsed.protocol === "http:" && parsed.port === "80")) {
+      parsed.port = "";
+    }
     const trackingKeys = new Set(["fbclid", "gclid", "mc_eid", "mkt_tok"]);
     for (const key of Array.from(parsed.searchParams.keys())) {
       const normalizedKey = key.toLowerCase();

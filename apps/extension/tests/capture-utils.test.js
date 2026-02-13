@@ -14,6 +14,13 @@ test("canonicalizeUrlForCapture strips tracking params and hash", () => {
   assert.equal(canonical, "https://example.com/path?a=1&b=2");
 });
 
+test("canonicalizeUrlForCapture removes default ports", () => {
+  const httpsCanonical = canonicalizeUrlForCapture("HTTPS://Example.com:443/path?b=2&a=1");
+  const httpCanonical = canonicalizeUrlForCapture("http://example.com:80/path?z=9");
+  assert.equal(httpsCanonical, "https://example.com/path?a=1&b=2");
+  assert.equal(httpCanonical, "http://example.com/path?z=9");
+});
+
 test("canonicalizeUrlForCapture strips tracking params case-insensitively", () => {
   const canonical = canonicalizeUrlForCapture("https://example.com/path?A=1&UTM_SOURCE=x&FbClId=foo&b=2");
   assert.equal(canonical, "https://example.com/path?A=1&b=2");
