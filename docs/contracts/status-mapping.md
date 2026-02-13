@@ -158,6 +158,7 @@ Inbox 视觉分组顺序（上→下）：
 - 标题：”Export failed”
 - 正文：提示 fallback（md/caption 可用/或可重试 PNG）
 - CTA：Retry Export / Export MD+Caption / Archive
+- 若前端启用自动降级，可在 PNG 失败后自动触发 md+caption 导出，并给用户明确提示
 
 ---
 
