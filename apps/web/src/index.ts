@@ -1139,6 +1139,25 @@ const html = `<!doctype html>
         }
       }
 
+      async function applyListContextAndReload(label, options = {}) {
+        const button = options.button;
+        const mutate = typeof options.mutate === "function" ? options.mutate : null;
+        const op = {
+          id: "list_ctx_" + String(label).toLowerCase().replace(/[^a-z0-9]+/g, "_"),
+          label,
+          action: async () => {
+            if (mutate) mutate();
+            syncFocusChips();
+            persistControls();
+            resetPreviewOffset();
+            clearPreviewContinuation();
+            clearPreviewOutput();
+            await loadItems();
+          },
+        };
+        await runActionWithFeedback(op, { button, localFeedbackEl: queueActionBannerEl });
+      }
+
       function renderItem(item) {
         const card = document.createElement("div");
         const isSelected = selectedId === item.id;
@@ -3044,16 +3063,7 @@ const html = `<!doctype html>
 
       queryInput.addEventListener("keydown", async (event) => {
         if (event.key !== "Enter") return;
-        try {
-          errorEl.textContent = "";
-          persistControls();
-          resetPreviewOffset();
-          clearPreviewContinuation();
-          clearPreviewOutput();
-          await loadItems();
-        } catch (err) {
-          errorEl.textContent = String(err);
-        }
+        await applyListContextAndReload("Search");
       });
 
       queryInput.addEventListener("input", () => {
@@ -3067,18 +3077,12 @@ const html = `<!doctype html>
         focusChipsEl.querySelectorAll("[data-focus]").forEach((button) => {
           button.addEventListener("click", async () => {
             const focus = button.getAttribute("data-focus") || "all";
-            statusFilter.value = statusByFocusChip(focus);
-            syncFocusChips();
-            try {
-              errorEl.textContent = "";
-              persistControls();
-              resetPreviewOffset();
-              clearPreviewContinuation();
-              clearPreviewOutput();
-              await loadItems();
-            } catch (err) {
-              errorEl.textContent = String(err);
-            }
+            await applyListContextAndReload("Focus: " + focus, {
+              button,
+              mutate: () => {
+                statusFilter.value = statusByFocusChip(focus);
+              },
+            });
           });
         });
       }
@@ -3092,43 +3096,15 @@ const html = `<!doctype html>
       });
 
       statusFilter.addEventListener("change", async () => {
-        try {
-          errorEl.textContent = "";
-          syncFocusChips();
-          persistControls();
-          resetPreviewOffset();
-          clearPreviewContinuation();
-          clearPreviewOutput();
-          await loadItems();
-        } catch (err) {
-          errorEl.textContent = String(err);
-        }
+        await applyListContextAndReload("Status Filter");
       });
 
       retryableFilter.addEventListener("change", async () => {
-        try {
-          errorEl.textContent = "";
-          persistControls();
-          resetPreviewOffset();
-          clearPreviewContinuation();
-          clearPreviewOutput();
-          await loadItems();
-        } catch (err) {
-          errorEl.textContent = String(err);
-        }
+        await applyListContextAndReload("Retryable Filter");
       });
 
       failureStepFilter.addEventListener("change", async () => {
-        try {
-          errorEl.textContent = "";
-          persistControls();
-          resetPreviewOffset();
-          clearPreviewContinuation();
-          clearPreviewOutput();
-          await loadItems();
-        } catch (err) {
-          errorEl.textContent = String(err);
-        }
+        await applyListContextAndReload("Failure Step Filter");
       });
 
       restoreControls();
