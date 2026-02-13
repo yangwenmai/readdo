@@ -1260,6 +1260,7 @@ const html = `<!doctype html>
         retryFailedBtn.disabled = true;
         let exportSuccess = 0;
         let exportFailed = 0;
+        let exportReplayed = 0;
         try {
           const executionOffset = normalizedPreviewOffset();
           const previewRes = await request("/items/retry-failed", {
@@ -1315,7 +1316,7 @@ const html = `<!doctype html>
           for (const itemId of exportItemIds) {
             try {
               const requestId = crypto.randomUUID();
-              await request("/items/" + itemId + "/export", {
+              const response = await request("/items/" + itemId + "/export", {
                 method: "POST",
                 body: JSON.stringify({
                   export_key: "batch_retry_" + requestId,
@@ -1324,6 +1325,9 @@ const html = `<!doctype html>
                 headers: { "Idempotency-Key": requestId }
               });
               exportSuccess += 1;
+              if (response?.idempotent_replay === true) {
+                exportReplayed += 1;
+              }
             } catch {
               exportFailed += 1;
             }
@@ -1353,6 +1357,8 @@ const html = `<!doctype html>
             (batchRes.eligible_export ?? 0) +
             ", export_success=" +
             exportSuccess +
+            ", export_replayed=" +
+            exportReplayed +
             ", export_failed=" +
             exportFailed +
             ".";
