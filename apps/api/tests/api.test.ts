@@ -4264,6 +4264,16 @@ test("batch and unarchive endpoints validate boolean control flags", async () =>
     assert.equal(retryQTypePayload.error.code, "VALIDATION_ERROR");
     assert.match(retryQTypePayload.error.message, /q must be a string/i);
 
+    const retryQBlankRes = await app.inject({
+      method: "POST",
+      url: "/api/items/retry-failed",
+      payload: { q: "   " },
+    });
+    assert.equal(retryQBlankRes.statusCode, 400);
+    const retryQBlankPayload = retryQBlankRes.json() as { error: { code: string; message: string } };
+    assert.equal(retryQBlankPayload.error.code, "VALIDATION_ERROR");
+    assert.match(retryQBlankPayload.error.message, /q must be a non-empty string/i);
+
     const retryLimitTypeRes = await app.inject({
       method: "POST",
       url: "/api/items/retry-failed",
@@ -4333,6 +4343,16 @@ test("batch and unarchive endpoints validate boolean control flags", async () =>
     const archiveQTypePayload = archiveQTypeRes.json() as { error: { code: string; message: string } };
     assert.equal(archiveQTypePayload.error.code, "VALIDATION_ERROR");
     assert.match(archiveQTypePayload.error.message, /q must be a string/i);
+
+    const archiveQBlankRes = await app.inject({
+      method: "POST",
+      url: "/api/items/archive-failed",
+      payload: { q: "   " },
+    });
+    assert.equal(archiveQBlankRes.statusCode, 400);
+    const archiveQBlankPayload = archiveQBlankRes.json() as { error: { code: string; message: string } };
+    assert.equal(archiveQBlankPayload.error.code, "VALIDATION_ERROR");
+    assert.match(archiveQBlankPayload.error.message, /q must be a non-empty string/i);
 
     const archiveLimitTypeRes = await app.inject({
       method: "POST",
@@ -4443,6 +4463,16 @@ test("batch and unarchive endpoints validate boolean control flags", async () =>
     const unarchiveBatchQTypePayload = unarchiveBatchQTypeRes.json() as { error: { code: string; message: string } };
     assert.equal(unarchiveBatchQTypePayload.error.code, "VALIDATION_ERROR");
     assert.match(unarchiveBatchQTypePayload.error.message, /q must be a string/i);
+
+    const unarchiveBatchQBlankRes = await app.inject({
+      method: "POST",
+      url: "/api/items/unarchive-batch",
+      payload: { dry_run: false, regenerate: false, q: "   " },
+    });
+    assert.equal(unarchiveBatchQBlankRes.statusCode, 400);
+    const unarchiveBatchQBlankPayload = unarchiveBatchQBlankRes.json() as { error: { code: string; message: string } };
+    assert.equal(unarchiveBatchQBlankPayload.error.code, "VALIDATION_ERROR");
+    assert.match(unarchiveBatchQBlankPayload.error.message, /q must be a non-empty string/i);
 
     const unarchiveBatchLimitTypeRes = await app.inject({
       method: "POST",

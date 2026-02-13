@@ -932,6 +932,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const offset = typeof body.offset === "number" ? Math.max(body.offset, 0) : 0;
     const dryRun = (body.dry_run as boolean | undefined) ?? false;
     const q = typeof body.q === "string" ? body.q.trim() : "";
+    if (body.q !== undefined && !q) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "q must be a non-empty string when provided"));
+    }
     const failureStepRaw = typeof body.failure_step === "string" ? body.failure_step.trim().toLowerCase() : "";
     if (body.failure_step !== undefined && !failureStepRaw) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "failure_step must be extract|pipeline|export"));
@@ -1075,6 +1078,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const offset = typeof body.offset === "number" ? Math.max(body.offset, 0) : 0;
     const dryRun = (body.dry_run as boolean | undefined) ?? false;
     const q = typeof body.q === "string" ? body.q.trim() : "";
+    if (body.q !== undefined && !q) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "q must be a non-empty string when provided"));
+    }
     const failureStepRaw = typeof body.failure_step === "string" ? body.failure_step.trim().toLowerCase() : "";
     if (body.failure_step !== undefined && !failureStepRaw) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "failure_step must be extract|pipeline|export"));
@@ -1216,6 +1222,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const dryRun = (body.dry_run as boolean | undefined) ?? false;
     const regenerate = (body.regenerate as boolean | undefined) ?? false;
     const q = typeof body.q === "string" ? body.q.trim() : "";
+    if (body.q !== undefined && !q) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "q must be a non-empty string when provided"));
+    }
 
     const whereParts = ["status = 'ARCHIVED'"];
     const params: Array<string | number> = [];
