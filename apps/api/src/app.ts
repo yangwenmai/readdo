@@ -1531,6 +1531,13 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     if (!["priority_score_desc", "created_desc", "updated_desc"].includes(sort)) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "sort must be priority_score_desc|created_desc|updated_desc"));
     }
+    if (query.cursor !== undefined && typeof query.cursor !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "cursor must be a non-empty string when provided"));
+    }
+    const cursorRaw = typeof query.cursor === "string" ? query.cursor.trim() : "";
+    if (query.cursor !== undefined && !cursorRaw) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "cursor must be a non-empty string when provided"));
+    }
     const limitRaw =
       typeof query.limit === "string" ? (query.limit.trim() ? Number(query.limit.trim()) : Number.NaN) : Number(query.limit ?? 20);
     const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 100) : 20;

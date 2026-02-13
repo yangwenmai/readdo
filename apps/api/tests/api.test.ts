@@ -2735,6 +2735,24 @@ test("items endpoint supports status and query filtering", async () => {
     assert.equal(blankSortPayload.error.code, "VALIDATION_ERROR");
     assert.match(blankSortPayload.error.message, /sort must be priority_score_desc\|created_desc\|updated_desc/i);
 
+    const invalidCursorTypeRes = await app.inject({
+      method: "GET",
+      url: "/api/items?cursor=first&cursor=second",
+    });
+    assert.equal(invalidCursorTypeRes.statusCode, 400);
+    const invalidCursorTypePayload = invalidCursorTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidCursorTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidCursorTypePayload.error.message, /cursor must be a non-empty string when provided/i);
+
+    const blankCursorRes = await app.inject({
+      method: "GET",
+      url: "/api/items?cursor=%20%20%20",
+    });
+    assert.equal(blankCursorRes.statusCode, 400);
+    const blankCursorPayload = blankCursorRes.json() as { error: { code: string; message: string } };
+    assert.equal(blankCursorPayload.error.code, "VALIDATION_ERROR");
+    assert.match(blankCursorPayload.error.message, /cursor must be a non-empty string when provided/i);
+
     const limitOneRes = await app.inject({
       method: "GET",
       url: "/api/items?limit=1",
