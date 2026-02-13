@@ -16,25 +16,102 @@ const html = `<!doctype html>
     <title>Read→Do Inbox</title>
     <style>
       * { box-sizing: border-box; }
-      body { font-family: Arial, sans-serif; margin: 0; background: #f7f8fa; color: #1f2937; }
-      header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #111827; color: white; }
-      main { display: grid; grid-template-columns: 1.2fr 1fr; gap: 12px; padding: 12px; min-height: calc(100vh - 56px); }
-      section { background: white; border-radius: 10px; padding: 12px; overflow: auto; }
-      h1 { font-size: 18px; margin: 0; }
-      h2 { margin: 0 0 8px; font-size: 16px; }
-      .controls { display: flex; gap: 8px; align-items: center; }
-      button { padding: 6px 10px; border-radius: 6px; border: 1px solid #d1d5db; background: #fff; cursor: pointer; }
-      button.primary { background: #111827; color: #fff; border-color: #111827; }
-      .item-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; margin-bottom: 8px; background: #fcfcfd; }
+      body {
+        font-family: Inter, "Segoe UI", Arial, sans-serif;
+        margin: 0;
+        background:
+          radial-gradient(circle at top right, #dbeafe 0%, rgba(219, 234, 254, 0) 45%),
+          radial-gradient(circle at top left, #ede9fe 0%, rgba(237, 233, 254, 0) 40%),
+          #f4f6fb;
+        color: #1f2937;
+      }
+      header {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 14px 16px;
+        background: linear-gradient(135deg, #0f172a, #1d4ed8 55%, #312e81);
+        color: white;
+        box-shadow: 0 10px 30px rgba(30, 64, 175, 0.25);
+      }
+      .header-top {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .brand h1 { font-size: 22px; margin: 0; letter-spacing: 0.01em; }
+      .brand p { margin: 4px 0 0; font-size: 13px; color: #dbeafe; }
+      main { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; padding: 14px; min-height: calc(100vh - 140px); }
+      section {
+        background: rgba(255, 255, 255, 0.94);
+        border-radius: 14px;
+        padding: 14px;
+        overflow: auto;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        box-shadow: 0 8px 30px rgba(148, 163, 184, 0.16);
+      }
+      h2 { margin: 0; font-size: 16px; }
+      .panel-subtitle { margin: 6px 0 10px; font-size: 12px; color: #64748b; }
+      .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+      .controls .muted { color: #e2e8f0; }
+      button {
+        padding: 7px 11px;
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        cursor: pointer;
+        color: #0f172a;
+        transition: all 120ms ease-in-out;
+      }
+      button:hover { border-color: #60a5fa; box-shadow: 0 3px 10px rgba(37, 99, 235, 0.2); transform: translateY(-1px); }
+      button.primary { background: #0f172a; color: #fff; border-color: #0f172a; }
+      input, select {
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        padding: 7px 9px;
+        background: #ffffff;
+        color: #0f172a;
+      }
+      .item-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+        background: linear-gradient(180deg, #ffffff, #f8fafc);
+        box-shadow: 0 4px 10px rgba(148, 163, 184, 0.16);
+      }
+      .item-card.priority-read-next { border-left: 4px solid #2563eb; }
+      .item-card.priority-worth-it { border-left: 4px solid #7c3aed; }
+      .item-card.priority-if-time { border-left: 4px solid #14b8a6; }
+      .item-card.priority-default { border-left: 4px solid #94a3b8; }
       .item-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 8px; }
-      .intent { font-weight: 700; margin: 4px 0; }
-      .muted { color: #6b7280; font-size: 12px; }
-      .status { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #eef2ff; color: #3730a3; }
+      .intent { font-weight: 700; margin: 4px 0; color: #0f172a; }
+      .muted { color: #64748b; font-size: 12px; }
+      .status { font-size: 11px; padding: 3px 9px; border-radius: 999px; letter-spacing: 0.03em; font-weight: 700; border: 1px solid transparent; }
+      .status-ready, .status-shipped { background: #dcfce7; color: #166534; border-color: #86efac; }
+      .status-failed { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+      .status-processing, .status-queued { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+      .status-captured { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
+      .status-archived { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
+      .status-default { background: #eef2ff; color: #3730a3; border-color: #e0e7ff; }
       .actions { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
-      .actions button:disabled { cursor: not-allowed; opacity: 0.6; }
-      .group-title { margin: 12px 0 6px; font-size: 13px; color: #374151; text-transform: uppercase; letter-spacing: 0.04em; }
+      .actions button:disabled { cursor: not-allowed; opacity: 0.6; transform: none; box-shadow: none; }
+      .group-title { margin: 12px 0 6px; font-size: 13px; color: #334155; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+      .aha-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+      .aha-card {
+        border: 1px solid #dbeafe;
+        border-radius: 12px;
+        padding: 10px;
+        background: linear-gradient(145deg, #eff6ff, #ffffff);
+        min-height: 86px;
+      }
+      .aha-label { color: #1e3a8a; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+      .aha-value { color: #0f172a; font-size: 24px; font-weight: 800; line-height: 1; }
+      .aha-meta { color: #475569; font-size: 12px; margin-top: 6px; }
       pre { background: #0b1020; color: #d1d5db; padding: 8px; border-radius: 8px; white-space: pre-wrap; word-break: break-all; font-size: 12px; }
-      .empty { padding: 16px; border: 1px dashed #d1d5db; border-radius: 8px; color: #6b7280; text-align: center; }
+      .empty { padding: 18px; border: 1px dashed #cbd5e1; border-radius: 10px; color: #64748b; text-align: center; background: #f8fafc; }
       .error { color: #b91c1c; font-size: 13px; }
       textarea { width: 100%; min-height: 180px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
       .editor-row { display: flex; gap: 8px; margin: 8px 0; align-items: center; flex-wrap: wrap; }
@@ -48,12 +125,25 @@ const html = `<!doctype html>
       .diff-column h4 { margin: 0 0 6px; font-size: 12px; color: #374151; }
       .diff-column ul { margin: 0; padding-left: 16px; max-height: 160px; overflow: auto; }
       .diff-column li { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
-      @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+      @media (max-width: 1200px) {
+        .aha-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 1100px) {
+        main { grid-template-columns: 1fr; min-height: auto; }
+      }
+      @media (max-width: 700px) {
+        .aha-strip { grid-template-columns: 1fr; }
+      }
     </style>
   </head>
   <body>
     <header>
-      <h1>Read→Do Inbox</h1>
+      <div class="header-top">
+        <div class="brand">
+          <h1>Read→Do Inbox</h1>
+          <p>从信息堆积到可执行决策，优先做最值得做的一件事。</p>
+        </div>
+      </div>
       <div class="controls">
         <span class="muted">API: ${apiBase}</span>
         <span class="muted" id="workerStats">Queue: -</span>
@@ -116,12 +206,15 @@ const html = `<!doctype html>
     <main>
       <section>
         <h2>Decision Queue</h2>
+        <p class="panel-subtitle">系统会自动提炼优先级与行动项，下面是当前最有产出的执行视图。</p>
+        <div id="queueHighlights" class="aha-strip"></div>
         <div id="error" class="error"></div>
         <pre id="retryPreviewOutput" style="display:none;"></pre>
         <div id="inbox"></div>
       </section>
       <section>
         <h2>Detail</h2>
+        <p class="panel-subtitle">查看结构化工件、版本差异与导出记录，快速完成从想法到交付。</p>
         <div id="detail" class="empty">Select one item from the list.</div>
       </section>
     </main>
@@ -130,6 +223,7 @@ const html = `<!doctype html>
       const inboxEl = document.getElementById("inbox");
       const detailEl = document.getElementById("detail");
       const errorEl = document.getElementById("error");
+      const queueHighlightsEl = document.getElementById("queueHighlights");
       const retryPreviewOutputEl = document.getElementById("retryPreviewOutput");
       const refreshBtn = document.getElementById("refreshBtn");
       const clearFiltersBtn = document.getElementById("clearFiltersBtn");
@@ -292,6 +386,66 @@ const html = `<!doctype html>
         return groups;
       }
 
+      function statusTone(status) {
+        if (status === "READY" || status === "SHIPPED") return "ready";
+        if (status === "CAPTURED") return "captured";
+        if (status === "QUEUED") return "queued";
+        if (status === "PROCESSING") return "processing";
+        if (status === "ARCHIVED") return "archived";
+        if (typeof status === "string" && status.startsWith("FAILED_")) return "failed";
+        return "default";
+      }
+
+      function priorityTone(priority) {
+        if (priority === "READ_NEXT") return "read-next";
+        if (priority === "WORTH_IT") return "worth-it";
+        if (priority === "IF_TIME") return "if-time";
+        return "default";
+      }
+
+      function topReadyItem(items) {
+        return items
+          .filter((item) => item.status === "READY")
+          .sort((a, b) => Number(b.match_score ?? -1) - Number(a.match_score ?? -1))[0];
+      }
+
+      function renderQueueHighlights(items) {
+        if (!queueHighlightsEl) return;
+        const readyCount = items.filter((item) => item.status === "READY").length;
+        const shippedCount = items.filter((item) => item.status === "SHIPPED").length;
+        const attentionCount = items.filter((item) => String(item.status || "").startsWith("FAILED_")).length;
+        const retryableCount = items.filter((item) => isRetryableFailedItem(item)).length;
+        const candidate = topReadyItem(items);
+        const momentum = readyCount + retryableCount;
+
+        queueHighlightsEl.innerHTML = "";
+        const metrics = [
+          { label: "Ready to Ship", value: String(readyCount), meta: "可直接导出" },
+          { label: "Need Attention", value: String(attentionCount), meta: retryableCount + " 个可重试" },
+          { label: "Shipped", value: String(shippedCount), meta: "已完成交付" },
+          {
+            label: "Next Best Move",
+            value: candidate ? Number(candidate.match_score ?? 0).toFixed(1) : "—",
+            meta: candidate ? (candidate.title || candidate.domain || candidate.url || "Ready item").slice(0, 44) : "等待新的 READY 项",
+          },
+        ];
+
+        for (const metric of metrics) {
+          const metricCard = document.createElement("div");
+          metricCard.className = "aha-card";
+          metricCard.innerHTML =
+            '<div class="aha-label">' +
+            metric.label +
+            '</div><div class="aha-value">' +
+            metric.value +
+            '</div><div class="aha-meta">' +
+            metric.meta +
+            "</div>";
+          queueHighlightsEl.appendChild(metricCard);
+        }
+        queueHighlightsEl.title = "Queue momentum: " + momentum;
+      }
+
       async function request(path, options = {}) {
         const response = await fetch(API_BASE + path, {
           headers: { "content-type": "application/json", ...(options.headers || {}) },
@@ -360,7 +514,7 @@ const html = `<!doctype html>
 
       function renderItem(item) {
         const card = document.createElement("div");
-        card.className = "item-card";
+        card.className = "item-card priority-" + priorityTone(item.priority);
         const title = item.title || item.url;
         const score = item.match_score != null ? Number(item.match_score).toFixed(1) : "—";
         const retry = retryInfo(item);
@@ -381,7 +535,7 @@ const html = `<!doctype html>
         }
         card.innerHTML = \`
           <div class="item-head">
-            <span class="status">\${item.status}</span>
+            <span class="status status-\${statusTone(item.status)}">\${item.status}</span>
             <span class="muted">\${item.priority || "N/A"} · \${score}</span>
           </div>
           <div class="intent">\${item.intent_text}</div>
@@ -427,6 +581,7 @@ const html = `<!doctype html>
 
       function renderInbox(items) {
         inboxEl.innerHTML = "";
+        renderQueueHighlights(items);
         if (!items.length) {
           inboxEl.innerHTML = '<div class="empty">No items yet. Use the extension to capture links.</div>';
           return;
@@ -526,9 +681,9 @@ const html = `<!doctype html>
 
         const wrap = document.createElement("div");
         wrap.innerHTML = \`
-          <div class="item-card">
+          <div class="item-card priority-\${priorityTone(detail.item.priority)}">
             <div class="item-head">
-              <span class="status">\${detail.item.status}</span>
+              <span class="status status-\${statusTone(detail.item.status)}">\${detail.item.status}</span>
               <span class="muted">\${detail.item.priority || "N/A"} · \${detail.item.match_score ?? "—"}</span>
             </div>
             <div class="intent">\${detail.item.intent_text}</div>
