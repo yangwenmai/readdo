@@ -7,6 +7,8 @@ const port = Number(process.env.WEB_PORT ?? 5173);
 const apiBase = process.env.API_BASE_URL ?? "http://localhost:8787/api";
 const repoRoot = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const exportsRoot = resolve(repoRoot, "exports");
+const shortcutDiscoveryText = "Press ? for shortcuts";
+const shortcutSummaryText = "Shortcuts: / Search · F Focus Mode · A Advanced Panels · R Refresh";
 
 const html = `<!doctype html>
 <html lang="en">
@@ -460,7 +462,7 @@ const html = `<!doctype html>
           Auto refresh
         </label>
         <input id="queryInput" placeholder="Search title/domain/intent (press /)" />
-        <span class="muted">Press ? for shortcuts</span>
+        <span class="muted">${shortcutDiscoveryText}</span>
         <select id="statusFilter">
           <option value="">All Status</option>
           <option value="CAPTURED">CAPTURED</option>
@@ -2964,7 +2966,7 @@ const html = `<!doctype html>
       }
 
       function showShortcutHint() {
-        const hint = "Shortcuts: / Search · F Focus Mode · A Advanced Panels · R Refresh";
+        const hint = ${JSON.stringify(shortcutSummaryText)};
         setActionFeedback(queueActionBannerEl, "done", hint);
         setActionFeedback(detailActionBannerEl(), "done", hint);
       }
