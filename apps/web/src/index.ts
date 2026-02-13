@@ -24,6 +24,7 @@ const shortcutGuideItems = [
   { key: "Shift+N", label: "Focus Next Aha Candidate" },
   { key: "Alt+N", label: "Focus Previous Aha Candidate" },
   { key: "Shift+Z", label: "Focus 2nd Aha Candidate" },
+  { key: "Q", label: "Run Top Aha Action" },
   { key: "M", label: "Run Primary Item Action" },
   { key: "O", label: "Open Selected Source" },
   { key: "Y", label: "Copy Selected Source" },
@@ -77,6 +78,7 @@ const queueNudgeFocusTopLabel = "Focus Top Aha (Z)";
 const queueNudgeFocusNextLabel = "Focus Next Aha (Shift+N)";
 const queueNudgeFocusPrevLabel = "Focus Previous Aha (Alt+N)";
 const queueNudgeFocusSecondLabel = "Focus 2nd Aha (Shift+Z)";
+const queueNudgeRunTopLabel = "Run Top Aha Action (Q)";
 const queueNudgeCopySnapshotLabel = "Copy Aha Snapshot (U)";
 const queueNudgeDownloadSnapshotLabel = "Download Aha Snapshot (Shift+U)";
 const queueNudgeResetCycleLabel = "Reset Aha Cycle (Shift+R)";
@@ -1605,6 +1607,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_FOCUS_NEXT_LABEL = ${JSON.stringify(queueNudgeFocusNextLabel)};
       const QUEUE_NUDGE_FOCUS_PREV_LABEL = ${JSON.stringify(queueNudgeFocusPrevLabel)};
       const QUEUE_NUDGE_FOCUS_SECOND_LABEL = ${JSON.stringify(queueNudgeFocusSecondLabel)};
+      const QUEUE_NUDGE_RUN_TOP_LABEL = ${JSON.stringify(queueNudgeRunTopLabel)};
       const QUEUE_NUDGE_COPY_SNAPSHOT_LABEL = ${JSON.stringify(queueNudgeCopySnapshotLabel)};
       const QUEUE_NUDGE_DOWNLOAD_SNAPSHOT_LABEL = ${JSON.stringify(queueNudgeDownloadSnapshotLabel)};
       const QUEUE_NUDGE_RESET_CYCLE_LABEL = ${JSON.stringify(queueNudgeResetCycleLabel)};
@@ -3835,6 +3838,14 @@ const html = `<!doctype html>
             });
             actionsEl.appendChild(focusSecondBtn);
           }
+          const runTopBtn = document.createElement("button");
+          runTopBtn.type = "button";
+          runTopBtn.className = "secondary";
+          runTopBtn.textContent = QUEUE_NUDGE_RUN_TOP_LABEL;
+          runTopBtn.addEventListener("click", async () => {
+            await runTopAhaPrimaryAction(runTopBtn);
+          });
+          actionsEl.appendChild(runTopBtn);
           const copySnapshotBtn = document.createElement("button");
           copySnapshotBtn.type = "button";
           copySnapshotBtn.className = "secondary";
@@ -3857,6 +3868,14 @@ const html = `<!doctype html>
           if (ahaPool.length) {
             const actionsEl = document.createElement("div");
             actionsEl.className = "nudge-actions";
+            const runTopBtn = document.createElement("button");
+            runTopBtn.type = "button";
+            runTopBtn.className = "secondary";
+            runTopBtn.textContent = QUEUE_NUDGE_RUN_TOP_LABEL;
+            runTopBtn.addEventListener("click", async () => {
+              await runTopAhaPrimaryAction(runTopBtn);
+            });
+            actionsEl.appendChild(runTopBtn);
             const copySnapshotBtn = document.createElement("button");
             copySnapshotBtn.type = "button";
             copySnapshotBtn.className = "secondary";
@@ -5575,6 +5594,39 @@ const html = `<!doctype html>
         );
       }
 
+      async function runTopAhaPrimaryAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_run_top_aha_primary",
+            label: "Run Top Aha Action",
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const pool = visibleItems.length ? visibleItems : allItems;
+              if (!pool.length) {
+                errorEl.textContent = "No items available to run.";
+                return;
+              }
+              const target = topAhaItem(pool);
+              if (!target) {
+                errorEl.textContent = "No top Aha candidate available to run.";
+                return;
+              }
+              await selectItem(target.id);
+              focusQueueItemCard(target.id, { revealCollapsed: true });
+              const primary = primaryActionForItem(target);
+              if (!primary || primary.disabled) {
+                errorEl.textContent = "Top Aha candidate has no runnable primary action.";
+                return;
+              }
+              await primary.action();
+              const meta = ahaIndexMetaForItem(target);
+              errorEl.textContent = "Ran top Aha action (" + primary.label + ") on #" + target.id + " (" + meta.value + ").";
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
       async function runDownloadAhaSnapshotAction(button = null) {
         await runActionWithFeedback(
           {
@@ -6834,6 +6886,9 @@ const html = `<!doctype html>
         },
         n: () => {
           void runFocusRecommendedQueueAction();
+        },
+        q: () => {
+          void runTopAhaPrimaryAction();
         },
         z: () => {
           void runFocusTopAhaQueueAction();
