@@ -835,6 +835,12 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     if (body.dry_run !== undefined && typeof body.dry_run !== "boolean") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "dry_run must be a boolean when provided"));
     }
+    if (body.q !== undefined && typeof body.q !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "q must be a string when provided"));
+    }
+    if (body.failure_step !== undefined && typeof body.failure_step !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "failure_step must be a string when provided"));
+    }
     const limitRaw = Number(body.limit ?? 20);
     const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 20;
     const offsetRaw = Number(body.offset ?? 0);
@@ -950,6 +956,12 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const body = (request.body ?? {}) as Record<string, unknown>;
     if (body.dry_run !== undefined && typeof body.dry_run !== "boolean") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "dry_run must be a boolean when provided"));
+    }
+    if (body.q !== undefined && typeof body.q !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "q must be a string when provided"));
+    }
+    if (body.failure_step !== undefined && typeof body.failure_step !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "failure_step must be a string when provided"));
     }
     const limitRaw = Number(body.limit ?? 50);
     const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 50;
@@ -1074,6 +1086,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     }
     if (body.regenerate !== undefined && typeof body.regenerate !== "boolean") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "regenerate must be a boolean when provided"));
+    }
+    if (body.q !== undefined && typeof body.q !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "q must be a string when provided"));
     }
     const limitRaw = Number(body.limit ?? 50);
     const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 50;

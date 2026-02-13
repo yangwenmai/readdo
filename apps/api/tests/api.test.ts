@@ -3021,6 +3021,26 @@ test("batch and unarchive endpoints validate boolean control flags", async () =>
     assert.equal(retryDryRunTypePayload.error.code, "VALIDATION_ERROR");
     assert.match(retryDryRunTypePayload.error.message, /dry_run must be a boolean/i);
 
+    const retryQTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/items/retry-failed",
+      payload: { q: 1234 },
+    });
+    assert.equal(retryQTypeRes.statusCode, 400);
+    const retryQTypePayload = retryQTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(retryQTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(retryQTypePayload.error.message, /q must be a string/i);
+
+    const retryFailureStepTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/items/retry-failed",
+      payload: { failure_step: ["extract"] },
+    });
+    assert.equal(retryFailureStepTypeRes.statusCode, 400);
+    const retryFailureStepTypePayload = retryFailureStepTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(retryFailureStepTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(retryFailureStepTypePayload.error.message, /failure_step must be a string/i);
+
     const archiveDryRunTypeRes = await app.inject({
       method: "POST",
       url: "/api/items/archive-failed",
@@ -3030,6 +3050,26 @@ test("batch and unarchive endpoints validate boolean control flags", async () =>
     const archiveDryRunTypePayload = archiveDryRunTypeRes.json() as { error: { code: string; message: string } };
     assert.equal(archiveDryRunTypePayload.error.code, "VALIDATION_ERROR");
     assert.match(archiveDryRunTypePayload.error.message, /dry_run must be a boolean/i);
+
+    const archiveQTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/items/archive-failed",
+      payload: { q: 5678 },
+    });
+    assert.equal(archiveQTypeRes.statusCode, 400);
+    const archiveQTypePayload = archiveQTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(archiveQTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(archiveQTypePayload.error.message, /q must be a string/i);
+
+    const archiveFailureStepTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/items/archive-failed",
+      payload: { failure_step: ["pipeline"] },
+    });
+    assert.equal(archiveFailureStepTypeRes.statusCode, 400);
+    const archiveFailureStepTypePayload = archiveFailureStepTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(archiveFailureStepTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(archiveFailureStepTypePayload.error.message, /failure_step must be a string/i);
 
     const unarchiveBatchDryRunTypeRes = await app.inject({
       method: "POST",
@@ -3050,6 +3090,16 @@ test("batch and unarchive endpoints validate boolean control flags", async () =>
     const unarchiveBatchRegenerateTypePayload = unarchiveBatchRegenerateTypeRes.json() as { error: { code: string; message: string } };
     assert.equal(unarchiveBatchRegenerateTypePayload.error.code, "VALIDATION_ERROR");
     assert.match(unarchiveBatchRegenerateTypePayload.error.message, /regenerate must be a boolean/i);
+
+    const unarchiveBatchQTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/items/unarchive-batch",
+      payload: { dry_run: false, regenerate: false, q: 9012 },
+    });
+    assert.equal(unarchiveBatchQTypeRes.statusCode, 400);
+    const unarchiveBatchQTypePayload = unarchiveBatchQTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(unarchiveBatchQTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(unarchiveBatchQTypePayload.error.message, /q must be a string/i);
 
     const captureRes = await app.inject({
       method: "POST",
