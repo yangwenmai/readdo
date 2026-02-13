@@ -2212,7 +2212,7 @@ test("capture validates url and source_type", async () => {
       method: "POST",
       url: "/api/capture",
       payload: {
-        url: "https://alice:secret@example.com/private?a=1",
+        url: "https://alice:secret@Example.com.:443/private?a=1",
         source_type: "web",
         intent_text: "strip URL credentials before storage",
       },
