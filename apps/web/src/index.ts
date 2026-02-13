@@ -2723,35 +2723,37 @@ const html = `<!doctype html>
         return kind === "retry" || kind === "archive" || kind === "unarchive";
       }
 
+      const batchPayloadBuilderByKind = {
+        retry: retryFailedPayload,
+        archive: archiveBlockedPayload,
+        unarchive: unarchiveBatchPayload,
+      };
+
+      const batchEndpointByKind = {
+        retry: "/items/retry-failed",
+        archive: "/items/archive-failed",
+        unarchive: "/items/unarchive-batch",
+      };
+
+      const previewRendererByKind = {
+        retry: renderRetryPreviewOutput,
+        archive: renderArchivePreviewOutput,
+        unarchive: renderUnarchivePreviewOutput,
+      };
+
       function batchPayloadByKind(kind, dryRun, offset) {
-        if (kind === "retry") {
-          return retryFailedPayload(dryRun, offset);
-        }
-        if (kind === "archive") {
-          return archiveBlockedPayload(dryRun, offset);
-        }
-        if (kind === "unarchive") {
-          return unarchiveBatchPayload(dryRun, offset);
+        const payloadBuilder = batchPayloadBuilderByKind[kind];
+        if (typeof payloadBuilder === "function") {
+          return payloadBuilder(dryRun, offset);
         }
         throw new Error("Unsupported batch payload kind: " + String(kind));
       }
 
       async function requestBatchByKind(kind, dryRun, offset) {
         const payload = batchPayloadByKind(kind, dryRun, offset);
-        if (kind === "retry") {
-          return request("/items/retry-failed", {
-            method: "POST",
-            body: JSON.stringify(payload)
-          });
-        }
-        if (kind === "archive") {
-          return request("/items/archive-failed", {
-            method: "POST",
-            body: JSON.stringify(payload)
-          });
-        }
-        if (kind === "unarchive") {
-          return request("/items/unarchive-batch", {
+        const endpoint = batchEndpointByKind[kind];
+        if (typeof endpoint === "string") {
+          return request(endpoint, {
             method: "POST",
             body: JSON.stringify(payload)
           });
@@ -2764,16 +2766,9 @@ const html = `<!doctype html>
       }
 
       function renderPreviewByKind(kind, preview) {
-        if (kind === "retry") {
-          renderRetryPreviewOutput(preview);
-          return;
-        }
-        if (kind === "archive") {
-          renderArchivePreviewOutput(preview);
-          return;
-        }
-        if (kind === "unarchive") {
-          renderUnarchivePreviewOutput(preview);
+        const renderer = previewRendererByKind[kind];
+        if (typeof renderer === "function") {
+          renderer(preview);
           return;
         }
         throw new Error("Unsupported preview renderer kind: " + String(kind));
