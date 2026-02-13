@@ -340,6 +340,57 @@ const html = `<!doctype html>
       .status-rail-caption {
         font-size: 11px;
       }
+      .insight-pills {
+        margin-top: 7px;
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .insight-pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        padding: 3px 8px;
+      }
+      .insight-pill.impact-high {
+        border-color: #93c5fd;
+        background: #eff6ff;
+        color: #1e40af;
+      }
+      .insight-pill.impact-medium {
+        border-color: #c4b5fd;
+        background: #f5f3ff;
+        color: #5b21b6;
+      }
+      .insight-pill.impact-low {
+        border-color: #99f6e4;
+        background: #f0fdfa;
+        color: #0f766e;
+      }
+      .insight-pill.impact-default {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+        color: #475569;
+      }
+      .insight-pill.urgency-now {
+        border-color: #fecaca;
+        background: #fff1f2;
+        color: #9f1239;
+      }
+      .insight-pill.urgency-soon {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .insight-pill.urgency-later {
+        border-color: #d1d5db;
+        background: #f8fafc;
+        color: #475569;
+      }
       .actions { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
       .actions button:disabled { cursor: not-allowed; opacity: 0.6; transform: none; box-shadow: none; }
       .quick-action-grid {
@@ -1777,6 +1828,41 @@ const html = `<!doctype html>
         if (priority === "WORTH_IT") return "worth-it";
         if (priority === "IF_TIME") return "if-time";
         return "default";
+      }
+
+      function impactMetaForItem(item) {
+        if (item?.priority === "READ_NEXT") return { label: "Impact: High", tone: "impact-high" };
+        if (item?.priority === "WORTH_IT") return { label: "Impact: Medium", tone: "impact-medium" };
+        if (item?.priority === "IF_TIME") return { label: "Impact: Low", tone: "impact-low" };
+        return { label: "Impact: Unscored", tone: "impact-default" };
+      }
+
+      function urgencyMetaForItem(item) {
+        const status = String(item?.status || "");
+        if (status === "READY" || status.startsWith("FAILED_")) {
+          return { label: "Urgency: Now", tone: "urgency-now" };
+        }
+        if (status === "QUEUED" || status === "PROCESSING" || status === "CAPTURED") {
+          return { label: "Urgency: Soon", tone: "urgency-soon" };
+        }
+        return { label: "Urgency: Later", tone: "urgency-later" };
+      }
+
+      function queueInsightPillsHtml(item) {
+        const impactMeta = impactMetaForItem(item);
+        const urgencyMeta = urgencyMetaForItem(item);
+        return (
+          '<div class="insight-pills">' +
+          '<span class="insight-pill ' +
+          impactMeta.tone +
+          '">' +
+          impactMeta.label +
+          '</span><span class="insight-pill ' +
+          urgencyMeta.tone +
+          '">' +
+          urgencyMeta.label +
+          "</span></div>"
+        );
       }
 
       function flowStageMetaForItem(item) {
@@ -3513,6 +3599,7 @@ const html = `<!doctype html>
           }
         }
         const flowRailHtml = queueFlowRailHtml(item);
+        const insightPillsHtml = queueInsightPillsHtml(item);
         card.innerHTML = \`
           <div class="item-head">
             <span class="status status-\${statusTone(item.status)}">\${item.status}</span>
@@ -3521,6 +3608,7 @@ const html = `<!doctype html>
           <div class="intent">\${item.intent_text}</div>
           <div>\${title}</div>
           <div class="muted">\${item.domain || ""}</div>
+          \${insightPillsHtml}
           \${flowRailHtml}
           \${spotlightNoteHtml}
           \${failureNoteHtml}
@@ -3903,6 +3991,8 @@ const html = `<!doctype html>
           : "";
 
         const wrap = document.createElement("div");
+        const heroImpactMeta = impactMetaForItem(detail.item);
+        const heroUrgencyMeta = urgencyMetaForItem(detail.item);
         wrap.innerHTML = \`
           <div class="item-card detail-hero \${detailHeroTone(detail.item.status)} priority-\${priorityTone(detail.item.priority)}">
             <div class="item-head">
@@ -3913,6 +4003,10 @@ const html = `<!doctype html>
               <span class="muted">\${detail.item.priority || "N/A"} · \${detail.item.match_score ?? "—"}</span>
             </div>
             <div class="hero-kicker">\${detailMomentumLabel(detail.item.status)}</div>
+            <div class="insight-pills">
+              <span class="insight-pill \${heroImpactMeta.tone}">\${heroImpactMeta.label}</span>
+              <span class="insight-pill \${heroUrgencyMeta.tone}">\${heroUrgencyMeta.label}</span>
+            </div>
             <div class="intent">\${detail.item.intent_text}</div>
             <div>\${detail.item.title || detail.item.url}</div>
             <div class="muted">\${detail.item.domain || ""}</div>
