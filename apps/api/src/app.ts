@@ -81,6 +81,15 @@ function failure(code: string, message: string, details?: Record<string, unknown
   return details ? { error: { code, message, details } } : { error: { code, message } };
 }
 
+function safeParseJson(rawValue: string | null): unknown {
+  if (!rawValue) return undefined;
+  try {
+    return JSON.parse(rawValue) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
 function normalizeText(input: string): string {
   return input.replace(/\s+/g, " ").trim();
 }
@@ -174,7 +183,7 @@ function rowToItem(row: DbItemRow): Record<string, unknown> {
     status: row.status,
     priority: row.priority,
     match_score: row.match_score,
-    failure: row.failure_json ? (JSON.parse(row.failure_json) as unknown) : undefined,
+    failure: safeParseJson(row.failure_json),
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -1426,7 +1435,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const response = {
       item: rowToItem(item),
       artifacts: selectedArtifacts(db, id, versionOverrides),
-      failure: item.failure_json ? JSON.parse(item.failure_json) : undefined,
+      failure: safeParseJson(item.failure_json),
       artifact_versions_selected: versionOverrides,
     };
     if (includeHistory) {

@@ -2,6 +2,7 @@ import { mkdtempSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createApp } from "../src/app.js";
@@ -3597,6 +3598,60 @@ test("artifact compare endpoint returns structured diff summary", async () => {
     assert.ok(compare.summary.changed_paths.length >= 1);
     assert.ok(compare.summary.changed_line_count >= 1);
     assert.ok(compare.summary.compared_line_count >= compare.summary.changed_line_count);
+  } finally {
+    await app.close();
+  }
+});
+
+test("items endpoints tolerate malformed legacy failure_json payloads", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-legacy-failure-json-"));
+  const dbPath = join(dbDir, "readdo.db");
+  const app = await createApp({
+    dbPath,
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20content%20is%20used%20to%20verify%20legacy%20failure%20payload%20compatibility.",
+        title: "Legacy Failure Payload",
+        domain: "example.legacy.failure",
+        source_type: "web",
+        intent_text: "verify malformed failure_json does not crash item endpoints",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    const db = new DatabaseSync(dbPath);
+    try {
+      db.prepare("UPDATE items SET status = 'FAILED_AI', failure_json = ? WHERE id = ?").run("{bad-json", itemId);
+    } finally {
+      db.close();
+    }
+
+    const detailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}`,
+    });
+    assert.equal(detailRes.statusCode, 200);
+    const detailPayload = detailRes.json() as { item: { id: string }; failure?: unknown };
+    assert.equal(detailPayload.item.id, itemId);
+    assert.equal(detailPayload.failure, undefined);
+
+    const listRes = await app.inject({
+      method: "GET",
+      url: "/api/items?status=FAILED_AI",
+    });
+    assert.equal(listRes.statusCode, 200);
+    const listPayload = listRes.json() as { items: Array<{ id: string; failure?: unknown }> };
+    const target = listPayload.items.find((x) => x.id === itemId);
+    assert.ok(target);
+    assert.equal(target?.failure, undefined);
   } finally {
     await app.close();
   }
