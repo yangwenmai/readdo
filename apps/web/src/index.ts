@@ -127,7 +127,10 @@ const html = `<!doctype html>
         const data = await response.json();
         if (!response.ok) {
           const message = data?.error?.message || ("Request failed: " + response.status);
-          throw new Error(message);
+          const code = data?.error?.code || "UNKNOWN_ERROR";
+          const err = new Error(message);
+          err.code = code;
+          throw err;
         }
         return data;
       }
@@ -569,14 +572,30 @@ const html = `<!doctype html>
       }
 
       async function exportItem(id) {
-        await request("/items/" + id + "/export", {
-          method: "POST",
-          body: JSON.stringify({
-            export_key: "web_" + crypto.randomUUID(),
-            formats: ["png", "md", "caption"]
-          }),
-          headers: { "Idempotency-Key": crypto.randomUUID() }
-        });
+        try {
+          await request("/items/" + id + "/export", {
+            method: "POST",
+            body: JSON.stringify({
+              export_key: "web_" + crypto.randomUUID(),
+              formats: ["png", "md", "caption"]
+            }),
+            headers: { "Idempotency-Key": crypto.randomUUID() }
+          });
+        } catch (err) {
+          if (err?.code === "EXPORT_RENDER_FAILED") {
+            await request("/items/" + id + "/export", {
+              method: "POST",
+              body: JSON.stringify({
+                export_key: "web_fallback_" + crypto.randomUUID(),
+                formats: ["md", "caption"]
+              }),
+              headers: { "Idempotency-Key": crypto.randomUUID() }
+            });
+            errorEl.textContent = "PNG failed; fallback export (md+caption) succeeded.";
+          } else {
+            throw err;
+          }
+        }
         await loadItems();
         await selectItem(id);
       }
