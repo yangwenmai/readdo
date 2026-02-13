@@ -10,6 +10,8 @@ const exportsRoot = resolve(repoRoot, "exports");
 const shortcutTriggerKey = "?";
 const shortcutGuideItems = [
   { key: "/", label: "Search" },
+  { key: "J", label: "Select next item" },
+  { key: "K", label: "Select previous item" },
   { key: "F", label: "Focus Mode" },
   { key: "A", label: "Advanced Panels" },
   { key: "P", label: "Focus Priority" },
@@ -2681,6 +2683,18 @@ const html = `<!doctype html>
         return null;
       }
 
+      function visibleQueueItemIds() {
+        const cards = inboxEl.querySelectorAll(".item-card.clickable[data-item-id]");
+        const ids = [];
+        for (const card of cards) {
+          if (!(card instanceof HTMLElement)) continue;
+          const rawId = card.dataset.itemId;
+          if (!rawId) continue;
+          ids.push(rawId);
+        }
+        return ids;
+      }
+
       function revealCollapsedGroupForItem(itemId) {
         if (itemId == null) return false;
         const targetItem = allItems.find((item) => String(item?.id) === String(itemId));
@@ -4622,6 +4636,44 @@ const html = `<!doctype html>
         );
       }
 
+      async function runQueueSelectionNavigationAction(direction) {
+        const visibleIds = visibleQueueItemIds();
+        if (!visibleIds.length) {
+          const hint = "No visible items to navigate.";
+          setActionFeedbackPair("done", hint, queueActionBannerEl);
+          errorEl.textContent = hint;
+          return;
+        }
+        const currentIndex = selectedId == null ? -1 : visibleIds.findIndex((id) => id === String(selectedId));
+        const targetIndex =
+          direction === "next"
+            ? currentIndex < 0
+              ? 0
+              : Math.min(currentIndex + 1, visibleIds.length - 1)
+            : currentIndex < 0
+              ? visibleIds.length - 1
+              : Math.max(currentIndex - 1, 0);
+        if (targetIndex === currentIndex && currentIndex >= 0) {
+          const edgeHint = direction === "next" ? "Already at last visible item." : "Already at first visible item.";
+          setActionFeedbackPair("done", edgeHint, queueActionBannerEl);
+          errorEl.textContent = edgeHint;
+          return;
+        }
+        const targetId = visibleIds[targetIndex];
+        await runActionWithFeedback(
+          {
+            id: "queue_nav_" + direction,
+            label: direction === "next" ? "Select next item" : "Select previous item",
+            action: async () => {
+              await selectItem(targetId);
+              focusQueueItemCard(targetId, { revealCollapsed: true });
+              errorEl.textContent = "Selected item " + String(targetIndex + 1) + "/" + String(visibleIds.length) + ".";
+            },
+          },
+          { localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
       refreshBtn.addEventListener("click", async () => {
         await runRefreshQueueAction(refreshBtn);
       });
@@ -5377,6 +5429,12 @@ const html = `<!doctype html>
         "/": () => {
           queryInput.focus();
           queryInput.select();
+        },
+        j: () => {
+          void runQueueSelectionNavigationAction("next");
+        },
+        k: () => {
+          void runQueueSelectionNavigationAction("prev");
         },
         f: () => {
           setDetailAdvancedEnabled(false);
