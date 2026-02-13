@@ -2828,6 +2828,25 @@ const html = `<!doctype html>
         return { success, failed, replayed };
       }
 
+      async function runSimpleBatchFlow(config) {
+        clearPreviewState();
+        const preview = await loadBatchPreview(config.kind);
+        const eligible = Number(
+          typeof config.selectEligible === "function" ? config.selectEligible(preview) : (preview.eligible ?? 0),
+        );
+        if (!eligible) {
+          config.renderNoEligible(preview);
+          return;
+        }
+        if (typeof config.renderPreview === "function") {
+          config.renderPreview(preview);
+        }
+        const confirmed = confirm(config.buildConfirm(preview, eligible));
+        if (!handleBatchConfirmation(confirmed, config.cancelledMessage)) return;
+        const result = await executeBatchByKind(config.kind);
+        config.renderDone(result);
+      }
+
       function bindPreviewAction(config) {
         const button = config.button;
         button.addEventListener("click", async () => {
@@ -2946,18 +2965,14 @@ const html = `<!doctype html>
         label: "Archive Failed Batch",
         errorPrefix: "Archive blocked failed: ",
         run: async () => {
-          clearPreviewState();
-          const preview = await loadBatchPreview("archive");
-          const eligible = Number(preview.eligible ?? 0);
-          if (!eligible) {
-            renderArchiveNoEligibleOutput(preview);
-            return;
-          }
-          renderArchivePreviewOutput(preview);
-          const confirmed = confirm(buildArchiveBatchConfirmMessage(preview, eligible));
-          if (!handleBatchConfirmation(confirmed, "Archive blocked action cancelled.")) return;
-          const result = await executeBatchByKind("archive");
-          renderArchiveBatchDoneOutput(result);
+          await runSimpleBatchFlow({
+            kind: "archive",
+            renderNoEligible: renderArchiveNoEligibleOutput,
+            renderPreview: renderArchivePreviewOutput,
+            buildConfirm: buildArchiveBatchConfirmMessage,
+            cancelledMessage: "Archive blocked action cancelled.",
+            renderDone: renderArchiveBatchDoneOutput,
+          });
         },
       });
 
@@ -2995,17 +3010,13 @@ const html = `<!doctype html>
         label: "Unarchive Batch",
         errorPrefix: "Unarchive batch failed: ",
         run: async () => {
-          clearPreviewState();
-          const preview = await loadBatchPreview("unarchive");
-          const eligible = Number(preview.eligible ?? 0);
-          if (!eligible) {
-            renderUnarchiveNoEligibleOutput(preview);
-            return;
-          }
-          const confirmed = confirm(buildUnarchiveBatchConfirmMessage(preview, eligible));
-          if (!handleBatchConfirmation(confirmed, "Unarchive action cancelled.")) return;
-          const result = await executeBatchByKind("unarchive");
-          renderUnarchiveBatchDoneOutput(result);
+          await runSimpleBatchFlow({
+            kind: "unarchive",
+            renderNoEligible: renderUnarchiveNoEligibleOutput,
+            buildConfirm: buildUnarchiveBatchConfirmMessage,
+            cancelledMessage: "Unarchive action cancelled.",
+            renderDone: renderUnarchiveBatchDoneOutput,
+          });
         },
       });
 
