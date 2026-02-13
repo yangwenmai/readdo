@@ -201,6 +201,35 @@ const html = `<!doctype html>
         background: linear-gradient(90deg, rgba(124, 58, 237, 0.9), rgba(59, 130, 246, 0.9));
       }
       .item-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 8px; }
+      .status-cluster {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .status-chip {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        letter-spacing: 0.02em;
+      }
+      .status-chip.normal {
+        border-color: #bae6fd;
+        background: #f0f9ff;
+        color: #0c4a6e;
+      }
+      .status-chip.urgent {
+        border-color: #fed7aa;
+        background: #fff7ed;
+        color: #9a3412;
+      }
+      .status-chip.blocked {
+        border-color: #fecaca;
+        background: #fef2f2;
+        color: #991b1b;
+      }
       .intent { font-weight: 700; margin: 4px 0; color: #0f172a; }
       .spotlight-note {
         margin-top: 6px;
@@ -1630,6 +1659,36 @@ const html = `<!doctype html>
         return { retryLimit, retryAttempts, retryable, remaining };
       }
 
+      function recoveryPriorityMeta(failure) {
+        if (!failure) return null;
+        const retryLimit = Number(failure.retry_limit ?? 0);
+        const retryAttempts = Number(failure.retry_attempts ?? 0);
+        const retryable = failure.retryable !== false;
+        const remaining = retryLimit > 0 ? Math.max(retryLimit - retryAttempts, 0) : null;
+        if (!retryable || remaining === 0) {
+          return {
+            tone: "blocked",
+            label: "Recovery Priority: Blocked",
+            shortLabel: "Blocked Recovery",
+            note: "Manual edit before rerun.",
+          };
+        }
+        if (remaining === 1) {
+          return {
+            tone: "urgent",
+            label: "Recovery Priority: Last Retry",
+            shortLabel: "Last Retry",
+            note: "Retry budget almost exhausted.",
+          };
+        }
+        return {
+          tone: "normal",
+          label: "Recovery Priority: Recoverable",
+          shortLabel: "Recoverable",
+          note: "Safe to retry with playbook steps.",
+        };
+      }
+
       function isRetryableFailedItem(item) {
         if (!String(item?.status || "").startsWith("FAILED_")) return false;
         return retryInfo(item).retryable;
@@ -2208,12 +2267,19 @@ const html = `<!doctype html>
         selectedDetail = detail;
         clearDetailSectionNav();
         detailEl.innerHTML = "";
+        const recoveryPriority = recoveryPriorityMeta(detail.failure || null);
+        const recoveryChipHtml = recoveryPriority
+          ? '<span class="status-chip ' + recoveryPriority.tone + '">' + recoveryPriority.shortLabel + "</span>"
+          : "";
 
         const wrap = document.createElement("div");
         wrap.innerHTML = \`
           <div class="item-card priority-\${priorityTone(detail.item.priority)}">
             <div class="item-head">
-              <span class="status status-\${statusTone(detail.item.status)}">\${detail.item.status}</span>
+              <div class="status-cluster">
+                <span class="status status-\${statusTone(detail.item.status)}">\${detail.item.status}</span>
+                \${recoveryChipHtml}
+              </div>
               <span class="muted">\${detail.item.priority || "N/A"} · \${detail.item.match_score ?? "—"}</span>
             </div>
             <div class="intent">\${detail.item.intent_text}</div>
@@ -2268,11 +2334,11 @@ const html = `<!doctype html>
         const retryLimit = Number(failure.retry_limit ?? 0);
         const retryable = failure.retryable !== false;
         const remaining = retryLimit > 0 ? Math.max(retryLimit - retryAttempts, 0) : null;
-        const recoveryPriority = !retryable || remaining === 0
-          ? { tone: "blocked", label: "Recovery Priority: Blocked", note: "Manual edit before rerun." }
-          : remaining === 1
-            ? { tone: "urgent", label: "Recovery Priority: Last Retry", note: "Retry budget almost exhausted." }
-            : { tone: "normal", label: "Recovery Priority: Recoverable", note: "Safe to retry with playbook steps." };
+        const recoveryPriority = recoveryPriorityMeta(failure) || {
+          tone: "normal",
+          label: "Recovery Priority: Recoverable",
+          note: "Safe to retry with playbook steps.",
+        };
 
         let actionGuide = "You can retry processing from Inbox.";
         if (failure.failed_step === "extract") {
