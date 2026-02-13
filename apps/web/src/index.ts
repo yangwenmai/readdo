@@ -253,8 +253,76 @@ const html = `<!doctype html>
           <pre>\${JSON.stringify(detail.failure || null, null, 2)}</pre>
         \`;
         detailEl.appendChild(wrap);
+        renderArtifactVersionViewer(detail);
         renderIntentEditor(detail);
         renderArtifactEditor(detail);
+      }
+
+      function renderArtifactVersionViewer(detail) {
+        const historyMap = detail.artifact_history || {};
+        const artifactTypes = Object.keys(historyMap).filter((type) => Array.isArray(historyMap[type]) && historyMap[type].length > 0);
+        if (!artifactTypes.length) return;
+
+        const card = document.createElement("div");
+        card.className = "item-card";
+        card.innerHTML = \`
+          <h3>Version Viewer</h3>
+          <div class="editor-row">
+            <label for="versionTypeSelect">Artifact:</label>
+            <select id="versionTypeSelect"></select>
+            <label for="versionSelect">Version:</label>
+            <select id="versionSelect"></select>
+            <button id="loadVersionBtn" type="button">Load Selected Version</button>
+          </div>
+          <pre id="versionArtifactPreview"></pre>
+        \`;
+
+        const typeSelect = card.querySelector("#versionTypeSelect");
+        const versionSelect = card.querySelector("#versionSelect");
+        const loadBtn = card.querySelector("#loadVersionBtn");
+        const previewEl = card.querySelector("#versionArtifactPreview");
+
+        for (const type of artifactTypes) {
+          const opt = document.createElement("option");
+          opt.value = type;
+          opt.textContent = type;
+          typeSelect.appendChild(opt);
+        }
+
+        function fillVersionOptions() {
+          const selectedType = typeSelect.value;
+          versionSelect.innerHTML = "";
+          const versions = historyMap[selectedType] || [];
+          for (const row of versions) {
+            const opt = document.createElement("option");
+            opt.value = String(row.version);
+            opt.textContent = "v" + row.version + " · " + row.created_by;
+            versionSelect.appendChild(opt);
+          }
+          if (versions.length > 0) {
+            previewEl.textContent = JSON.stringify(versions[0], null, 2);
+          } else {
+            previewEl.textContent = "{}";
+          }
+        }
+
+        typeSelect.addEventListener("change", fillVersionOptions);
+        fillVersionOptions();
+
+        loadBtn.addEventListener("click", async () => {
+          const type = typeSelect.value;
+          const version = Number(versionSelect.value);
+          if (!type || !version) return;
+          const query = encodeURIComponent(JSON.stringify({ [type]: version }));
+          try {
+            const pinned = await request("/items/" + detail.item.id + "?artifact_versions=" + query);
+            previewEl.textContent = JSON.stringify(pinned.artifacts?.[type] ?? null, null, 2);
+          } catch (err) {
+            previewEl.textContent = "Load failed: " + String(err);
+          }
+        });
+
+        detailEl.appendChild(card);
       }
 
       function renderIntentEditor(detail) {
