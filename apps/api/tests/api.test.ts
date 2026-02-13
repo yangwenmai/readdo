@@ -682,6 +682,23 @@ test("archive-failed endpoint archives blocked failures with dry-run support", a
     assert.ok(previewAllRetryable.eligible_item_ids.includes(blockedId));
     assert.ok(previewAllRetryable.eligible_item_ids.includes(retryableId));
 
+    const previewWithQueryRes = await app.inject({
+      method: "POST",
+      url: "/api/items/archive-failed",
+      payload: { limit: 10, dry_run: true, retryable: "all", failure_step: "extract", q: "Retryable Failure" },
+    });
+    assert.equal(previewWithQueryRes.statusCode, 200);
+    const previewWithQuery = previewWithQueryRes.json() as {
+      q_filter: string | null;
+      scanned: number;
+      eligible: number;
+      eligible_item_ids: string[];
+    };
+    assert.equal(previewWithQuery.q_filter, "Retryable Failure");
+    assert.equal(previewWithQuery.scanned, 1);
+    assert.equal(previewWithQuery.eligible, 1);
+    assert.ok(previewWithQuery.eligible_item_ids.includes(retryableId));
+
     const invalidRetryableRes = await app.inject({
       method: "POST",
       url: "/api/items/archive-failed",

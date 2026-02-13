@@ -808,6 +808,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const limitRaw = Number(body.limit ?? 50);
     const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 50;
     const dryRun = Boolean(body.dry_run);
+    const q = typeof body.q === "string" ? body.q.trim() : "";
     const failureStepRaw = typeof body.failure_step === "string" ? body.failure_step.trim().toLowerCase() : "";
     const failureStepFilter =
       ["extract", "pipeline", "export"].includes(failureStepRaw) ? (failureStepRaw as "extract" | "pipeline" | "export") : null;
@@ -843,16 +844,23 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
             ? ["FAILED_EXPORT"]
             : ["FAILED_EXTRACTION", "FAILED_AI", "FAILED_EXPORT"];
     const statusPlaceholders = targetStatuses.map(() => "?").join(",");
+    const whereParts = [`status IN (${statusPlaceholders})`];
+    const params: Array<string | number> = [...targetStatuses];
+    if (q) {
+      whereParts.push("(title LIKE ? OR domain LIKE ? OR intent_text LIKE ? OR url LIKE ?)");
+      const token = `%${q}%`;
+      params.push(token, token, token, token);
+    }
     const failedItems = db
       .prepare(
         `
         SELECT * FROM items
-        WHERE status IN (${statusPlaceholders})
+        WHERE ${whereParts.join(" AND ")}
         ORDER BY updated_at ASC
         LIMIT ?
       `,
       )
-      .all(...targetStatuses, limit) as DbItemRow[];
+      .all(...params, limit) as DbItemRow[];
 
     let eligible = 0;
     let archived = 0;
@@ -892,6 +900,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       dry_run: dryRun,
       retryable_filter: retryableFilter,
       failure_step_filter: failureStepFilter,
+      q_filter: q || null,
       scanned: failedItems.length,
       eligible,
       eligible_item_ids: eligibleItemIds,

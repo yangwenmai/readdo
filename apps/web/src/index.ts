@@ -993,6 +993,10 @@ const html = `<!doctype html>
         const retryableValue = archiveRetryableFilter.value;
         const retryableFilter = retryableValue === "true" ? true : retryableValue === "false" ? false : null;
         const payload = { limit: 100, dry_run: dryRun, retryable: retryableFilter };
+        const q = queryInput.value.trim();
+        if (q) {
+          Object.assign(payload, { q });
+        }
         if (failureStepFilter.value) {
           return { ...payload, failure_step: failureStepFilter.value };
         }
@@ -1021,6 +1025,8 @@ const html = `<!doctype html>
             (preview.scanned ?? 0) +
             ", retryable=" +
             (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
+            ", q=" +
+            (preview.q_filter || "all") +
             ", filter=" +
             (preview.failure_step_filter || "all") +
             ", eligible=" +
@@ -1033,6 +1039,7 @@ const html = `<!doctype html>
             {
               preview_type: "archive_blocked",
               retryable_filter: preview.retryable_filter == null ? "all" : preview.retryable_filter,
+              q_filter: preview.q_filter || null,
               filter: preview.failure_step_filter || "all",
               eligible_item_ids: preview.eligible_item_ids || [],
               skipped_retryable_mismatch: preview.skipped_retryable_mismatch || 0,
@@ -1161,6 +1168,7 @@ const html = `<!doctype html>
             {
               preview_type: "archive_blocked",
               retryable_filter: preview.retryable_filter == null ? "all" : preview.retryable_filter,
+              q_filter: preview.q_filter || null,
               filter: preview.failure_step_filter || "all",
               eligible_item_ids: preview.eligible_item_ids || [],
               skipped_retryable_mismatch: preview.skipped_retryable_mismatch || 0,
@@ -1174,6 +1182,8 @@ const html = `<!doctype html>
               " failed items" +
               " [retryable=" +
               (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
+              ", q=" +
+              (preview.q_filter || "all") +
               "]" +
               (preview.failure_step_filter ? " (failure_step=" + preview.failure_step_filter + ")" : "") +
               "?",

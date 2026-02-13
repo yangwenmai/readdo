@@ -307,7 +307,8 @@ Headers:
   "limit": 50,
   "dry_run": false,
   "retryable": false,
-  "failure_step": "extract"
+  "failure_step": "extract",
+  "q": "optional keyword"
 }
 ```
 
@@ -317,6 +318,7 @@ Headers:
 * `dry_run=true` 时仅返回预估结果，不会修改 item 状态
 * `retryable` 可选：`true | false | null | "all"`（默认 `false`，即仅归档已达重试上限项）
 * `failure_step` 可选：`extract | pipeline | export`
+* `q` 可选，按 `title/domain/intent_text/url` 模糊过滤失败候选
 
 ### 4.9.3 Response 200
 
@@ -326,6 +328,7 @@ Headers:
   "dry_run": false,
   "retryable_filter": false,
   "failure_step_filter": "extract",
+  "q_filter": "optional keyword",
   "scanned": 8,
   "eligible": 3,
   "eligible_item_ids": ["itm_a", "itm_b", "itm_c"],

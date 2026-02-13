@@ -56,6 +56,7 @@ Web Inbox 还支持 `Failure Step` 下拉筛选（extract/pipeline/export），�
 点击 `Preview Archive` 可预览将被批量归档的 blocked 失败项 ID 列表。
 `Archive Scope` 支持 blocked / retryable / all failed 三种归档范围。
 点击 `Archive Failed` 可批量归档匹配范围的失败项（先预览再确认执行）。
+若输入搜索关键词，Archive 预览/执行也会仅作用于匹配关键词的失败项。
 点击 `Preview Unarchive` / `Unarchive Archived` 可批量恢复归档项，并支持 smart/regenerate 模式。
 若输入搜索关键词，Unarchive 预览/执行会仅作用于匹配关键词的 archived 项。
 
@@ -164,7 +165,7 @@ curl -X POST "http://localhost:8787/api/items/retry-failed" \
 # Dry-run preview for batch archive blocked failed items
 curl -X POST "http://localhost:8787/api/items/archive-failed" \
   -H "content-type: application/json" \
-  -d '{"limit":20,"dry_run":true,"retryable":false}'
+  -d '{"limit":20,"dry_run":true,"retryable":false,"q":"Retryable Failure"}'
 
 # Dry-run preview for batch unarchive
 curl -X POST "http://localhost:8787/api/items/unarchive-batch" \

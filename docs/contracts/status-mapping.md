@@ -61,6 +61,7 @@ Last Updated: 2026-02-13
   - 可透传当前搜索词 `q`，仅对匹配关键词的失败项执行批量重试。
 - `Archive Blocked`（批量）：调用 `/items/archive-failed`，默认归档 `retryable=false` 的失败项（可带 `failure_step`）。
   - 建议先 `dry_run=true` 预览，再执行真实归档，避免误操作。
+  - 可透传当前搜索词 `q`，仅对匹配关键词的失败项执行批量归档。
 - `Preview Archive`（dry-run）：调用 `/items/archive-failed` 且 `dry_run=true`，建议展示 `eligible_item_ids` 供用户核对。
   - 可选增加 `Archive Scope`（`blocked/retryable/all`）下拉，对应 `retryable=false/true/null`。
 - `Preview Unarchive`（dry-run）：调用 `/items/unarchive-batch` 且 `dry_run=true`，建议展示 `eligible_ready_item_ids / eligible_queued_item_ids`。
