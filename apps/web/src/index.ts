@@ -19,6 +19,9 @@ const shortcutDiscoveryText = `Press ${shortcutTriggerKey} for shortcuts`;
 const shortcutSummaryText =
   "Shortcuts: " + shortcutGuideItems.map((item) => `${item.key} ${item.label}`).join(" · ");
 const shortcutHintButtonText = `Shortcuts (${shortcutTriggerKey})`;
+const shortcutPanelListHtml = shortcutGuideItems
+  .map((item) => `<li><kbd>${item.key}</kbd><span>${item.label}</span></li>`)
+  .join("");
 const queuePreviewLabels = {
   archive: "Preview Archive",
   retry: "Preview Retry",
@@ -80,6 +83,67 @@ const html = `<!doctype html>
       .panel-subtitle { margin: 6px 0 10px; font-size: 12px; color: #64748b; }
       .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
       .controls .muted { color: #e2e8f0; }
+      .shortcut-panel-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.58);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        z-index: 80;
+      }
+      .shortcut-panel {
+        width: min(560px, 100%);
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.45);
+        background: linear-gradient(165deg, #0b1224 0%, #1e293b 100%);
+        color: #e2e8f0;
+        box-shadow: 0 20px 48px rgba(15, 23, 42, 0.45);
+        padding: 14px;
+      }
+      .shortcut-panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .shortcut-panel-head h3 {
+        margin: 0;
+        font-size: 16px;
+        color: #f8fafc;
+      }
+      .shortcut-panel .muted {
+        color: #cbd5e1;
+        margin: 8px 0 10px;
+      }
+      .shortcut-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
+      }
+      .shortcut-list li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        border-radius: 10px;
+        padding: 8px 10px;
+        background: rgba(15, 23, 42, 0.35);
+      }
+      .shortcut-list kbd {
+        min-width: 26px;
+        text-align: center;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px;
+        border-radius: 6px;
+        border: 1px solid rgba(191, 219, 254, 0.45);
+        background: rgba(30, 64, 175, 0.36);
+        color: #eff6ff;
+        padding: 3px 6px;
+      }
       button {
         padding: 7px 11px;
         border-radius: 10px;
@@ -484,7 +548,7 @@ const html = `<!doctype html>
         </label>
         <input id="queryInput" placeholder="Search title/domain/intent (press /)" />
         <span class="muted">${shortcutDiscoveryText}</span>
-        <button id="shortcutHintBtn" type="button" title="${shortcutSummaryText}" aria-label="${shortcutSummaryText}">${shortcutHintButtonText}</button>
+        <button id="shortcutHintBtn" type="button" title="${shortcutSummaryText}" aria-label="${shortcutSummaryText}" aria-expanded="false">${shortcutHintButtonText}</button>
         <select id="statusFilter">
           <option value="">All Status</option>
           <option value="CAPTURED">CAPTURED</option>
@@ -528,6 +592,16 @@ const html = `<!doctype html>
         <button class="primary" id="refreshBtn">Refresh</button>
       </div>
     </header>
+    <div id="shortcutPanelBackdrop" class="shortcut-panel-backdrop" hidden>
+      <section id="shortcutPanel" class="shortcut-panel" role="dialog" aria-modal="true" aria-labelledby="shortcutPanelTitle">
+        <div class="shortcut-panel-head">
+          <h3 id="shortcutPanelTitle">Shortcut Guide</h3>
+          <button id="shortcutPanelCloseBtn" type="button">Close</button>
+        </div>
+        <p class="muted">Use these keys to move from reading to doing faster.</p>
+        <ul id="shortcutPanelList" class="shortcut-list">${shortcutPanelListHtml}</ul>
+      </section>
+    </div>
     <main>
       <section>
         <h2>Decision Queue</h2>
@@ -581,6 +655,8 @@ const html = `<!doctype html>
       const resetControlsBtn = document.getElementById("resetControlsBtn");
       const queryInput = document.getElementById("queryInput");
       const shortcutHintBtn = document.getElementById("shortcutHintBtn");
+      const shortcutPanelBackdropEl = document.getElementById("shortcutPanelBackdrop");
+      const shortcutPanelCloseBtn = document.getElementById("shortcutPanelCloseBtn");
       const statusFilter = document.getElementById("statusFilter");
       const retryableFilter = document.getElementById("retryableFilter");
       const failureStepFilter = document.getElementById("failureStepFilter");
@@ -3071,6 +3147,16 @@ const html = `<!doctype html>
         });
       }
 
+      function bindShortcutPanelDismissActions() {
+        shortcutPanelCloseBtn?.addEventListener("click", () => {
+          hideShortcutHint({ restoreFocus: true });
+        });
+        shortcutPanelBackdropEl?.addEventListener("click", (event) => {
+          if (event.target !== shortcutPanelBackdropEl) return;
+          hideShortcutHint({ restoreFocus: true });
+        });
+      }
+
       function bindDetailModeActions() {
         detailFocusModeBtn?.addEventListener("click", () => {
           setDetailAdvancedEnabled(false);
@@ -3092,8 +3178,32 @@ const html = `<!doctype html>
         });
       }
 
+      function isShortcutPanelOpen() {
+        return Boolean(shortcutPanelBackdropEl && !shortcutPanelBackdropEl.hidden);
+      }
+
+      function setShortcutPanelOpen(open, options = {}) {
+        if (!shortcutPanelBackdropEl) return;
+        shortcutPanelBackdropEl.hidden = !open;
+        shortcutHintBtn?.setAttribute("aria-expanded", open ? "true" : "false");
+        if (open) {
+          if (options.focusPanel !== false) {
+            shortcutPanelCloseBtn?.focus();
+          }
+          return;
+        }
+        if (options.restoreFocus) {
+          shortcutHintBtn?.focus();
+        }
+      }
+
+      function hideShortcutHint(options = {}) {
+        setShortcutPanelOpen(false, options);
+      }
+
       function showShortcutHint() {
         const hint = ${JSON.stringify(shortcutSummaryText)};
+        setShortcutPanelOpen(true);
         setActionFeedbackPair("done", hint, queueActionBannerEl);
       }
 
@@ -3107,6 +3217,10 @@ const html = `<!doctype html>
 
       const shortcutActionMap = {
         [SHORTCUT_TRIGGER_KEY]: () => {
+          if (isShortcutPanelOpen()) {
+            hideShortcutHint();
+            return;
+          }
           showShortcutHint();
         },
         "/": () => {
@@ -3130,6 +3244,13 @@ const html = `<!doctype html>
 
       function handleGlobalShortcutKey(event) {
         const key = event.key.toLowerCase();
+        if (isShortcutPanelOpen()) {
+          if (key === "escape" || key === SHORTCUT_TRIGGER_KEY.toLowerCase()) {
+            event.preventDefault();
+            hideShortcutHint();
+          }
+          return;
+        }
         const action = shortcutActionByKey(key);
         if (!action) return;
         event.preventDefault();
@@ -3385,6 +3506,7 @@ const html = `<!doctype html>
         bindConfigList(queueControlChangeConfigs, bindQueueControlChange);
         bindSearchInputActions(queryInput);
         bindShortcutHintAction(shortcutHintBtn);
+        bindShortcutPanelDismissActions();
         bindFocusChipActions(focusChipsEl);
         bindDetailModeActions();
         bindConfigList(listFilterChangeConfigs, bindListFilterChangeConfig);
