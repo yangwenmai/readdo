@@ -3029,6 +3029,12 @@ const html = `<!doctype html>
         refreshItemsWithErrorHandling();
       }
 
+      function startQueueRuntime() {
+        initializeQueueBootstrap();
+        bindAutoRefreshToggle(autoRefreshToggle);
+        bindGlobalKeyboardShortcuts();
+      }
+
       async function withActionError(errorPrefix, action, onError = null) {
         try {
           return await action();
@@ -3212,7 +3218,6 @@ const html = `<!doctype html>
 
       setupQueueActionBindings();
       setupQueueInteractionBindings();
-      initializeQueueBootstrap();
 
       function setAutoRefresh(enabled) {
         if (autoRefreshTimer) {
@@ -3225,9 +3230,7 @@ const html = `<!doctype html>
           }, 5000);
         }
       }
-
-      bindAutoRefreshToggle(autoRefreshToggle);
-      bindGlobalKeyboardShortcuts();
+      startQueueRuntime();
     </script>
   </body>
 </html>`;
