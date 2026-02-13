@@ -424,6 +424,10 @@ const html = `<!doctype html>
       <section>
         <h2>Detail</h2>
         <p class="panel-subtitle">查看结构化工件、版本差异与导出记录，快速完成从想法到交付。</p>
+        <div id="detailModeChips" class="focus-chips">
+          <button id="detailFocusModeBtn" type="button" class="focus-chip active">Focus Mode</button>
+          <button id="detailAdvancedModeBtn" type="button" class="focus-chip">Advanced Panels</button>
+        </div>
         <div id="detailSectionNav" class="focus-chips" style="display:none;"></div>
         <div id="detail" class="empty">Select one item from the list.</div>
       </section>
@@ -432,6 +436,9 @@ const html = `<!doctype html>
       const API_BASE = ${JSON.stringify(apiBase)};
       const inboxEl = document.getElementById("inbox");
       const detailEl = document.getElementById("detail");
+      const detailModeChipsEl = document.getElementById("detailModeChips");
+      const detailFocusModeBtn = document.getElementById("detailFocusModeBtn");
+      const detailAdvancedModeBtn = document.getElementById("detailAdvancedModeBtn");
       const detailSectionNavEl = document.getElementById("detailSectionNav");
       const errorEl = document.getElementById("error");
       const queueHighlightsEl = document.getElementById("queueHighlights");
@@ -466,6 +473,7 @@ const html = `<!doctype html>
       let isLoadingItems = false;
       let autoRefreshTimer = null;
       let previewContinuation = null;
+      let detailAdvancedEnabled = false;
       const controlsStorageKey = "readdo.web.controls.v1";
       const controlDefaults = {
         q: "",
@@ -477,6 +485,7 @@ const html = `<!doctype html>
         batch_limit: 100,
         preview_offset: 0,
         auto_refresh: false,
+        detail_advanced: false,
       };
 
       function statusByFocusChip(focus) {
@@ -526,6 +535,21 @@ const html = `<!doctype html>
         detailSectionNavEl.style.display = "none";
       }
 
+      function syncDetailModeChips() {
+        if (!detailModeChipsEl) return;
+        detailFocusModeBtn?.classList.toggle("active", !detailAdvancedEnabled);
+        detailAdvancedModeBtn?.classList.toggle("active", detailAdvancedEnabled);
+      }
+
+      function setDetailAdvancedEnabled(enabled, rerender = true) {
+        detailAdvancedEnabled = Boolean(enabled);
+        syncDetailModeChips();
+        persistControls();
+        if (rerender && selectedDetail) {
+          renderDetailFromPayload(selectedDetail);
+        }
+      }
+
       function addDetailSectionNav(label, sectionId) {
         if (!detailSectionNavEl) return;
         const btn = document.createElement("button");
@@ -573,6 +597,7 @@ const html = `<!doctype html>
             batch_limit: normalizedBatchLimit(),
             preview_offset: normalizedPreviewOffset(),
             auto_refresh: Boolean(autoRefreshToggle.checked),
+            detail_advanced: Boolean(detailAdvancedEnabled),
           };
           localStorage.setItem(controlsStorageKey, JSON.stringify(payload));
         } catch {
@@ -598,6 +623,8 @@ const html = `<!doctype html>
             previewOffsetInput.value = String(Math.max(Number(payload.preview_offset), 0));
           }
           autoRefreshToggle.checked = Boolean(payload?.auto_refresh);
+          detailAdvancedEnabled = Boolean(payload?.detail_advanced);
+          syncDetailModeChips();
         } catch {
           // ignore malformed storage payloads
         }
@@ -613,6 +640,8 @@ const html = `<!doctype html>
         batchLimitInput.value = String(controlDefaults.batch_limit);
         previewOffsetInput.value = String(controlDefaults.preview_offset);
         autoRefreshToggle.checked = controlDefaults.auto_refresh;
+        detailAdvancedEnabled = controlDefaults.detail_advanced;
+        syncDetailModeChips();
       }
 
       function clearListFilters() {
@@ -1114,34 +1143,11 @@ const html = `<!doctype html>
         }
       }
 
-      async function selectItem(id) {
-        selectedId = id;
-        if (allItems.length) {
-          renderInbox(allItems);
-        }
-        clearDetailSectionNav();
-        detailEl.innerHTML = '<div class="item-card"><div class="muted">Loading detail…</div></div>';
-        let detail;
-        try {
-          detail = await request("/items/" + id + "?include_history=true");
-        } catch (err) {
-          detailEl.innerHTML = '<div class="empty">Failed to load detail. Try refresh.</div>';
-          throw err;
-        }
-        selectedDetail = detail;
-        detailEl.innerHTML = "";
-
-        const wrap = document.createElement("div");
-        wrap.innerHTML = \`
-          <div class="item-card priority-\${priorityTone(detail.item.priority)}">
-            <div class="item-head">
-              <span class="status status-\${statusTone(detail.item.status)}">\${detail.item.status}</span>
-              <span class="muted">\${detail.item.priority || "N/A"} · \${detail.item.match_score ?? "—"}</span>
-            </div>
-            <div class="intent">\${detail.item.intent_text}</div>
-            <div>\${detail.item.title || detail.item.url}</div>
-            <div class="muted">\${detail.item.domain || ""}</div>
-          </div>
+      function renderRawDebugPanel(detail) {
+        const card = document.createElement("div");
+        card.className = "item-card";
+        card.innerHTML = \`
+          <h3>Raw Debug JSON</h3>
           <details class="raw-panel">
             <summary>Artifacts JSON</summary>
             <pre>\${JSON.stringify(detail.artifacts || {}, null, 2)}</pre>
@@ -1155,14 +1161,76 @@ const html = `<!doctype html>
             <pre>\${JSON.stringify(detail.failure || null, null, 2)}</pre>
           </details>
         \`;
+        appendDetailSection("detail-raw-json", "Raw JSON", "调试与排障专用视图", card, false);
+      }
+
+      function renderAdvancedHintCard() {
+        const card = document.createElement("div");
+        card.className = "item-card";
+        card.innerHTML = \`
+          <h3>Advanced Panels Hidden</h3>
+          <div class="muted">当前为 Focus Mode。版本对比、意图编辑、工件编辑与原始 JSON 已收起。</div>
+          <div class="editor-row">
+            <button id="enableAdvancedPanelsBtn" type="button">Enable Advanced Panels</button>
+          </div>
+        \`;
+        const enableBtn = card.querySelector("#enableAdvancedPanelsBtn");
+        enableBtn?.addEventListener("click", () => {
+          setDetailAdvancedEnabled(true);
+        });
+        card.id = "detail-advanced-hint";
+        detailEl.appendChild(card);
+        addDetailSectionNav("Advanced", "detail-advanced-hint");
+      }
+
+      function renderDetailFromPayload(detail) {
+        selectedDetail = detail;
+        clearDetailSectionNav();
+        detailEl.innerHTML = "";
+
+        const wrap = document.createElement("div");
+        wrap.innerHTML = \`
+          <div class="item-card priority-\${priorityTone(detail.item.priority)}">
+            <div class="item-head">
+              <span class="status status-\${statusTone(detail.item.status)}">\${detail.item.status}</span>
+              <span class="muted">\${detail.item.priority || "N/A"} · \${detail.item.match_score ?? "—"}</span>
+            </div>
+            <div class="intent">\${detail.item.intent_text}</div>
+            <div>\${detail.item.title || detail.item.url}</div>
+            <div class="muted">\${detail.item.domain || ""}</div>
+          </div>
+        \`;
         detailEl.appendChild(wrap);
         renderDetailAha(detail);
         renderDetailQuickActions(detail);
         renderFailureGuidance(detail);
         renderExportPanel(detail);
-        renderArtifactVersionViewer(detail);
-        renderIntentEditor(detail);
-        renderArtifactEditor(detail);
+
+        if (detailAdvancedEnabled) {
+          renderArtifactVersionViewer(detail);
+          renderIntentEditor(detail);
+          renderArtifactEditor(detail);
+          renderRawDebugPanel(detail);
+        } else {
+          renderAdvancedHintCard();
+        }
+        syncDetailModeChips();
+      }
+
+      async function selectItem(id) {
+        selectedId = id;
+        if (allItems.length) {
+          renderInbox(allItems);
+        }
+        detailEl.innerHTML = '<div class="item-card"><div class="muted">Loading detail…</div></div>';
+        let detail;
+        try {
+          detail = await request("/items/" + id + "?include_history=true");
+        } catch (err) {
+          detailEl.innerHTML = '<div class="empty">Failed to load detail. Try refresh.</div>';
+          throw err;
+        }
+        renderDetailFromPayload(detail);
       }
 
       function renderFailureGuidance(detail) {
@@ -2566,6 +2634,14 @@ const html = `<!doctype html>
           });
         });
       }
+
+      detailFocusModeBtn?.addEventListener("click", () => {
+        setDetailAdvancedEnabled(false);
+      });
+
+      detailAdvancedModeBtn?.addEventListener("click", () => {
+        setDetailAdvancedEnabled(true);
+      });
 
       statusFilter.addEventListener("change", async () => {
         try {
