@@ -20,6 +20,9 @@ const shortcutGuideItems = [
   { key: "2", label: "Focus pipeline step" },
   { key: "3", label: "Focus export step" },
   { key: "0", label: "Focus unknown step" },
+  { key: "Alt+1", label: "Focus Priority Smart" },
+  { key: "Alt+2", label: "Focus Priority Query First" },
+  { key: "Alt+3", label: "Focus Priority Step First" },
   { key: "R", label: "Refresh" },
   { key: shortcutTriggerKey, label: "Show shortcuts" },
 ];
@@ -1895,6 +1898,23 @@ const html = `<!doctype html>
           renderRecoveryRadar(currentSummary);
         }
         const modeLabel = recoveryContextFocusModeLabel(nextMode);
+        setActionFeedbackPair("done", "Focus Priority: " + modeLabel, queueActionBannerEl);
+        errorEl.textContent = "Context focus mode: " + modeLabel + ".";
+      }
+
+      function setRecoveryContextFocusModeFromShortcut(mode) {
+        const changed = setRecoveryContextFocusMode(mode);
+        const modeLabel = recoveryContextFocusModeLabel(mode);
+        if (!changed) {
+          setActionFeedbackPair("done", "Focus Priority: " + modeLabel, queueActionBannerEl);
+          errorEl.textContent = "Context focus mode already: " + modeLabel + ".";
+          return;
+        }
+        persistControls();
+        const currentSummary = activeRecoverySummary();
+        if (currentSummary) {
+          renderRecoveryRadar(currentSummary);
+        }
         setActionFeedbackPair("done", "Focus Priority: " + modeLabel, queueActionBannerEl);
         errorEl.textContent = "Context focus mode: " + modeLabel + ".";
       }
@@ -5259,6 +5279,21 @@ const html = `<!doctype html>
         if (key === "p" && event.shiftKey) {
           event.preventDefault();
           cycleRecoveryContextFocusMode("previous");
+          return;
+        }
+        if (event.altKey && key === "1") {
+          event.preventDefault();
+          setRecoveryContextFocusModeFromShortcut("smart");
+          return;
+        }
+        if (event.altKey && key === "2") {
+          event.preventDefault();
+          setRecoveryContextFocusModeFromShortcut("query_first");
+          return;
+        }
+        if (event.altKey && key === "3") {
+          event.preventDefault();
+          setRecoveryContextFocusModeFromShortcut("step_first");
           return;
         }
         if (key === "g" && event.shiftKey) {
