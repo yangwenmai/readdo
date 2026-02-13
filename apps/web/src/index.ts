@@ -1033,7 +1033,7 @@ const html = `<!doctype html>
       async function exportItem(id) {
         try {
           const requestId = crypto.randomUUID();
-          await request("/items/" + id + "/export", {
+          const response = await request("/items/" + id + "/export", {
             method: "POST",
             body: JSON.stringify({
               export_key: "web_" + requestId,
@@ -1041,10 +1041,13 @@ const html = `<!doctype html>
             }),
             headers: { "Idempotency-Key": requestId }
           });
+          if (response?.idempotent_replay === true) {
+            errorEl.textContent = "Export request replayed by idempotency key.";
+          }
         } catch (err) {
           if (err?.code === "EXPORT_RENDER_FAILED") {
             const fallbackRequestId = crypto.randomUUID();
-            await request("/items/" + id + "/export", {
+            const fallbackResponse = await request("/items/" + id + "/export", {
               method: "POST",
               body: JSON.stringify({
                 export_key: "web_fallback_" + fallbackRequestId,
@@ -1052,7 +1055,10 @@ const html = `<!doctype html>
               }),
               headers: { "Idempotency-Key": fallbackRequestId }
             });
-            errorEl.textContent = "PNG failed; fallback export (md+caption) succeeded.";
+            errorEl.textContent =
+              fallbackResponse?.idempotent_replay === true
+                ? "PNG failed; fallback export replayed by idempotency key."
+                : "PNG failed; fallback export (md+caption) succeeded.";
           } else {
             throw err;
           }
