@@ -1420,11 +1420,21 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       }
     }
 
+    const ts = nowIso();
+    const updateRes = db
+      .prepare("UPDATE items SET status = 'QUEUED', updated_at = ?, failure_json = NULL WHERE id = ? AND status = ?")
+      .run(ts, id, item.status);
+    if (updateRes.changes === 0) {
+      return reply.status(409).send(
+        failure("STATE_CONFLICT", "Item status changed before queueing, please retry", {
+          item_id: id,
+          status: item.status,
+          mode,
+        }),
+      );
+    }
     const processKey = String(request.headers["idempotency-key"] ?? body.process_request_id ?? `manual_${nanoid(8)}`);
     createProcessJob(db, id, `process:${id}:${mode}:${processKey}`);
-
-    const ts = nowIso();
-    db.prepare("UPDATE items SET status = 'QUEUED', updated_at = ?, failure_json = NULL WHERE id = ?").run(ts, id);
 
     return reply.status(202).send({
       item: {

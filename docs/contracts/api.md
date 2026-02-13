@@ -724,7 +724,7 @@ options（MVP 可选）：
 
 * 404 NOT_FOUND
 * 409 PROCESSING_IN_PROGRESS
-* 409 STATE_CONFLICT（不允许的状态）
+* 409 STATE_CONFLICT（不允许的状态，或并发条件下状态在入队前发生变化）
 * 409 RETRY_LIMIT_REACHED（失败重试已达上限）
 
 ---
