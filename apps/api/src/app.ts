@@ -788,11 +788,11 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       if (dryRun) {
         continue;
       }
-      createProcessJob(db, item.id, `batch-retry:${item.id}:${nanoid(8)}`);
       const updateRes = db
         .prepare("UPDATE items SET status = 'QUEUED', updated_at = ?, failure_json = NULL WHERE id = ? AND status = ?")
         .run(ts, item.id, item.status);
       if (updateRes.changes > 0) {
+        createProcessJob(db, item.id, `batch-retry:${item.id}:${nanoid(8)}`);
         queued += 1;
         queuedItemIds.push(item.id);
       }
