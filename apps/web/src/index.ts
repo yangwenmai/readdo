@@ -102,6 +102,36 @@ const html = `<!doctype html>
       .status-default { background: #eef2ff; color: #3730a3; border-color: #e0e7ff; }
       .actions { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
       .actions button:disabled { cursor: not-allowed; opacity: 0.6; transform: none; box-shadow: none; }
+      .quick-action-grid {
+        margin-top: 8px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .quick-action-group {
+        border: 1px solid #dbeafe;
+        border-radius: 10px;
+        padding: 8px;
+        background: #f8fbff;
+      }
+      .quick-action-group h4 {
+        margin: 0 0 4px;
+        font-size: 12px;
+        color: #1e3a8a;
+      }
+      .quick-action-group .muted {
+        display: block;
+        margin-bottom: 6px;
+      }
+      .quick-action-group .actions {
+        margin-top: 0;
+      }
+      .action-feedback {
+        margin-top: 8px;
+      }
+      .action-feedback.pending { color: #1d4ed8; }
+      .action-feedback.done { color: #166534; }
+      .action-feedback.error { color: #b91c1c; }
       .group-title {
         margin: 12px 0 6px;
         font-size: 13px;
@@ -342,6 +372,7 @@ const html = `<!doctype html>
       @media (max-width: 900px) {
         .detail-aha-grid { grid-template-columns: 1fr; }
         .export-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .quick-action-grid { grid-template-columns: 1fr; }
       }
       @media (max-width: 1100px) {
         main { grid-template-columns: 1fr; min-height: auto; }
@@ -888,27 +919,27 @@ const html = `<!doctype html>
 
       function buttonsFor(item) {
         const ops = [];
-        ops.push({ label: "Detail", action: () => selectItem(item.id) });
+        ops.push({ label: "Detail", action: () => selectItem(item.id), group: "view" });
         if (item.status === "READY") {
-          ops.push({ label: "Regenerate", action: () => processItem(item.id, "REGENERATE") });
+          ops.push({ label: "Regenerate", action: () => processItem(item.id, "REGENERATE"), group: "process" });
         } else if (["FAILED_EXTRACTION", "FAILED_AI", "FAILED_EXPORT"].includes(item.status)) {
           const info = retryInfo(item);
           if (info.retryable) {
             const suffix = info.remaining == null ? "" : " (" + info.remaining + " left)";
-            ops.push({ label: "Retry" + suffix, action: () => processItem(item.id, "RETRY") });
+            ops.push({ label: "Retry" + suffix, action: () => processItem(item.id, "RETRY"), group: "process" });
           } else {
-            ops.push({ label: "Retry Limit Reached", action: () => {}, disabled: true });
+            ops.push({ label: "Retry Limit Reached", action: () => {}, disabled: true, group: "process" });
           }
         } else if (item.status === "CAPTURED") {
-          ops.push({ label: "Process", action: () => processItem(item.id, "PROCESS") });
+          ops.push({ label: "Process", action: () => processItem(item.id, "PROCESS"), group: "process" });
         }
         if (["READY", "SHIPPED", "FAILED_EXPORT"].includes(item.status)) {
-          ops.push({ label: item.status === "SHIPPED" ? "Re-export" : "Export", action: () => exportItem(item.id) });
+          ops.push({ label: item.status === "SHIPPED" ? "Re-export" : "Export", action: () => exportItem(item.id), group: "ship" });
         }
         if (item.status === "ARCHIVED") {
-          ops.push({ label: "Unarchive", action: () => unarchiveItem(item.id) });
+          ops.push({ label: "Unarchive", action: () => unarchiveItem(item.id), group: "maintain" });
         } else if (item.status !== "PROCESSING") {
-          ops.push({ label: "Archive", action: () => archiveItem(item.id) });
+          ops.push({ label: "Archive", action: () => archiveItem(item.id), group: "maintain" });
         }
         return ops;
       }
@@ -1047,27 +1078,61 @@ const html = `<!doctype html>
         card.innerHTML = \`
           <h3>Quick Actions</h3>
           <div class="muted">无需回到列表，直接在详情完成处理、导出与归档。</div>
-          <div class="actions" id="detailQuickActions"></div>
+          <div class="quick-action-grid" id="detailQuickActions"></div>
+          <div class="muted action-feedback" id="detailQuickActionMsg">Ready.</div>
         \`;
         const actionEl = card.querySelector("#detailQuickActions");
-        for (const op of ops) {
-          const btn = document.createElement("button");
-          btn.textContent = op.label;
-          btn.disabled = Boolean(op.disabled);
-          btn.addEventListener("click", async () => {
-            if (op.disabled) return;
-            const previousDisabled = btn.disabled;
-            btn.disabled = true;
-            try {
-              errorEl.textContent = "";
-              await op.action();
-            } catch (err) {
-              errorEl.textContent = String(err);
-            } finally {
-              btn.disabled = previousDisabled;
-            }
-          });
-          actionEl.appendChild(btn);
+        const msgEl = card.querySelector("#detailQuickActionMsg");
+        const groupDefs = [
+          { key: "process", title: "Process & Regenerate", hint: "生成或重试核心产物" },
+          { key: "ship", title: "Ship & Export", hint: "导出可交付文件" },
+          { key: "maintain", title: "Maintain Queue", hint: "归档与状态维护" },
+        ];
+        const quickButtons = [];
+        function setButtonsDisabled(nextDisabled) {
+          for (const button of quickButtons) {
+            button.disabled = nextDisabled || button.dataset.locked === "true";
+          }
+        }
+        for (const groupDef of groupDefs) {
+          const groupOps = ops.filter((op) => (op.group || "maintain") === groupDef.key);
+          if (!groupOps.length) continue;
+          const groupEl = document.createElement("div");
+          groupEl.className = "quick-action-group";
+          groupEl.innerHTML = '<h4>' + groupDef.title + '</h4><span class="muted">' + groupDef.hint + '</span><div class="actions"></div>';
+          const groupActionEl = groupEl.querySelector(".actions");
+          for (const op of groupOps) {
+            const btn = document.createElement("button");
+            btn.textContent = op.label;
+            const locked = Boolean(op.disabled);
+            btn.disabled = locked;
+            btn.dataset.locked = locked ? "true" : "false";
+            quickButtons.push(btn);
+            btn.addEventListener("click", async () => {
+              if (op.disabled) return;
+              const initialLabel = btn.textContent;
+              setButtonsDisabled(true);
+              btn.textContent = "Working…";
+              msgEl.textContent = "Running: " + initialLabel;
+              msgEl.className = "muted action-feedback pending";
+              try {
+                errorEl.textContent = "";
+                await op.action();
+                msgEl.textContent = "Completed: " + initialLabel;
+                msgEl.className = "muted action-feedback done";
+              } catch (err) {
+                const message = String(err);
+                msgEl.textContent = "Failed: " + initialLabel + " — " + message;
+                msgEl.className = "muted action-feedback error";
+                errorEl.textContent = message;
+              } finally {
+                btn.textContent = initialLabel;
+                setButtonsDisabled(false);
+              }
+            });
+            groupActionEl.appendChild(btn);
+          }
+          actionEl.appendChild(groupEl);
         }
         card.id = "detail-quick-actions";
         detailEl.appendChild(card);
