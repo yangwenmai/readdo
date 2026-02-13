@@ -1069,6 +1069,10 @@ const html = `<!doctype html>
           .sort((a, b) => Number(a.priority ?? 100) - Number(b.priority ?? 100));
       }
 
+      function detailOpsFor(item) {
+        return buttonsFor(item).filter((op) => op.id !== "detail");
+      }
+
       function renderItem(item) {
         const card = document.createElement("div");
         const isSelected = selectedId === item.id;
@@ -1198,9 +1202,20 @@ const html = `<!doctype html>
         addDetailSectionNav("Snapshot", "detail-snapshot");
       }
 
-      function renderDetailQuickActions(detail) {
-        const ops = buttonsFor(detail.item).filter((op) => op.label !== "Detail");
-        if (!ops.length) return;
+      function renderDetailQuickActions(detail, detailOps, hiddenActionIds = new Set()) {
+        const ops = detailOps.filter((op) => !hiddenActionIds.has(op.id));
+        if (!ops.length) {
+          const emptyCard = document.createElement("div");
+          emptyCard.className = "item-card";
+          emptyCard.innerHTML = \`
+            <h3>Quick Actions</h3>
+            <div class="muted">Top actions are pinned in the header. Open Advanced Panels for deeper controls.</div>
+          \`;
+          emptyCard.id = "detail-quick-actions";
+          detailEl.appendChild(emptyCard);
+          addDetailSectionNav("Quick Actions", "detail-quick-actions");
+          return;
+        }
 
         const card = document.createElement("div");
         card.className = "item-card";
@@ -1413,11 +1428,12 @@ const html = `<!doctype html>
         appendDetailSection("detail-raw-json", "Raw JSON", "调试与排障专用视图", card, false);
       }
 
-      function renderDetailHeroActions(detail, hostEl) {
+      function renderDetailHeroActions(detail, hostEl, detailOps) {
         const actionHost = hostEl.querySelector("#detailHeroActions");
-        if (!actionHost) return;
-        const ops = buttonsFor(detail.item).filter((op) => op.id !== "detail");
-        if (!ops.length) return;
+        const usedIds = new Set();
+        if (!actionHost) return usedIds;
+        const ops = detailOps;
+        if (!ops.length) return usedIds;
         actionHost.innerHTML = '<div class="muted">Primary Next Step</div>';
         const primaryOp = ops.find((op) => op.is_primary) || ops[0];
         const secondaryOp = ops.find((op) => op.id === "archive" || op.id === "unarchive");
@@ -1445,7 +1461,9 @@ const html = `<!doctype html>
             }
           });
           actionHost.appendChild(btn);
+          usedIds.add(op.id);
         }
+        return usedIds;
       }
 
       function renderAdvancedHintCard() {
@@ -1486,11 +1504,12 @@ const html = `<!doctype html>
           </div>
         \`;
         detailEl.appendChild(wrap);
-        renderDetailHeroActions(detail, wrap);
+        const detailOps = detailOpsFor(detail.item);
+        const heroActionIds = renderDetailHeroActions(detail, wrap, detailOps);
         renderDetailAha(detail);
-        renderDetailQuickActions(detail);
-        renderFailureGuidance(detail);
-        renderExportPanel(detail);
+        renderDetailQuickActions(detail, detailOps, heroActionIds);
+        renderFailureGuidance(detail, heroActionIds, detailOps);
+        renderExportPanel(detail, heroActionIds, detailOps);
 
         if (detailAdvancedEnabled) {
           renderArtifactVersionViewer(detail);
@@ -1519,7 +1538,7 @@ const html = `<!doctype html>
         renderDetailFromPayload(detail);
       }
 
-      function renderFailureGuidance(detail) {
+      function renderFailureGuidance(detail, heroActionIds = new Set(), detailOps = []) {
         const failure = detail.failure || null;
         if (!failure) return;
 
@@ -1555,6 +1574,7 @@ const html = `<!doctype html>
         \`;
         const coachListEl = card.querySelector("#failureCoachList");
         const coachActionsEl = card.querySelector("#failureCoachActions");
+        const actionMap = new Map(detailOps.map((op) => [op.id, op]));
         const steps = [];
         let primaryAction = null;
         if (failure.failed_step === "extract") {
@@ -1562,21 +1582,21 @@ const html = `<!doctype html>
           steps.push("If content is dynamic, try another source URL or capture again.");
           steps.push("Retry after confirming network accessibility.");
           if (retryable) {
-            primaryAction = { label: "Retry Extraction", run: () => processItem(detail.item.id, "RETRY") };
+            primaryAction = actionMap.get("retry") || { id: "retry", label: "Retry Extraction", action: () => processItem(detail.item.id, "RETRY") };
           }
         } else if (failure.failed_step === "pipeline") {
           steps.push("Refine intent so the expected output is concrete and narrow.");
           steps.push("Use Regenerate to re-run the structured pipeline.");
           steps.push("If repeatedly failing, edit artifact in Advanced mode.");
           if (retryable) {
-            primaryAction = { label: "Run Regenerate", run: () => processItem(detail.item.id, "REGENERATE") };
+            primaryAction = actionMap.get("retry") || { id: "retry", label: "Retry Pipeline", action: () => processItem(detail.item.id, "RETRY") };
           }
         } else if (failure.failed_step === "export") {
           steps.push("Keep md/caption output available while PNG rendering recovers.");
           steps.push("Re-export to regenerate missing files.");
           steps.push("Open latest export artifact to verify render output.");
           if (retryable) {
-            primaryAction = { label: "Retry Export", run: () => exportItem(detail.item.id) };
+            primaryAction = actionMap.get("export") || { id: "export", label: "Retry Export", action: () => exportItem(detail.item.id) };
           }
         } else {
           steps.push("Inspect failure code and message for immediate cause.");
@@ -1584,23 +1604,26 @@ const html = `<!doctype html>
         }
         if (!retryable) {
           steps.push("Retry is blocked. Switch to Advanced Panels and edit intent/artifacts before rerun.");
-          primaryAction = { label: "Open Advanced Panels", run: () => setDetailAdvancedEnabled(true) };
+          primaryAction = { id: "open_advanced", label: "Open Advanced Panels", action: () => setDetailAdvancedEnabled(true) };
         }
         for (const step of steps) {
           const li = document.createElement("li");
           li.textContent = step;
           coachListEl.appendChild(li);
         }
-        if (primaryAction) {
+        if (primaryAction && !heroActionIds.has(primaryAction.id)) {
           const btn = document.createElement("button");
           btn.type = "button";
           btn.textContent = primaryAction.label;
+          if (primaryAction.id === "open_advanced") {
+            btn.classList.add("primary");
+          }
           btn.addEventListener("click", async () => {
             const previous = btn.disabled;
             btn.disabled = true;
             try {
               errorEl.textContent = "";
-              await primaryAction.run();
+              await primaryAction.action();
             } catch (err) {
               errorEl.textContent = String(err);
             } finally {
@@ -1608,11 +1631,13 @@ const html = `<!doctype html>
             }
           });
           coachActionsEl.appendChild(btn);
+        } else if (primaryAction) {
+          coachActionsEl.innerHTML = '<span class="muted">Primary action is already pinned in header: ' + primaryAction.label + ".</span>";
         }
         appendDetailSection("detail-failure", "Failure Guidance", "失败原因与恢复建议", card, true);
       }
 
-      function renderExportPanel(detail) {
+      function renderExportPanel(detail, heroActionIds = new Set(), detailOps = []) {
         const exportHistory = detail.artifact_history?.export ?? [];
         const panel = document.createElement("div");
         panel.className = "item-card";
@@ -1684,6 +1709,7 @@ const html = `<!doctype html>
         const listEl = panel.querySelector("#exportRecordList");
         const exportCoachListEl = panel.querySelector("#exportCoachList");
         const exportCoachActionsEl = panel.querySelector("#exportCoachActions");
+        const actionMap = new Map(detailOps.map((op) => [op.id, op]));
         const copyLatestBtn = panel.querySelector("#copyLatestPathsBtn");
         const openLatestBtn = panel.querySelector("#openLatestFileBtn");
         const exportSteps = [];
@@ -1691,15 +1717,15 @@ const html = `<!doctype html>
         if (status === "READY") {
           exportSteps.push("Run export now to produce shareable PNG/MD/CAPTION assets.");
           exportSteps.push("Review generated files and copy paths for downstream sharing.");
-          exportPrimaryAction = { label: "Export Now", run: () => exportItem(detail.item.id) };
+          exportPrimaryAction = actionMap.get("export") || { id: "export", label: "Export Now", action: () => exportItem(detail.item.id) };
         } else if (status === "FAILED_EXPORT") {
           exportSteps.push("Retry export to regenerate missing artifacts.");
           exportSteps.push("Open latest file to inspect renderer output differences.");
-          exportPrimaryAction = { label: "Retry Export", run: () => exportItem(detail.item.id) };
+          exportPrimaryAction = actionMap.get("export") || { id: "export", label: "Retry Export", action: () => exportItem(detail.item.id) };
         } else if (status === "SHIPPED") {
           exportSteps.push("Use latest file link for immediate sharing.");
           exportSteps.push("Re-export if intent/artifacts changed and you need a fresh card.");
-          exportPrimaryAction = { label: "Re-export", run: () => exportItem(detail.item.id) };
+          exportPrimaryAction = actionMap.get("reexport") || { id: "reexport", label: "Re-export", action: () => exportItem(detail.item.id) };
         } else {
           exportSteps.push("Generate artifacts first, then export from READY state.");
           exportSteps.push("Use Quick Actions to process/regenerate before shipping.");
@@ -1709,7 +1735,7 @@ const html = `<!doctype html>
           li.textContent = step;
           exportCoachListEl.appendChild(li);
         }
-        if (exportPrimaryAction) {
+        if (exportPrimaryAction && !heroActionIds.has(exportPrimaryAction.id)) {
           const btn = document.createElement("button");
           btn.type = "button";
           btn.textContent = exportPrimaryAction.label;
@@ -1718,7 +1744,7 @@ const html = `<!doctype html>
             btn.disabled = true;
             try {
               errorEl.textContent = "";
-              await exportPrimaryAction.run();
+              await exportPrimaryAction.action();
             } catch (err) {
               errorEl.textContent = String(err);
             } finally {
@@ -1726,6 +1752,8 @@ const html = `<!doctype html>
             }
           });
           exportCoachActionsEl.appendChild(btn);
+        } else if (exportPrimaryAction) {
+          exportCoachActionsEl.innerHTML = '<span class="muted">Primary shipping action is already pinned in header: ' + exportPrimaryAction.label + ".</span>";
         }
         if (copyLatestBtn) {
           copyLatestBtn.addEventListener("click", async () => {
