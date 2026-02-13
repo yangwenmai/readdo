@@ -2961,6 +2961,54 @@ const html = `<!doctype html>
         });
       }
 
+      function bindDetailModeActions() {
+        detailFocusModeBtn?.addEventListener("click", () => {
+          setDetailAdvancedEnabled(false);
+        });
+        detailAdvancedModeBtn?.addEventListener("click", () => {
+          setDetailAdvancedEnabled(true);
+        });
+      }
+
+      function isTextEditingTarget(target) {
+        if (!(target instanceof HTMLElement)) return false;
+        const tag = target.tagName.toLowerCase();
+        return tag === "input" || tag === "textarea" || target.isContentEditable;
+      }
+
+      function refreshItemsWithErrorHandling() {
+        loadItems().catch((err) => {
+          errorEl.textContent = String(err);
+        });
+      }
+
+      function bindGlobalKeyboardShortcuts() {
+        document.addEventListener("keydown", (event) => {
+          if (event.defaultPrevented) return;
+          if (isTextEditingTarget(event.target)) return;
+          if (event.key === "/") {
+            event.preventDefault();
+            queryInput.focus();
+            queryInput.select();
+            return;
+          }
+          if (event.key.toLowerCase() === "f") {
+            event.preventDefault();
+            setDetailAdvancedEnabled(false);
+            return;
+          }
+          if (event.key.toLowerCase() === "a") {
+            event.preventDefault();
+            setDetailAdvancedEnabled(true);
+            return;
+          }
+          if (event.key.toLowerCase() === "r") {
+            event.preventDefault();
+            refreshItemsWithErrorHandling();
+          }
+        });
+      }
+
       async function withActionError(errorPrefix, action, onError = null) {
         try {
           return await action();
@@ -3128,14 +3176,7 @@ const html = `<!doctype html>
 
       bindSearchInputActions(queryInput);
       bindFocusChipActions(focusChipsEl);
-
-      detailFocusModeBtn?.addEventListener("click", () => {
-        setDetailAdvancedEnabled(false);
-      });
-
-      detailAdvancedModeBtn?.addEventListener("click", () => {
-        setDetailAdvancedEnabled(true);
-      });
+      bindDetailModeActions();
 
       bindListFilterChange(statusFilter, "Status Filter");
       bindListFilterChange(retryableFilter, "Retryable Filter");
@@ -3143,9 +3184,7 @@ const html = `<!doctype html>
 
       restoreControls();
       setAutoRefresh(Boolean(autoRefreshToggle.checked));
-      loadItems().catch((err) => {
-        errorEl.textContent = String(err);
-      });
+      refreshItemsWithErrorHandling();
 
       function setAutoRefresh(enabled) {
         if (autoRefreshTimer) {
@@ -3154,9 +3193,7 @@ const html = `<!doctype html>
         }
         if (enabled) {
           autoRefreshTimer = setInterval(() => {
-            loadItems().catch((err) => {
-              errorEl.textContent = String(err);
-            });
+            refreshItemsWithErrorHandling();
           }, 5000);
         }
       }
@@ -3165,39 +3202,7 @@ const html = `<!doctype html>
         persistControls();
         setAutoRefresh(Boolean(autoRefreshToggle.checked));
       });
-
-      document.addEventListener("keydown", (event) => {
-        if (event.defaultPrevented) return;
-        const target = event.target;
-        if (target instanceof HTMLElement) {
-          const tag = target.tagName.toLowerCase();
-          if (tag === "input" || tag === "textarea" || target.isContentEditable) {
-            return;
-          }
-        }
-        if (event.key === "/") {
-          event.preventDefault();
-          queryInput.focus();
-          queryInput.select();
-          return;
-        }
-        if (event.key.toLowerCase() === "f") {
-          event.preventDefault();
-          setDetailAdvancedEnabled(false);
-          return;
-        }
-        if (event.key.toLowerCase() === "a") {
-          event.preventDefault();
-          setDetailAdvancedEnabled(true);
-          return;
-        }
-        if (event.key.toLowerCase() === "r") {
-          event.preventDefault();
-          loadItems().catch((err) => {
-            errorEl.textContent = String(err);
-          });
-        }
-      });
+      bindGlobalKeyboardShortcuts();
     </script>
   </body>
 </html>`;
