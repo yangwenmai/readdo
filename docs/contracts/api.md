@@ -164,7 +164,7 @@ Headers:
 
 * url 必填
 * intent_text 必填（MVP）
-* 服务端会在入库前移除 URL 中的 `username/password` 与 `#hash`（若有）；对 `http/https` 还会移除 hostname 尾随 `.` 与默认端口（80/443），避免敏感凭据或冗余形态落库
+* 服务端会在入库前移除 URL 中的 `username/password` 与 `#hash`（若有）；对 `http/https` 还会移除 hostname 尾随 `.` 与默认端口（80/443），并移除常见跟踪参数（`utm_* / fbclid / gclid / mc_eid / mkt_tok`），随后对 query 参数按 key/value 稳定排序，避免敏感凭据或冗余形态落库
 * domain 可选；当 url 为 `http/https` 时，服务端总是以 URL 的 `hostname` 作为 domain（忽略 body 中传入值），并归一化为小写且移除尾随 `.`；非 http/https（如 data）可使用 body domain（同样归一化为小写，移除尾随 `.`）
 * source_type 枚举：`web | youtube | newsletter | other`（大小写不敏感，服务端会归一化为小写）；若缺省则服务端会基于 URL `hostname` 推断（hostname 会先做小写归一化并移除尾随 `.`；`youtube.com|youtu.be` 域名命中 -> youtube；`substack.com` 或 newsletter 形态子域命中 -> newsletter；其余 http(s) -> web）
 * url 协议白名单：`http | https | data`（如 `ftp://`、`chrome://`、`file://` 应返回 `400 VALIDATION_ERROR`）

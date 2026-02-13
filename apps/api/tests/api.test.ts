@@ -2265,6 +2265,44 @@ test("capture validates url and source_type", async () => {
     const hashUrlDetail = hashUrlDetailRes.json() as { item: { url: string } };
     assert.equal(hashUrlDetail.item.url, "https://example.com/path?x=1");
 
+    const trackingUrlRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://Example.com/path?b=2&utm_source=x&A=1&FbClId=foo#section",
+        source_type: "web",
+        intent_text: "strip tracking params and normalize query order before storage",
+      },
+    });
+    assert.equal(trackingUrlRes.statusCode, 201);
+    const trackingUrlId = (trackingUrlRes.json() as { item: { id: string } }).item.id;
+    const trackingUrlDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${trackingUrlId}`,
+    });
+    assert.equal(trackingUrlDetailRes.statusCode, 200);
+    const trackingUrlDetail = trackingUrlDetailRes.json() as { item: { url: string } };
+    assert.equal(trackingUrlDetail.item.url, "https://example.com/path?A=1&b=2");
+
+    const repeatedQueryUrlRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://example.com/path?tag=b&x=1&tag=a",
+        source_type: "web",
+        intent_text: "normalize repeated query param ordering before storage",
+      },
+    });
+    assert.equal(repeatedQueryUrlRes.statusCode, 201);
+    const repeatedQueryUrlId = (repeatedQueryUrlRes.json() as { item: { id: string } }).item.id;
+    const repeatedQueryUrlDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${repeatedQueryUrlId}`,
+    });
+    assert.equal(repeatedQueryUrlDetailRes.statusCode, 200);
+    const repeatedQueryUrlDetail = repeatedQueryUrlDetailRes.json() as { item: { url: string } };
+    assert.equal(repeatedQueryUrlDetail.item.url, "https://example.com/path?tag=a&tag=b&x=1");
+
     const dataDomainRes = await app.inject({
       method: "POST",
       url: "/api/capture",

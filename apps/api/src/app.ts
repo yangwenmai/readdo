@@ -200,6 +200,12 @@ function normalizeHostname(hostname: string): string {
     .replace(/\.+$/u, "");
 }
 
+function shouldStripTrackingQueryKey(queryKey: string): boolean {
+  const normalizedKey = queryKey.trim().toLowerCase();
+  if (normalizedKey.startsWith("utm_")) return true;
+  return ["fbclid", "gclid", "mc_eid", "mkt_tok"].includes(normalizedKey);
+}
+
 function sanitizeUrlForStorage(parsedUrl: URL): string {
   parsedUrl.username = "";
   parsedUrl.password = "";
@@ -209,6 +215,20 @@ function sanitizeUrlForStorage(parsedUrl: URL): string {
   }
   if (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") {
     parsedUrl.hostname = normalizeHostname(parsedUrl.hostname);
+  }
+  for (const key of Array.from(parsedUrl.searchParams.keys())) {
+    if (shouldStripTrackingQueryKey(key)) {
+      parsedUrl.searchParams.delete(key);
+    }
+  }
+  const sortedEntries = Array.from(parsedUrl.searchParams.entries()).sort(([aKey, aValue], [bKey, bValue]) => {
+    const keyCmp = aKey.localeCompare(bKey);
+    if (keyCmp !== 0) return keyCmp;
+    return aValue.localeCompare(bValue);
+  });
+  parsedUrl.search = "";
+  for (const [key, value] of sortedEntries) {
+    parsedUrl.searchParams.append(key, value);
   }
   return parsedUrl.toString();
 }
