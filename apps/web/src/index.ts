@@ -135,6 +135,35 @@ const html = `<!doctype html>
         border-color: #60a5fa;
         color: #1d4ed8;
       }
+      .status-legend {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin: 8px 0 10px;
+      }
+      .legend-item {
+        border: 1px solid #dbe2ea;
+        border-radius: 999px;
+        background: #ffffff;
+        color: #334155;
+        font-size: 12px;
+        padding: 4px 10px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .legend-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        display: inline-block;
+      }
+      .legend-dot.ready { background: #22c55e; }
+      .legend-dot.failed { background: #ef4444; }
+      .legend-dot.processing { background: #3b82f6; }
+      .legend-dot.captured { background: #8b5cf6; }
+      .legend-dot.shipped { background: #10b981; }
+      .legend-dot.archived { background: #94a3b8; }
       .aha-card {
         border: 1px solid #dbeafe;
         border-radius: 12px;
@@ -387,6 +416,7 @@ const html = `<!doctype html>
           <button type="button" class="focus-chip" data-focus="queued">Queued</button>
           <button type="button" class="focus-chip" data-focus="archived">Archived</button>
         </div>
+        <div id="statusLegend" class="status-legend"></div>
         <div id="error" class="error"></div>
         <pre id="retryPreviewOutput" style="display:none;"></pre>
         <div id="inbox"></div>
@@ -406,6 +436,7 @@ const html = `<!doctype html>
       const errorEl = document.getElementById("error");
       const queueHighlightsEl = document.getElementById("queueHighlights");
       const focusChipsEl = document.getElementById("focusChips");
+      const statusLegendEl = document.getElementById("statusLegend");
       const retryPreviewOutputEl = document.getElementById("retryPreviewOutput");
       const refreshBtn = document.getElementById("refreshBtn");
       const clearFiltersBtn = document.getElementById("clearFiltersBtn");
@@ -688,6 +719,67 @@ const html = `<!doctype html>
         queueHighlightsEl.title = "Queue momentum: " + momentum;
       }
 
+      function renderStatusLegend(items) {
+        if (!statusLegendEl) return;
+        const counts = {
+          CAPTURED: 0,
+          QUEUED: 0,
+          PROCESSING: 0,
+          READY: 0,
+          FAILED: 0,
+          SHIPPED: 0,
+          ARCHIVED: 0,
+        };
+        for (const item of items) {
+          const status = String(item?.status || "");
+          if (status === "CAPTURED") counts.CAPTURED += 1;
+          else if (status === "QUEUED") counts.QUEUED += 1;
+          else if (status === "PROCESSING") counts.PROCESSING += 1;
+          else if (status === "READY") counts.READY += 1;
+          else if (status === "SHIPPED") counts.SHIPPED += 1;
+          else if (status === "ARCHIVED") counts.ARCHIVED += 1;
+          else if (status.startsWith("FAILED_")) counts.FAILED += 1;
+        }
+        statusLegendEl.innerHTML = "";
+        const entries = [
+          { label: "Captured", dot: "captured", count: counts.CAPTURED, status: "CAPTURED" },
+          { label: "Queued", dot: "processing", count: counts.QUEUED, status: "QUEUED" },
+          { label: "Processing", dot: "processing", count: counts.PROCESSING, status: "PROCESSING" },
+          { label: "Ready", dot: "ready", count: counts.READY, status: "READY" },
+          { label: "Failed", dot: "failed", count: counts.FAILED, status: "FAILED_EXTRACTION,FAILED_AI,FAILED_EXPORT" },
+          { label: "Shipped", dot: "shipped", count: counts.SHIPPED, status: "SHIPPED" },
+          { label: "Archived", dot: "archived", count: counts.ARCHIVED, status: "ARCHIVED" },
+        ];
+        for (const entry of entries) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "legend-item";
+          btn.innerHTML =
+            '<span class="legend-dot ' +
+            entry.dot +
+            '"></span><span>' +
+            entry.label +
+            " " +
+            entry.count +
+            "</span>";
+          btn.addEventListener("click", async () => {
+            statusFilter.value = entry.status;
+            syncFocusChips();
+            try {
+              errorEl.textContent = "";
+              persistControls();
+              resetPreviewOffset();
+              clearPreviewContinuation();
+              clearPreviewOutput();
+              await loadItems();
+            } catch (err) {
+              errorEl.textContent = String(err);
+            }
+          });
+          statusLegendEl.appendChild(btn);
+        }
+      }
+
       async function request(path, options = {}) {
         const response = await fetch(API_BASE + path, {
           headers: { "content-type": "application/json", ...(options.headers || {}) },
@@ -929,6 +1021,7 @@ const html = `<!doctype html>
       function renderInbox(items) {
         inboxEl.innerHTML = "";
         renderQueueHighlights(items);
+        renderStatusLegend(items);
         if (!items.length) {
           inboxEl.innerHTML = '<div class="empty">No items yet. Use the extension to capture links.</div>';
           return;
