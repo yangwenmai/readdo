@@ -665,6 +665,15 @@ test("items endpoint supports status and query filtering", async () => {
     assert.ok(priorityLowercaseItems.length >= 1);
     assert.ok(priorityLowercaseItems.every((x) => x.priority === readyPriority));
 
+    const priorityMultiRes = await app.inject({
+      method: "GET",
+      url: `/api/items?priority=${encodeURIComponent(` ${readyPriorityLower} , ${readyPriority} `)}`,
+    });
+    assert.equal(priorityMultiRes.statusCode, 200);
+    const priorityMultiItems = (priorityMultiRes.json() as { items: Array<{ priority?: string | null }> }).items;
+    assert.ok(priorityMultiItems.length >= 1);
+    assert.ok(priorityMultiItems.every((x) => x.priority === readyPriority));
+
     const readyItemsLowercaseRes = await app.inject({
       method: "GET",
       url: "/api/items?status=ready",
