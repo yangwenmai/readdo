@@ -4065,6 +4065,16 @@ test("batch and unarchive endpoints validate boolean control flags", async () =>
     assert.equal(archiveFailureStepValuePayload.error.code, "VALIDATION_ERROR");
     assert.match(archiveFailureStepValuePayload.error.message, /failure_step must be extract\|pipeline\|export/i);
 
+    const archiveRetryableBlankStringRes = await app.inject({
+      method: "POST",
+      url: "/api/items/archive-failed",
+      payload: { retryable: "   " },
+    });
+    assert.equal(archiveRetryableBlankStringRes.statusCode, 400);
+    const archiveRetryableBlankStringPayload = archiveRetryableBlankStringRes.json() as { error: { code: string; message: string } };
+    assert.equal(archiveRetryableBlankStringPayload.error.code, "VALIDATION_ERROR");
+    assert.match(archiveRetryableBlankStringPayload.error.message, /retryable must be true\|false\|null\|all/i);
+
     const archiveBodyTypeRes = await app.inject({
       method: "POST",
       url: "/api/items/archive-failed",

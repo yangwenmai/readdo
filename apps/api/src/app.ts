@@ -1059,7 +1059,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
           retryableFilter = true;
         } else if (normalized === "false") {
           retryableFilter = false;
-        } else if (!normalized || normalized === "all") {
+        } else if (normalized === "all") {
           retryableFilter = null;
         } else {
           return reply.status(400).send(failure("VALIDATION_ERROR", "retryable must be true|false|null|all"));
