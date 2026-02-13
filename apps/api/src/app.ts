@@ -1744,7 +1744,18 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       return reply.status(400).send(failure("VALIDATION_ERROR", "Idempotency-Key and export_key must match when both are provided"));
     }
     const exportKey = bodyExportKey || headerExportKey || `exp_${nanoid(8)}`;
-    const formats = normalizeQueryList(body.formats).length ? normalizeQueryList(body.formats) : ["png", "md", "caption"];
+    const requestedFormats = normalizeQueryList(body.formats).map((x) => x.toLowerCase());
+    if (body.formats !== undefined && requestedFormats.length === 0) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "formats must include at least one of png|md|caption"));
+    }
+    const allowedFormats = new Set(["png", "md", "caption"]);
+    const hasUnsupportedFormat = requestedFormats.some((format) => !allowedFormats.has(format));
+    if (hasUnsupportedFormat) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "formats must include only png|md|caption"));
+    }
+    const formats = (requestedFormats.length ? Array.from(new Set(requestedFormats)) : ["png", "md", "caption"]) as Array<
+      "png" | "md" | "caption"
+    >;
 
     const item = db.prepare("SELECT * FROM items WHERE id = ?").get(id) as DbItemRow | undefined;
     if (!item) {

@@ -1186,6 +1186,58 @@ test("export rejects non-string export_key", async () => {
   }
 });
 
+test("export rejects unsupported formats without mutating item status", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-invalid-formats-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+    disablePngRender: true,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20request%20validates%20unsupported%20export%20formats%20do%20not%20mutate%20item%20state.",
+        title: "Export Invalid Formats",
+        domain: "example.export.invalid.formats",
+        source_type: "web",
+        intent_text: "invalid export formats should be rejected as validation",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const invalidFormatRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: "invalid-format-key-1", formats: ["pdf"] },
+    });
+    assert.equal(invalidFormatRes.statusCode, 400);
+    const invalidFormatPayload = invalidFormatRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidFormatPayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidFormatPayload.error.message, /formats must include only png\|md\|caption/i);
+
+    const detailAfterInvalid = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}`,
+    });
+    assert.equal(detailAfterInvalid.statusCode, 200);
+    const itemAfterInvalid = detailAfterInvalid.json() as {
+      item: { status: string };
+      failure?: unknown;
+    };
+    assert.equal(itemAfterInvalid.item.status, "READY");
+    assert.equal(itemAfterInvalid.failure, undefined);
+  } finally {
+    await app.close();
+  }
+});
+
 test("export mismatch check uses first non-empty parsed header key", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-mismatch-idempotent-header-parsed-"));
   const app = await createApp({

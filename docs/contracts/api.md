@@ -806,6 +806,7 @@ Headers:
 约束：
 
 * `export_key` 若提供，必须是字符串
+* `formats` 若提供，必须仅包含 `png | md | caption`（逗号分隔字符串或数组均可）；为空或包含其他值返回 `400 VALIDATION_ERROR`
 * 若同时提供 `Idempotency-Key` 与 `export_key`，两者必须一致；不一致返回 `400 VALIDATION_ERROR`
 * 若 `Idempotency-Key` 被代理合并为逗号分隔值，服务端按“首个非空片段”解析
 
@@ -835,6 +836,7 @@ Headers:
 
 ### 8.5 错误
 
+* 400 VALIDATION_ERROR（例如 `formats` 非法）
 * 404 NOT_FOUND
 * 409 EXPORT_NOT_ALLOWED
 * 409 STATE_CONFLICT
