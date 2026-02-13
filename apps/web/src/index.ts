@@ -86,6 +86,7 @@ const queueNudgeCandidatesLabel = "Top Aha Candidates";
 const queueNudgeCandidateOpenLabel = "Open Candidate";
 const queueNudgeHeatmapLabel = "Aha Heatmap";
 const queueNudgeHeatFocusLabel = "Focus";
+const queueNudgeHeatMomentumPrefix = "Momentum";
 const queueNudgePoolPrefix = "Aha pool";
 const queueNudgeCycleHint = "Cycle with Shift+N";
 const queueRecoveryCopyLabel = "Copy Recovery Summary";
@@ -1215,6 +1216,35 @@ const html = `<!doctype html>
       .aha-nudge .nudge-heat-chip button:hover {
         border-color: currentColor;
       }
+      .aha-nudge .nudge-heat-delta {
+        font-size: 10px;
+        font-weight: 800;
+      }
+      .aha-nudge .nudge-heat-delta.heat-up { color: #166534; }
+      .aha-nudge .nudge-heat-delta.heat-down { color: #be123c; }
+      .aha-nudge .nudge-heat-delta.heat-flat { color: #475569; }
+      .aha-nudge .nudge-heat-momentum {
+        font-size: 11px;
+        font-weight: 700;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        padding: 4px 8px;
+      }
+      .aha-nudge .nudge-heat-momentum.heat-up {
+        border-color: #86efac;
+        background: #ecfdf5;
+        color: #166534;
+      }
+      .aha-nudge .nudge-heat-momentum.heat-down {
+        border-color: #fda4af;
+        background: #fff1f2;
+        color: #be123c;
+      }
+      .aha-nudge .nudge-heat-momentum.heat-flat {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+        color: #475569;
+      }
       .aha-nudge .nudge-heat-chip.tone-hot {
         border-color: #86efac;
         background: #ecfdf5;
@@ -1672,6 +1702,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_CANDIDATE_OPEN_LABEL = ${JSON.stringify(queueNudgeCandidateOpenLabel)};
       const QUEUE_NUDGE_HEATMAP_LABEL = ${JSON.stringify(queueNudgeHeatmapLabel)};
       const QUEUE_NUDGE_HEAT_FOCUS_LABEL = ${JSON.stringify(queueNudgeHeatFocusLabel)};
+      const QUEUE_NUDGE_HEAT_MOMENTUM_PREFIX = ${JSON.stringify(queueNudgeHeatMomentumPrefix)};
       const QUEUE_NUDGE_POOL_PREFIX = ${JSON.stringify(queueNudgePoolPrefix)};
       const QUEUE_NUDGE_CYCLE_HINT = ${JSON.stringify(queueNudgeCycleHint)};
       const QUEUE_RECOVERY_COPY_LABEL = ${JSON.stringify(queueRecoveryCopyLabel)};
@@ -1829,6 +1860,8 @@ const html = `<!doctype html>
       let ahaCandidateCycleCursor = -1;
       let currentAhaRankMap = new Map();
       let previousAhaRankMap = new Map();
+      let currentAhaHeatMap = new Map();
+      let previousAhaHeatMap = new Map();
       let latestAhaSnapshot = null;
 
       function statusByFocusChip(focus) {
@@ -2384,6 +2417,50 @@ const html = `<!doctype html>
           }
         }
         return buckets;
+      }
+
+      function refreshAhaHeatMap(items) {
+        previousAhaHeatMap = currentAhaHeatMap;
+        const nextMap = new Map();
+        for (const bucket of ahaHeatBuckets(items)) {
+          nextMap.set(bucket.key, Number(bucket.count || 0));
+        }
+        currentAhaHeatMap = nextMap;
+      }
+
+      function ahaHeatDeltaMeta(bucketKey, currentCount) {
+        const previousCount = Number(previousAhaHeatMap.get(bucketKey) || 0);
+        if (!previousAhaHeatMap.size) {
+          return { value: 0, label: "→0", tone: "heat-flat" };
+        }
+        const delta = Number(currentCount || 0) - previousCount;
+        if (delta > 0) {
+          return { value: delta, label: "↑" + delta, tone: "heat-up" };
+        }
+        if (delta < 0) {
+          return { value: delta, label: "↓" + Math.abs(delta), tone: "heat-down" };
+        }
+        return { value: 0, label: "→0", tone: "heat-flat" };
+      }
+
+      function ahaHeatMomentumMeta(buckets) {
+        const hotNow = Number(buckets.find((bucket) => bucket.key === "hot")?.count || 0);
+        const strongNow = Number(buckets.find((bucket) => bucket.key === "strong")?.count || 0);
+        const now = hotNow + strongNow;
+        const prevHot = Number(previousAhaHeatMap.get("hot") || 0);
+        const prevStrong = Number(previousAhaHeatMap.get("strong") || 0);
+        const previous = prevHot + prevStrong;
+        if (!previousAhaHeatMap.size) {
+          return { label: "Baseline", tone: "heat-flat" };
+        }
+        const delta = now - previous;
+        if (delta > 0) {
+          return { label: "Heating +" + delta, tone: "heat-up" };
+        }
+        if (delta < 0) {
+          return { label: "Cooling -" + Math.abs(delta), tone: "heat-down" };
+        }
+        return { label: "Steady", tone: "heat-flat" };
       }
 
       function ahaRankForItem(item, poolItems = null) {
@@ -4017,10 +4094,20 @@ const html = `<!doctype html>
           heatmapEl.className = "nudge-heatmap";
           heatmapEl.innerHTML = '<span class="label">' + QUEUE_NUDGE_HEATMAP_LABEL + "</span>";
           const buckets = ahaHeatBuckets(ahaPool);
+          const momentum = ahaHeatMomentumMeta(buckets);
+          const momentumEl = document.createElement("span");
+          momentumEl.className = "nudge-heat-momentum " + momentum.tone;
+          momentumEl.textContent = QUEUE_NUDGE_HEAT_MOMENTUM_PREFIX + ": " + momentum.label;
+          heatmapEl.appendChild(momentumEl);
           for (const bucket of buckets) {
             const chip = document.createElement("span");
             chip.className = "nudge-heat-chip " + bucket.tone;
             chip.textContent = bucket.label + " " + bucket.count;
+            const delta = ahaHeatDeltaMeta(bucket.key, bucket.count);
+            const deltaEl = document.createElement("span");
+            deltaEl.className = "nudge-heat-delta " + delta.tone;
+            deltaEl.textContent = delta.label;
+            chip.appendChild(deltaEl);
             if (bucket.firstItem) {
               const focusBtn = document.createElement("button");
               focusBtn.type = "button";
@@ -4599,6 +4686,7 @@ const html = `<!doctype html>
       function renderInbox(items) {
         inboxEl.innerHTML = "";
         refreshAhaRankMap(items);
+        refreshAhaHeatMap(items);
         refreshAhaSnapshot(items);
         renderQueueHighlights(items);
         renderStatusLegend(items);
