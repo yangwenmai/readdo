@@ -1983,6 +1983,37 @@ test("items endpoint applies retryable filter before limit truncation", async ()
   }
 });
 
+test("items endpoint validates retryable and failure_step query values", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-items-query-validate-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const invalidRetryableRes = await app.inject({
+      method: "GET",
+      url: "/api/items?retryable=maybe",
+    });
+    assert.equal(invalidRetryableRes.statusCode, 400);
+    const invalidRetryablePayload = invalidRetryableRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidRetryablePayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidRetryablePayload.error.message, /retryable must be true\\|false/i);
+
+    const invalidFailureStepRes = await app.inject({
+      method: "GET",
+      url: "/api/items?failure_step=unknown",
+    });
+    assert.equal(invalidFailureStepRes.statusCode, 400);
+    const invalidFailureStepPayload = invalidFailureStepRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidFailureStepPayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidFailureStepPayload.error.message, /failure_step must be extract\\|pipeline\\|export/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("items endpoint clamps limit to maximum 100", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-list-limit-max-"));
   const app = await createApp({

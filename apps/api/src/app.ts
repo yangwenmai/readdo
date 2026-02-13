@@ -1298,14 +1298,26 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     });
   });
 
-  app.get("/api/items", async (request) => {
+  app.get("/api/items", async (request, reply) => {
     const query = request.query as Record<string, unknown>;
     const statuses = normalizeQueryList(query.status).map((x) => x.toUpperCase());
     const priorities = normalizeQueryList(query.priority).map((x) => x.toUpperCase());
     const sourceTypes = normalizeQueryList(query.source_type).map((x) => x.toLowerCase());
-    const retryableQuery = typeof query.retryable === "string" ? query.retryable.toLowerCase() : "";
+    if (query.retryable !== undefined && typeof query.retryable !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "retryable must be true|false"));
+    }
+    if (query.failure_step !== undefined && typeof query.failure_step !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "failure_step must be extract|pipeline|export"));
+    }
+    const retryableQuery = typeof query.retryable === "string" ? query.retryable.trim().toLowerCase() : "";
+    if (retryableQuery && retryableQuery !== "true" && retryableQuery !== "false") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "retryable must be true|false"));
+    }
     const retryableFilter = retryableQuery === "true" ? true : retryableQuery === "false" ? false : null;
     const failureStepQuery = typeof query.failure_step === "string" ? query.failure_step.trim().toLowerCase() : "";
+    if (failureStepQuery && !["extract", "pipeline", "export"].includes(failureStepQuery)) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "failure_step must be extract|pipeline|export"));
+    }
     const failureStepFilter =
       ["extract", "pipeline", "export"].includes(failureStepQuery) ? (failureStepQuery as "extract" | "pipeline" | "export") : null;
     const q = typeof query.q === "string" ? query.q.trim() : "";

@@ -440,8 +440,8 @@ Headers:
 * `status`（可重复）：CAPTURED, QUEUED, PROCESSING, READY, FAILED_*, SHIPPED, ARCHIVED（大小写不敏感）
 * `priority`（可重复）：READ_NEXT, WORTH_IT, IF_TIME, SKIP（大小写不敏感）
 * `source_type`（可重复）：web, youtube, newsletter, other（大小写不敏感）
-* `retryable`：`true | false`（仅对 FAILED_* 生效；用于筛选可重试/不可重试失败项）
-* `failure_step`：`extract | pipeline | export`（仅对 FAILED_* 生效；按失败阶段筛选）
+* `retryable`：`true | false`（仅对 FAILED_* 生效；用于筛选可重试/不可重试失败项；其他值返回 `400 VALIDATION_ERROR`）
+* `failure_step`：`extract | pipeline | export`（仅对 FAILED_* 生效；按失败阶段筛选；其他值返回 `400 VALIDATION_ERROR`）
 * `q`：搜索（MVP 可仅 title/domain/intent_text）
 * `sort`：`priority_score_desc | created_desc | updated_desc`
 
@@ -477,6 +477,10 @@ Headers:
 ```
 
 > 列表可不返回完整 artifacts，只返回用于队列决策的摘要字段（priority/match_score/intent/status）。
+
+### 5.4 错误
+
+* 400 VALIDATION_ERROR（如 retryable / failure_step 参数非法）
 
 ---
 
