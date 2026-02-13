@@ -18,7 +18,11 @@ export function canonicalizeUrlForCapture(url) {
         parsed.searchParams.delete(key);
       }
     }
-    const sortedEntries = Array.from(parsed.searchParams.entries()).sort(([a], [b]) => a.localeCompare(b));
+    const sortedEntries = Array.from(parsed.searchParams.entries()).sort(([aKey, aValue], [bKey, bValue]) => {
+      const keyCmp = aKey.localeCompare(bKey);
+      if (keyCmp !== 0) return keyCmp;
+      return aValue.localeCompare(bValue);
+    });
     parsed.search = "";
     for (const [key, value] of sortedEntries) {
       parsed.searchParams.append(key, value);

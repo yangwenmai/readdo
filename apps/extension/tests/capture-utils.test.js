@@ -24,6 +24,13 @@ test("canonicalizeUrlForCapture keeps unknown params sorted", () => {
   assert.equal(canonical, "https://example.com/path?k=3&z=9");
 });
 
+test("canonicalizeUrlForCapture sorts repeated keys by value for stability", () => {
+  const canonicalA = canonicalizeUrlForCapture("https://example.com/path?tag=b&tag=a&x=1");
+  const canonicalB = canonicalizeUrlForCapture("https://example.com/path?tag=a&x=1&tag=b");
+  assert.equal(canonicalA, "https://example.com/path?tag=a&tag=b&x=1");
+  assert.equal(canonicalB, "https://example.com/path?tag=a&tag=b&x=1");
+});
+
 test("canonicalizeUrlForCapture returns input for invalid URL", () => {
   assert.equal(canonicalizeUrlForCapture("not a valid url"), "not a valid url");
 });
