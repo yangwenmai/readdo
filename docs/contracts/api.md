@@ -745,6 +745,7 @@ options（MVP 可选）：
 * template_profile：engineer/creator/manager
 * force_regenerate：true/false（若 true 可忽略缓存）
 * `options` 若提供，必须是对象；否则返回 `400 VALIDATION_ERROR`。
+* `options` 当前仅支持键：`template_profile`、`force_regenerate`；出现其他键返回 `400 VALIDATION_ERROR`。
 * `options.template_profile` 若提供，必须为字符串，服务端按 `trim + lower-case` 后校验 `engineer|creator|manager`。
 * `options.force_regenerate` 若提供，必须为布尔值。
 * 当 `template_profile` 提供且合法时，worker 将按该 profile 驱动本次处理任务（影响 summary 模板版本选择）。

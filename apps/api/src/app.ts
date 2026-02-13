@@ -1721,11 +1721,22 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       return reply.status(400).send(failure("VALIDATION_ERROR", "options must be an object when provided"));
     }
     const optionsPayload = isObjectRecord(body.options) ? body.options : undefined;
+    if (optionsPayload) {
+      const unknownOptionKey = Object.keys(optionsPayload).find((key) => !["template_profile", "force_regenerate"].includes(key));
+      if (unknownOptionKey) {
+        return reply.status(400).send(
+          failure("VALIDATION_ERROR", "options supports only template_profile|force_regenerate"),
+        );
+      }
+    }
     if (optionsPayload?.template_profile !== undefined && typeof optionsPayload.template_profile !== "string") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "options.template_profile must be engineer|creator|manager"));
     }
     const templateProfileRaw =
       typeof optionsPayload?.template_profile === "string" ? optionsPayload.template_profile.trim().toLowerCase() : undefined;
+    if (optionsPayload?.template_profile !== undefined && !templateProfileRaw) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "options.template_profile must be engineer|creator|manager"));
+    }
     if (templateProfileRaw && !["engineer", "creator", "manager"].includes(templateProfileRaw)) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "options.template_profile must be engineer|creator|manager"));
     }

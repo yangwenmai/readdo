@@ -1522,6 +1522,14 @@ test("process endpoint validates options payload shapes", async () => {
     assert.equal(invalidTemplateProfileValueRes.statusCode, 400);
     assert.equal((invalidTemplateProfileValueRes.json() as { error: { code: string } }).error.code, "VALIDATION_ERROR");
 
+    const invalidTemplateProfileBlankRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      payload: { mode: "PROCESS", options: { template_profile: "   " } },
+    });
+    assert.equal(invalidTemplateProfileBlankRes.statusCode, 400);
+    assert.equal((invalidTemplateProfileBlankRes.json() as { error: { code: string } }).error.code, "VALIDATION_ERROR");
+
     const invalidForceRegenerateTypeRes = await app.inject({
       method: "POST",
       url: `/api/items/${itemId}/process`,
@@ -1529,6 +1537,16 @@ test("process endpoint validates options payload shapes", async () => {
     });
     assert.equal(invalidForceRegenerateTypeRes.statusCode, 400);
     assert.equal((invalidForceRegenerateTypeRes.json() as { error: { code: string } }).error.code, "VALIDATION_ERROR");
+
+    const invalidOptionsUnknownKeyRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      payload: { mode: "PROCESS", options: { template_profile: "engineer", unknown_flag: true } },
+    });
+    assert.equal(invalidOptionsUnknownKeyRes.statusCode, 400);
+    const invalidOptionsUnknownKeyPayload = invalidOptionsUnknownKeyRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidOptionsUnknownKeyPayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidOptionsUnknownKeyPayload.error.message, /options supports only template_profile\|force_regenerate/i);
 
     const validOptionsRes = await app.inject({
       method: "POST",
