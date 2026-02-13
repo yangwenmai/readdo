@@ -19,6 +19,7 @@ const shortcutGuideItems = [
   { key: "G", label: "Edit Context Filters" },
   { key: "N", label: "Focus Recommended Item" },
   { key: "M", label: "Run Primary Item Action" },
+  { key: "O", label: "Open Selected Source" },
   { key: "Shift+G", label: "Clear Step Focus" },
   { key: "Esc", label: "Clear Step Focus" },
   { key: "1", label: "Focus extract step" },
@@ -4675,6 +4676,36 @@ const html = `<!doctype html>
         );
       }
 
+      async function runOpenSelectedSourceAction(button = null) {
+        const item = selectedQueueItem();
+        if (!item) {
+          const hint = "No selected item. Use J/K to pick one first.";
+          setActionFeedbackPair("done", hint, queueActionBannerEl);
+          errorEl.textContent = hint;
+          return;
+        }
+        const url = String(item.url || "").trim();
+        if (!/^https?:\/\//i.test(url)) {
+          const hint = "Selected item has no valid http(s) source URL.";
+          setActionFeedbackPair("done", hint, queueActionBannerEl);
+          errorEl.textContent = hint;
+          return;
+        }
+        await runActionWithFeedback(
+          {
+            id: "queue_open_source_" + String(item.id),
+            label: "Open Selected Source",
+            action: async () => {
+              const opened = window.open(url, "_blank", "noopener,noreferrer");
+              if (!opened) {
+                throw new Error("Popup blocked. Please allow popups for this site.");
+              }
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
       async function runQueueSelectionNavigationAction(direction) {
         const visibleIds = visibleQueueItemIds();
         if (!visibleIds.length) {
@@ -5513,6 +5544,9 @@ const html = `<!doctype html>
         },
         m: () => {
           void runSelectedPrimaryItemAction();
+        },
+        o: () => {
+          void runOpenSelectedSourceAction();
         },
         "shift+g": () => {
           clearRecoveryFocusFromShortcut();
