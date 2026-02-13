@@ -2828,7 +2828,8 @@ const html = `<!doctype html>
         return { success, failed, replayed };
       }
 
-      function bindPreviewAction(button, config) {
+      function bindPreviewAction(config) {
+        const button = config.button;
         button.addEventListener("click", async () => {
           await runActionWithFeedback(
             {
@@ -2860,11 +2861,30 @@ const html = `<!doctype html>
         });
       }
 
-      bindPreviewAction(previewArchiveBtn, {
-        id: "queue_preview_archive",
-        label: "Preview Archive",
-        kind: "archive",
-        errorPrefix: "Archive preview failed: ",
+      [
+        {
+          button: previewArchiveBtn,
+          id: "queue_preview_archive",
+          label: "Preview Archive",
+          kind: "archive",
+          errorPrefix: "Archive preview failed: ",
+        },
+        {
+          button: previewRetryBtn,
+          id: "queue_preview_retry",
+          label: "Preview Retry",
+          kind: "retry",
+          errorPrefix: "Retry preview failed: ",
+        },
+        {
+          button: previewUnarchiveBtn,
+          id: "queue_preview_unarchive",
+          label: "Preview Unarchive",
+          kind: "unarchive",
+          errorPrefix: "Unarchive preview failed: ",
+        },
+      ].forEach((config) => {
+        bindPreviewAction(config);
       });
 
       retryFailedBtn.addEventListener("click", async () => {
@@ -2897,13 +2917,6 @@ const html = `<!doctype html>
         );
       });
 
-      bindPreviewAction(previewRetryBtn, {
-        id: "queue_preview_retry",
-        label: "Preview Retry",
-        kind: "retry",
-        errorPrefix: "Retry preview failed: ",
-      });
-
       archiveBlockedBtn.addEventListener("click", async () => {
         await runQueueBatchAction(
           {
@@ -2930,13 +2943,6 @@ const html = `<!doctype html>
           },
           archiveBlockedBtn,
         );
-      });
-
-      bindPreviewAction(previewUnarchiveBtn, {
-        id: "queue_preview_unarchive",
-        label: "Preview Unarchive",
-        kind: "unarchive",
-        errorPrefix: "Unarchive preview failed: ",
       });
 
       previewNextBtn.addEventListener("click", async () => {
