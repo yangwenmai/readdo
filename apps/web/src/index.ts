@@ -3009,6 +3009,19 @@ const html = `<!doctype html>
         });
       }
 
+      function bindAutoRefreshToggle(toggleEl) {
+        toggleEl.addEventListener("change", () => {
+          persistControls();
+          setAutoRefresh(Boolean(toggleEl.checked));
+        });
+      }
+
+      function initializeQueueBootstrap() {
+        restoreControls();
+        setAutoRefresh(Boolean(autoRefreshToggle.checked));
+        refreshItemsWithErrorHandling();
+      }
+
       async function withActionError(errorPrefix, action, onError = null) {
         try {
           return await action();
@@ -3181,10 +3194,7 @@ const html = `<!doctype html>
       bindListFilterChange(statusFilter, "Status Filter");
       bindListFilterChange(retryableFilter, "Retryable Filter");
       bindListFilterChange(failureStepFilter, "Failure Step Filter");
-
-      restoreControls();
-      setAutoRefresh(Boolean(autoRefreshToggle.checked));
-      refreshItemsWithErrorHandling();
+      initializeQueueBootstrap();
 
       function setAutoRefresh(enabled) {
         if (autoRefreshTimer) {
@@ -3198,10 +3208,7 @@ const html = `<!doctype html>
         }
       }
 
-      autoRefreshToggle.addEventListener("change", () => {
-        persistControls();
-        setAutoRefresh(Boolean(autoRefreshToggle.checked));
-      });
+      bindAutoRefreshToggle(autoRefreshToggle);
       bindGlobalKeyboardShortcuts();
     </script>
   </body>
