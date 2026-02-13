@@ -12,6 +12,7 @@ import {
 test("detectSourceType identifies known source types", () => {
   assert.equal(detectSourceType("https://www.youtube.com/watch?v=abc"), "youtube");
   assert.equal(detectSourceType("https://www.youtube.com./watch?v=abc"), "youtube");
+  assert.equal(detectSourceType("https://youtu.be./abc"), "youtube");
   assert.equal(detectSourceType("https://foo.substack.com/p/hello"), "newsletter");
   assert.equal(detectSourceType("https://foo.substack.com./p/hello"), "newsletter");
   assert.equal(detectSourceType("https://newsletter.example.com/p/hello"), "newsletter");
