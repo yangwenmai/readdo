@@ -2429,66 +2429,72 @@ const html = `<!doctype html>
       }
 
       previewArchiveBtn.addEventListener("click", async () => {
-        previewArchiveBtn.disabled = true;
-        try {
-          clearPreviewContinuation();
-          const previewOffset = normalizedPreviewOffset();
-          const preview = await request("/items/archive-failed", {
-            method: "POST",
-            body: JSON.stringify(archiveBlockedPayload(true, previewOffset))
-          });
-          syncPreviewOffsetFromResponse(preview);
-          errorEl.textContent =
-            "Archive preview: scanned=" +
-            (preview.scanned ?? 0) +
-            "/" +
-            (preview.scanned_total ?? preview.scanned ?? 0) +
-            ", limit=" +
-            (preview.requested_limit ?? normalizedBatchLimit()) +
-            ", offset=" +
-            (preview.requested_offset ?? 0) +
-            ", retryable=" +
-            (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
-            ", q=" +
-            (preview.q_filter || "all") +
-            ", filter=" +
-            (preview.failure_step_filter || "all") +
-            ", truncated=" +
-            (preview.scan_truncated ? "yes" : "no") +
-            ", next_offset=" +
-            (preview.next_offset == null ? "null" : String(preview.next_offset)) +
-            ", eligible=" +
-            (preview.eligible ?? 0) +
-            ", skipped_retryable_mismatch=" +
-            (preview.skipped_retryable_mismatch ?? 0) +
-            ".";
-          retryPreviewOutputEl.style.display = "block";
-          retryPreviewOutputEl.textContent = JSON.stringify(
-            {
-              preview_type: "archive_blocked",
-              retryable_filter: preview.retryable_filter == null ? "all" : preview.retryable_filter,
-              q_filter: preview.q_filter || null,
-              filter: preview.failure_step_filter || "all",
-              scanned: preview.scanned ?? 0,
-              scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
-              scan_truncated: Boolean(preview.scan_truncated),
-              requested_offset: preview.requested_offset ?? 0,
-              next_offset: preview.next_offset ?? null,
-              eligible_item_ids: preview.eligible_item_ids || [],
-              skipped_retryable_mismatch: preview.skipped_retryable_mismatch || 0,
+        await runActionWithFeedback(
+          {
+            id: "queue_preview_archive",
+            label: "Preview Archive",
+            action: async () => {
+              try {
+                clearPreviewContinuation();
+                const previewOffset = normalizedPreviewOffset();
+                const preview = await request("/items/archive-failed", {
+                  method: "POST",
+                  body: JSON.stringify(archiveBlockedPayload(true, previewOffset))
+                });
+                syncPreviewOffsetFromResponse(preview);
+                errorEl.textContent =
+                  "Archive preview: scanned=" +
+                  (preview.scanned ?? 0) +
+                  "/" +
+                  (preview.scanned_total ?? preview.scanned ?? 0) +
+                  ", limit=" +
+                  (preview.requested_limit ?? normalizedBatchLimit()) +
+                  ", offset=" +
+                  (preview.requested_offset ?? 0) +
+                  ", retryable=" +
+                  (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
+                  ", q=" +
+                  (preview.q_filter || "all") +
+                  ", filter=" +
+                  (preview.failure_step_filter || "all") +
+                  ", truncated=" +
+                  (preview.scan_truncated ? "yes" : "no") +
+                  ", next_offset=" +
+                  (preview.next_offset == null ? "null" : String(preview.next_offset)) +
+                  ", eligible=" +
+                  (preview.eligible ?? 0) +
+                  ", skipped_retryable_mismatch=" +
+                  (preview.skipped_retryable_mismatch ?? 0) +
+                  ".";
+                retryPreviewOutputEl.style.display = "block";
+                retryPreviewOutputEl.textContent = JSON.stringify(
+                  {
+                    preview_type: "archive_blocked",
+                    retryable_filter: preview.retryable_filter == null ? "all" : preview.retryable_filter,
+                    q_filter: preview.q_filter || null,
+                    filter: preview.failure_step_filter || "all",
+                    scanned: preview.scanned ?? 0,
+                    scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
+                    scan_truncated: Boolean(preview.scan_truncated),
+                    requested_offset: preview.requested_offset ?? 0,
+                    next_offset: preview.next_offset ?? null,
+                    eligible_item_ids: preview.eligible_item_ids || [],
+                    skipped_retryable_mismatch: preview.skipped_retryable_mismatch || 0,
+                  },
+                  null,
+                  2,
+                );
+                setPreviewContinuation("archive", preview.next_offset);
+              } catch (err) {
+                retryPreviewOutputEl.style.display = "none";
+                retryPreviewOutputEl.textContent = "";
+                clearPreviewContinuation();
+                throw new Error("Archive preview failed: " + String(err));
+              }
             },
-            null,
-            2,
-          );
-          setPreviewContinuation("archive", preview.next_offset);
-        } catch (err) {
-          errorEl.textContent = "Archive preview failed: " + String(err);
-          retryPreviewOutputEl.style.display = "none";
-          retryPreviewOutputEl.textContent = "";
-          clearPreviewContinuation();
-        } finally {
-          previewArchiveBtn.disabled = false;
-        }
+          },
+          { button: previewArchiveBtn, localFeedbackEl: queueActionBannerEl },
+        );
       });
 
       retryFailedBtn.addEventListener("click", async () => {
@@ -2608,65 +2614,71 @@ const html = `<!doctype html>
       });
 
       previewRetryBtn.addEventListener("click", async () => {
-        previewRetryBtn.disabled = true;
-        try {
-          clearPreviewContinuation();
-          const previewOffset = normalizedPreviewOffset();
-          const preview = await request("/items/retry-failed", {
-            method: "POST",
-            body: JSON.stringify(retryFailedPayload(true, previewOffset))
-          });
-          syncPreviewOffsetFromResponse(preview);
-          errorEl.textContent =
-            "Retry preview: scanned=" +
-            (preview.scanned ?? 0) +
-            "/" +
-            (preview.scanned_total ?? preview.scanned ?? 0) +
-            ", limit=" +
-            (preview.requested_limit ?? normalizedBatchLimit()) +
-            ", offset=" +
-            (preview.requested_offset ?? 0) +
-            ", q=" +
-            (preview.q_filter || "all") +
-            ", filter=" +
-            (preview.failure_step_filter || "all") +
-            ", truncated=" +
-            (preview.scan_truncated ? "yes" : "no") +
-            ", next_offset=" +
-            (preview.next_offset == null ? "null" : String(preview.next_offset)) +
-            ", eligible_pipeline=" +
-            (preview.eligible_pipeline ?? 0) +
-            ", eligible_export=" +
-            (preview.eligible_export ?? 0) +
-            ", skipped_non_retryable=" +
-            (preview.skipped_non_retryable ?? 0) +
-            ".";
-          retryPreviewOutputEl.style.display = "block";
-          retryPreviewOutputEl.textContent = JSON.stringify(
-            {
-              q_filter: preview.q_filter || null,
-              filter: preview.failure_step_filter || "all",
-              scanned: preview.scanned ?? 0,
-              scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
-              scan_truncated: Boolean(preview.scan_truncated),
-              requested_offset: preview.requested_offset ?? 0,
-              next_offset: preview.next_offset ?? null,
-              eligible_pipeline_item_ids: preview.eligible_pipeline_item_ids || [],
-              eligible_export_item_ids: preview.eligible_export_item_ids || [],
-              skipped_non_retryable: preview.skipped_non_retryable || 0,
+        await runActionWithFeedback(
+          {
+            id: "queue_preview_retry",
+            label: "Preview Retry",
+            action: async () => {
+              try {
+                clearPreviewContinuation();
+                const previewOffset = normalizedPreviewOffset();
+                const preview = await request("/items/retry-failed", {
+                  method: "POST",
+                  body: JSON.stringify(retryFailedPayload(true, previewOffset))
+                });
+                syncPreviewOffsetFromResponse(preview);
+                errorEl.textContent =
+                  "Retry preview: scanned=" +
+                  (preview.scanned ?? 0) +
+                  "/" +
+                  (preview.scanned_total ?? preview.scanned ?? 0) +
+                  ", limit=" +
+                  (preview.requested_limit ?? normalizedBatchLimit()) +
+                  ", offset=" +
+                  (preview.requested_offset ?? 0) +
+                  ", q=" +
+                  (preview.q_filter || "all") +
+                  ", filter=" +
+                  (preview.failure_step_filter || "all") +
+                  ", truncated=" +
+                  (preview.scan_truncated ? "yes" : "no") +
+                  ", next_offset=" +
+                  (preview.next_offset == null ? "null" : String(preview.next_offset)) +
+                  ", eligible_pipeline=" +
+                  (preview.eligible_pipeline ?? 0) +
+                  ", eligible_export=" +
+                  (preview.eligible_export ?? 0) +
+                  ", skipped_non_retryable=" +
+                  (preview.skipped_non_retryable ?? 0) +
+                  ".";
+                retryPreviewOutputEl.style.display = "block";
+                retryPreviewOutputEl.textContent = JSON.stringify(
+                  {
+                    q_filter: preview.q_filter || null,
+                    filter: preview.failure_step_filter || "all",
+                    scanned: preview.scanned ?? 0,
+                    scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
+                    scan_truncated: Boolean(preview.scan_truncated),
+                    requested_offset: preview.requested_offset ?? 0,
+                    next_offset: preview.next_offset ?? null,
+                    eligible_pipeline_item_ids: preview.eligible_pipeline_item_ids || [],
+                    eligible_export_item_ids: preview.eligible_export_item_ids || [],
+                    skipped_non_retryable: preview.skipped_non_retryable || 0,
+                  },
+                  null,
+                  2,
+                );
+                setPreviewContinuation("retry", preview.next_offset);
+              } catch (err) {
+                retryPreviewOutputEl.style.display = "none";
+                retryPreviewOutputEl.textContent = "";
+                clearPreviewContinuation();
+                throw new Error("Retry preview failed: " + String(err));
+              }
             },
-            null,
-            2,
-          );
-          setPreviewContinuation("retry", preview.next_offset);
-        } catch (err) {
-          errorEl.textContent = "Retry preview failed: " + String(err);
-          retryPreviewOutputEl.style.display = "none";
-          retryPreviewOutputEl.textContent = "";
-          clearPreviewContinuation();
-        } finally {
-          previewRetryBtn.disabled = false;
-        }
+          },
+          { button: previewRetryBtn, localFeedbackEl: queueActionBannerEl },
+        );
       });
 
       archiveBlockedBtn.addEventListener("click", async () => {
@@ -2758,226 +2770,238 @@ const html = `<!doctype html>
       });
 
       previewUnarchiveBtn.addEventListener("click", async () => {
-        previewUnarchiveBtn.disabled = true;
-        try {
-          clearPreviewContinuation();
-          const previewOffset = normalizedPreviewOffset();
-          const preview = await request("/items/unarchive-batch", {
-            method: "POST",
-            body: JSON.stringify(unarchiveBatchPayload(true, previewOffset))
-          });
-          syncPreviewOffsetFromResponse(preview);
-          errorEl.textContent =
-            "Unarchive preview: scanned=" +
-            (preview.scanned ?? 0) +
-            "/" +
-            (preview.scanned_total ?? preview.scanned ?? 0) +
-            ", limit=" +
-            (preview.requested_limit ?? normalizedBatchLimit()) +
-            ", offset=" +
-            (preview.requested_offset ?? 0) +
-            ", mode=" +
-            (preview.regenerate ? "regenerate" : "smart") +
-            ", q=" +
-            (preview.q_filter || "all") +
-            ", truncated=" +
-            (preview.scan_truncated ? "yes" : "no") +
-            ", next_offset=" +
-            (preview.next_offset == null ? "null" : String(preview.next_offset)) +
-            ", eligible_ready=" +
-            (preview.eligible_ready ?? 0) +
-            ", eligible_queued=" +
-            (preview.eligible_queued ?? 0) +
-            ".";
-          retryPreviewOutputEl.style.display = "block";
-          retryPreviewOutputEl.textContent = JSON.stringify(
-            {
-              preview_type: "unarchive_batch",
-              mode: preview.regenerate ? "regenerate" : "smart",
-              q_filter: preview.q_filter || null,
-              scanned: preview.scanned ?? 0,
-              scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
-              scan_truncated: Boolean(preview.scan_truncated),
-              requested_offset: preview.requested_offset ?? 0,
-              next_offset: preview.next_offset ?? null,
-              eligible_ready_item_ids: preview.eligible_ready_item_ids || [],
-              eligible_queued_item_ids: preview.eligible_queued_item_ids || [],
+        await runActionWithFeedback(
+          {
+            id: "queue_preview_unarchive",
+            label: "Preview Unarchive",
+            action: async () => {
+              try {
+                clearPreviewContinuation();
+                const previewOffset = normalizedPreviewOffset();
+                const preview = await request("/items/unarchive-batch", {
+                  method: "POST",
+                  body: JSON.stringify(unarchiveBatchPayload(true, previewOffset))
+                });
+                syncPreviewOffsetFromResponse(preview);
+                errorEl.textContent =
+                  "Unarchive preview: scanned=" +
+                  (preview.scanned ?? 0) +
+                  "/" +
+                  (preview.scanned_total ?? preview.scanned ?? 0) +
+                  ", limit=" +
+                  (preview.requested_limit ?? normalizedBatchLimit()) +
+                  ", offset=" +
+                  (preview.requested_offset ?? 0) +
+                  ", mode=" +
+                  (preview.regenerate ? "regenerate" : "smart") +
+                  ", q=" +
+                  (preview.q_filter || "all") +
+                  ", truncated=" +
+                  (preview.scan_truncated ? "yes" : "no") +
+                  ", next_offset=" +
+                  (preview.next_offset == null ? "null" : String(preview.next_offset)) +
+                  ", eligible_ready=" +
+                  (preview.eligible_ready ?? 0) +
+                  ", eligible_queued=" +
+                  (preview.eligible_queued ?? 0) +
+                  ".";
+                retryPreviewOutputEl.style.display = "block";
+                retryPreviewOutputEl.textContent = JSON.stringify(
+                  {
+                    preview_type: "unarchive_batch",
+                    mode: preview.regenerate ? "regenerate" : "smart",
+                    q_filter: preview.q_filter || null,
+                    scanned: preview.scanned ?? 0,
+                    scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
+                    scan_truncated: Boolean(preview.scan_truncated),
+                    requested_offset: preview.requested_offset ?? 0,
+                    next_offset: preview.next_offset ?? null,
+                    eligible_ready_item_ids: preview.eligible_ready_item_ids || [],
+                    eligible_queued_item_ids: preview.eligible_queued_item_ids || [],
+                  },
+                  null,
+                  2,
+                );
+                setPreviewContinuation("unarchive", preview.next_offset);
+              } catch (err) {
+                retryPreviewOutputEl.style.display = "none";
+                retryPreviewOutputEl.textContent = "";
+                clearPreviewContinuation();
+                throw new Error("Unarchive preview failed: " + String(err));
+              }
             },
-            null,
-            2,
-          );
-          setPreviewContinuation("unarchive", preview.next_offset);
-        } catch (err) {
-          errorEl.textContent = "Unarchive preview failed: " + String(err);
-          retryPreviewOutputEl.style.display = "none";
-          retryPreviewOutputEl.textContent = "";
-          clearPreviewContinuation();
-        } finally {
-          previewUnarchiveBtn.disabled = false;
-        }
+          },
+          { button: previewUnarchiveBtn, localFeedbackEl: queueActionBannerEl },
+        );
       });
 
       previewNextBtn.addEventListener("click", async () => {
         if (!previewContinuation || previewContinuation.next_offset == null) return;
-        previewNextBtn.disabled = true;
-        try {
-          const nextOffset = Number(previewContinuation.next_offset);
-          if (previewContinuation.kind === "retry") {
-            const preview = await request("/items/retry-failed", {
-              method: "POST",
-              body: JSON.stringify(retryFailedPayload(true, nextOffset))
-            });
-            syncPreviewOffsetFromResponse(preview);
-            errorEl.textContent =
-              "Retry preview: scanned=" +
-              (preview.scanned ?? 0) +
-              "/" +
-              (preview.scanned_total ?? preview.scanned ?? 0) +
-              ", limit=" +
-              (preview.requested_limit ?? normalizedBatchLimit()) +
-              ", offset=" +
-              (preview.requested_offset ?? 0) +
-              ", q=" +
-              (preview.q_filter || "all") +
-              ", filter=" +
-              (preview.failure_step_filter || "all") +
-              ", truncated=" +
-              (preview.scan_truncated ? "yes" : "no") +
-              ", next_offset=" +
-              (preview.next_offset == null ? "null" : String(preview.next_offset)) +
-              ", eligible_pipeline=" +
-              (preview.eligible_pipeline ?? 0) +
-              ", eligible_export=" +
-              (preview.eligible_export ?? 0) +
-              ", skipped_non_retryable=" +
-              (preview.skipped_non_retryable ?? 0) +
-              ".";
-            retryPreviewOutputEl.style.display = "block";
-            retryPreviewOutputEl.textContent = JSON.stringify(
-              {
-                q_filter: preview.q_filter || null,
-                filter: preview.failure_step_filter || "all",
-                scanned: preview.scanned ?? 0,
-                scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
-                scan_truncated: Boolean(preview.scan_truncated),
-                requested_offset: preview.requested_offset ?? 0,
-                next_offset: preview.next_offset ?? null,
-                eligible_pipeline_item_ids: preview.eligible_pipeline_item_ids || [],
-                eligible_export_item_ids: preview.eligible_export_item_ids || [],
-                skipped_non_retryable: preview.skipped_non_retryable || 0,
-              },
-              null,
-              2,
-            );
-            setPreviewContinuation("retry", preview.next_offset);
-            return;
-          }
-          if (previewContinuation.kind === "archive") {
-            const preview = await request("/items/archive-failed", {
-              method: "POST",
-              body: JSON.stringify(archiveBlockedPayload(true, nextOffset))
-            });
-            syncPreviewOffsetFromResponse(preview);
-            errorEl.textContent =
-              "Archive preview: scanned=" +
-              (preview.scanned ?? 0) +
-              "/" +
-              (preview.scanned_total ?? preview.scanned ?? 0) +
-              ", limit=" +
-              (preview.requested_limit ?? normalizedBatchLimit()) +
-              ", offset=" +
-              (preview.requested_offset ?? 0) +
-              ", retryable=" +
-              (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
-              ", q=" +
-              (preview.q_filter || "all") +
-              ", filter=" +
-              (preview.failure_step_filter || "all") +
-              ", truncated=" +
-              (preview.scan_truncated ? "yes" : "no") +
-              ", next_offset=" +
-              (preview.next_offset == null ? "null" : String(preview.next_offset)) +
-              ", eligible=" +
-              (preview.eligible ?? 0) +
-              ", skipped_retryable_mismatch=" +
-              (preview.skipped_retryable_mismatch ?? 0) +
-              ".";
-            retryPreviewOutputEl.style.display = "block";
-            retryPreviewOutputEl.textContent = JSON.stringify(
-              {
-                preview_type: "archive_blocked",
-                retryable_filter: preview.retryable_filter == null ? "all" : preview.retryable_filter,
-                q_filter: preview.q_filter || null,
-                filter: preview.failure_step_filter || "all",
-                scanned: preview.scanned ?? 0,
-                scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
-                scan_truncated: Boolean(preview.scan_truncated),
-                requested_offset: preview.requested_offset ?? 0,
-                next_offset: preview.next_offset ?? null,
-                eligible_item_ids: preview.eligible_item_ids || [],
-                skipped_retryable_mismatch: preview.skipped_retryable_mismatch || 0,
-              },
-              null,
-              2,
-            );
-            setPreviewContinuation("archive", preview.next_offset);
-            return;
-          }
-          if (previewContinuation.kind === "unarchive") {
-            const preview = await request("/items/unarchive-batch", {
-              method: "POST",
-              body: JSON.stringify(unarchiveBatchPayload(true, nextOffset))
-            });
-            syncPreviewOffsetFromResponse(preview);
-            errorEl.textContent =
-              "Unarchive preview: scanned=" +
-              (preview.scanned ?? 0) +
-              "/" +
-              (preview.scanned_total ?? preview.scanned ?? 0) +
-              ", limit=" +
-              (preview.requested_limit ?? normalizedBatchLimit()) +
-              ", offset=" +
-              (preview.requested_offset ?? 0) +
-              ", mode=" +
-              (preview.regenerate ? "regenerate" : "smart") +
-              ", q=" +
-              (preview.q_filter || "all") +
-              ", truncated=" +
-              (preview.scan_truncated ? "yes" : "no") +
-              ", next_offset=" +
-              (preview.next_offset == null ? "null" : String(preview.next_offset)) +
-              ", eligible_ready=" +
-              (preview.eligible_ready ?? 0) +
-              ", eligible_queued=" +
-              (preview.eligible_queued ?? 0) +
-              ".";
-            retryPreviewOutputEl.style.display = "block";
-            retryPreviewOutputEl.textContent = JSON.stringify(
-              {
-                preview_type: "unarchive_batch",
-                mode: preview.regenerate ? "regenerate" : "smart",
-                q_filter: preview.q_filter || null,
-                scanned: preview.scanned ?? 0,
-                scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
-                scan_truncated: Boolean(preview.scan_truncated),
-                requested_offset: preview.requested_offset ?? 0,
-                next_offset: preview.next_offset ?? null,
-                eligible_ready_item_ids: preview.eligible_ready_item_ids || [],
-                eligible_queued_item_ids: preview.eligible_queued_item_ids || [],
-              },
-              null,
-              2,
-            );
-            setPreviewContinuation("unarchive", preview.next_offset);
-            return;
-          }
-          clearPreviewContinuation();
-        } catch (err) {
-          errorEl.textContent = "Preview next failed: " + String(err);
-          clearPreviewContinuation();
-        } finally {
-          previewNextBtn.disabled = false;
-        }
+        await runActionWithFeedback(
+          {
+            id: "queue_preview_next",
+            label: "Preview Next",
+            action: async () => {
+              try {
+                const nextOffset = Number(previewContinuation.next_offset);
+                if (previewContinuation.kind === "retry") {
+                  const preview = await request("/items/retry-failed", {
+                    method: "POST",
+                    body: JSON.stringify(retryFailedPayload(true, nextOffset))
+                  });
+                  syncPreviewOffsetFromResponse(preview);
+                  errorEl.textContent =
+                    "Retry preview: scanned=" +
+                    (preview.scanned ?? 0) +
+                    "/" +
+                    (preview.scanned_total ?? preview.scanned ?? 0) +
+                    ", limit=" +
+                    (preview.requested_limit ?? normalizedBatchLimit()) +
+                    ", offset=" +
+                    (preview.requested_offset ?? 0) +
+                    ", q=" +
+                    (preview.q_filter || "all") +
+                    ", filter=" +
+                    (preview.failure_step_filter || "all") +
+                    ", truncated=" +
+                    (preview.scan_truncated ? "yes" : "no") +
+                    ", next_offset=" +
+                    (preview.next_offset == null ? "null" : String(preview.next_offset)) +
+                    ", eligible_pipeline=" +
+                    (preview.eligible_pipeline ?? 0) +
+                    ", eligible_export=" +
+                    (preview.eligible_export ?? 0) +
+                    ", skipped_non_retryable=" +
+                    (preview.skipped_non_retryable ?? 0) +
+                    ".";
+                  retryPreviewOutputEl.style.display = "block";
+                  retryPreviewOutputEl.textContent = JSON.stringify(
+                    {
+                      q_filter: preview.q_filter || null,
+                      filter: preview.failure_step_filter || "all",
+                      scanned: preview.scanned ?? 0,
+                      scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
+                      scan_truncated: Boolean(preview.scan_truncated),
+                      requested_offset: preview.requested_offset ?? 0,
+                      next_offset: preview.next_offset ?? null,
+                      eligible_pipeline_item_ids: preview.eligible_pipeline_item_ids || [],
+                      eligible_export_item_ids: preview.eligible_export_item_ids || [],
+                      skipped_non_retryable: preview.skipped_non_retryable || 0,
+                    },
+                    null,
+                    2,
+                  );
+                  setPreviewContinuation("retry", preview.next_offset);
+                  return;
+                }
+                if (previewContinuation.kind === "archive") {
+                  const preview = await request("/items/archive-failed", {
+                    method: "POST",
+                    body: JSON.stringify(archiveBlockedPayload(true, nextOffset))
+                  });
+                  syncPreviewOffsetFromResponse(preview);
+                  errorEl.textContent =
+                    "Archive preview: scanned=" +
+                    (preview.scanned ?? 0) +
+                    "/" +
+                    (preview.scanned_total ?? preview.scanned ?? 0) +
+                    ", limit=" +
+                    (preview.requested_limit ?? normalizedBatchLimit()) +
+                    ", offset=" +
+                    (preview.requested_offset ?? 0) +
+                    ", retryable=" +
+                    (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
+                    ", q=" +
+                    (preview.q_filter || "all") +
+                    ", filter=" +
+                    (preview.failure_step_filter || "all") +
+                    ", truncated=" +
+                    (preview.scan_truncated ? "yes" : "no") +
+                    ", next_offset=" +
+                    (preview.next_offset == null ? "null" : String(preview.next_offset)) +
+                    ", eligible=" +
+                    (preview.eligible ?? 0) +
+                    ", skipped_retryable_mismatch=" +
+                    (preview.skipped_retryable_mismatch ?? 0) +
+                    ".";
+                  retryPreviewOutputEl.style.display = "block";
+                  retryPreviewOutputEl.textContent = JSON.stringify(
+                    {
+                      preview_type: "archive_blocked",
+                      retryable_filter: preview.retryable_filter == null ? "all" : preview.retryable_filter,
+                      q_filter: preview.q_filter || null,
+                      filter: preview.failure_step_filter || "all",
+                      scanned: preview.scanned ?? 0,
+                      scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
+                      scan_truncated: Boolean(preview.scan_truncated),
+                      requested_offset: preview.requested_offset ?? 0,
+                      next_offset: preview.next_offset ?? null,
+                      eligible_item_ids: preview.eligible_item_ids || [],
+                      skipped_retryable_mismatch: preview.skipped_retryable_mismatch || 0,
+                    },
+                    null,
+                    2,
+                  );
+                  setPreviewContinuation("archive", preview.next_offset);
+                  return;
+                }
+                if (previewContinuation.kind === "unarchive") {
+                  const preview = await request("/items/unarchive-batch", {
+                    method: "POST",
+                    body: JSON.stringify(unarchiveBatchPayload(true, nextOffset))
+                  });
+                  syncPreviewOffsetFromResponse(preview);
+                  errorEl.textContent =
+                    "Unarchive preview: scanned=" +
+                    (preview.scanned ?? 0) +
+                    "/" +
+                    (preview.scanned_total ?? preview.scanned ?? 0) +
+                    ", limit=" +
+                    (preview.requested_limit ?? normalizedBatchLimit()) +
+                    ", offset=" +
+                    (preview.requested_offset ?? 0) +
+                    ", mode=" +
+                    (preview.regenerate ? "regenerate" : "smart") +
+                    ", q=" +
+                    (preview.q_filter || "all") +
+                    ", truncated=" +
+                    (preview.scan_truncated ? "yes" : "no") +
+                    ", next_offset=" +
+                    (preview.next_offset == null ? "null" : String(preview.next_offset)) +
+                    ", eligible_ready=" +
+                    (preview.eligible_ready ?? 0) +
+                    ", eligible_queued=" +
+                    (preview.eligible_queued ?? 0) +
+                    ".";
+                  retryPreviewOutputEl.style.display = "block";
+                  retryPreviewOutputEl.textContent = JSON.stringify(
+                    {
+                      preview_type: "unarchive_batch",
+                      mode: preview.regenerate ? "regenerate" : "smart",
+                      q_filter: preview.q_filter || null,
+                      scanned: preview.scanned ?? 0,
+                      scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
+                      scan_truncated: Boolean(preview.scan_truncated),
+                      requested_offset: preview.requested_offset ?? 0,
+                      next_offset: preview.next_offset ?? null,
+                      eligible_ready_item_ids: preview.eligible_ready_item_ids || [],
+                      eligible_queued_item_ids: preview.eligible_queued_item_ids || [],
+                    },
+                    null,
+                    2,
+                  );
+                  setPreviewContinuation("unarchive", preview.next_offset);
+                  return;
+                }
+                clearPreviewContinuation();
+              } catch (err) {
+                clearPreviewContinuation();
+                throw new Error("Preview next failed: " + String(err));
+              }
+            },
+          },
+          { button: previewNextBtn, localFeedbackEl: queueActionBannerEl },
+        );
       });
 
       unarchiveBatchBtn.addEventListener("click", async () => {
