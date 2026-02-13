@@ -75,6 +75,11 @@ const html = `<!doctype html>
           <option value="SHIPPED">SHIPPED</option>
           <option value="ARCHIVED">ARCHIVED</option>
         </select>
+        <select id="retryableFilter">
+          <option value="">Retryable: All</option>
+          <option value="true">Retryable: true</option>
+          <option value="false">Retryable: false</option>
+        </select>
         <button class="primary" id="refreshBtn">Refresh</button>
       </div>
     </header>
@@ -97,6 +102,7 @@ const html = `<!doctype html>
       const refreshBtn = document.getElementById("refreshBtn");
       const queryInput = document.getElementById("queryInput");
       const statusFilter = document.getElementById("statusFilter");
+      const retryableFilter = document.getElementById("retryableFilter");
       const workerStatsEl = document.getElementById("workerStats");
       const runWorkerBtn = document.getElementById("runWorkerBtn");
       const previewRetryBtn = document.getElementById("previewRetryBtn");
@@ -289,12 +295,14 @@ const html = `<!doctype html>
         try {
           const query = queryInput.value.trim();
           const status = statusFilter.value;
+          const retryable = retryableFilter.value;
           const params = new URLSearchParams({
             sort: "priority_score_desc",
             limit: "100"
           });
           if (query) params.set("q", query);
           if (status) params.set("status", status);
+          if (retryable) params.set("retryable", retryable);
 
           const payload = await request("/items?" + params.toString());
           allItems = payload.items || [];
@@ -998,6 +1006,15 @@ const html = `<!doctype html>
       });
 
       statusFilter.addEventListener("change", async () => {
+        try {
+          errorEl.textContent = "";
+          await loadItems();
+        } catch (err) {
+          errorEl.textContent = String(err);
+        }
+      });
+
+      retryableFilter.addEventListener("change", async () => {
         try {
           errorEl.textContent = "";
           await loadItems();

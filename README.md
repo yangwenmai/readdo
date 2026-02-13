@@ -49,6 +49,8 @@ pnpm dev:web
 
 Open `http://localhost:5173` in your browser.
 
+Web Inbox 支持 `Retryable` 下拉筛选，可快速查看可重试失败项与已达上限失败项。
+
 ### 4) Load Chrome Extension
 
 1. Chrome → `chrome://extensions`

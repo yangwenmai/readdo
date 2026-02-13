@@ -41,6 +41,10 @@ Last Updated: 2026-02-13
 - READY 内按 priority_score_desc（见 api.md）
 - 失败项默认折叠在 “Needs attention”（但必须可见）
 
+默认筛选建议：
+- status=ALL
+- retryable=ALL（可选切换 `true/false`，用于快速定位“可重试失败项”或“已达上限项”）
+
 可选全局动作：
 - `Preview Retry`（dry-run）：调用 `/items/retry-failed` 且 `dry_run=true`，仅展示可重试规模与分类，不改状态。
 - `Retry Failed`（批量）：调用 `/items/retry-failed` 批量重试 `FAILED_EXTRACTION/FAILED_AI` 的可重试项；
