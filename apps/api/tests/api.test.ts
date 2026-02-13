@@ -397,6 +397,35 @@ test("capture rejects mismatched header idempotency key and capture_id", async (
   }
 });
 
+test("capture mismatch check uses first non-empty parsed header key", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-capture-mismatch-idempotent-header-parsed-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      headers: { "Idempotency-Key": ", cap-header-first-key, cap-body-key" },
+      payload: {
+        capture_id: "cap-body-key",
+        url: "https://example.com/capture-header-parse-mismatch",
+        source_type: "web",
+        intent_text: "validate capture mismatch uses parsed first header key",
+      },
+    });
+    assert.equal(captureRes.statusCode, 400);
+    const errPayload = captureRes.json() as { error: { code: string; message: string } };
+    assert.equal(errPayload.error.code, "VALIDATION_ERROR");
+    assert.match(errPayload.error.message, /Idempotency-Key and capture_id must match/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("capture normalizes extcap idempotency keys case-insensitively", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-capture-extcap-case-"));
   const app = await createApp({
@@ -1034,6 +1063,46 @@ test("export rejects mismatched header idempotency key and export_key", async ()
   }
 });
 
+test("export mismatch check uses first non-empty parsed header key", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-mismatch-idempotent-header-parsed-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20request%20validates%20export%20header%20parsing%20for%20mismatch%20checks.",
+        title: "Export Parsed Header Mismatch",
+        domain: "example.export.header.parsed",
+        source_type: "web",
+        intent_text: "validate export mismatch uses parsed first header key",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const exportRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      headers: { "Idempotency-Key": ", export-header-first-key, export-body-key" },
+      payload: { export_key: "export-body-key", formats: ["md"] },
+    });
+    assert.equal(exportRes.statusCode, 400);
+    const errPayload = exportRes.json() as { error: { code: string; message: string } };
+    assert.equal(errPayload.error.code, "VALIDATION_ERROR");
+    assert.match(errPayload.error.message, /Idempotency-Key and export_key must match/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("process mode must match current status", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-"));
   const app = await createApp({
@@ -1411,6 +1480,46 @@ test("process rejects mismatched header idempotency key and process_request_id",
       url: `/api/items/${itemId}/process`,
       headers: { "Idempotency-Key": "process-header-key-1" },
       payload: { mode: "REGENERATE", process_request_id: "process-body-key-2" },
+    });
+    assert.equal(processRes.statusCode, 400);
+    const errPayload = processRes.json() as { error: { code: string; message: string } };
+    assert.equal(errPayload.error.code, "VALIDATION_ERROR");
+    assert.match(errPayload.error.message, /Idempotency-Key and process_request_id must match/i);
+  } finally {
+    await app.close();
+  }
+});
+
+test("process mismatch check uses first non-empty parsed header key", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-mismatch-idempotent-header-parsed-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20request%20validates%20process%20header%20parsing%20for%20mismatch%20checks.",
+        title: "Process Parsed Header Mismatch",
+        domain: "example.process.header.parsed",
+        source_type: "web",
+        intent_text: "validate process mismatch uses parsed first header key",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const processRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      headers: { "Idempotency-Key": ", process-header-first-key, process-body-key" },
+      payload: { mode: "REGENERATE", process_request_id: "process-body-key" },
     });
     assert.equal(processRes.statusCode, 400);
     const errPayload = processRes.json() as { error: { code: string; message: string } };
