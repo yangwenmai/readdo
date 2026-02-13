@@ -230,7 +230,8 @@ Headers:
 
 ### 6.2 Query Params
 
-* `artifact_versions`（可选，json 字符串或多参数）：指定要取的版本
+* `artifact_versions`（可选，json 字符串）：指定要取的版本（按类型）
+  - 示例：`?artifact_versions={"todos":1,"card":2}`（URL 编码后传输）
 * `include_history`：true/false（MVP 默认 false）
 
 ### 6.3 Response 200
@@ -255,6 +256,15 @@ Headers:
     "card":    { "artifact_type": "card",    "version": 1, "created_by": "system", "meta": {}, "payload": {} },
     "export":  { "artifact_type": "export",  "version": 1, "created_by": "system", "meta": {}, "payload": {} }
   },
+  "artifact_versions_selected": {
+    "todos": 1
+  },
+  "artifact_history": {
+    "summary": [
+      { "artifact_type": "summary", "version": 2, "created_by": "user", "meta": {}, "payload": {} },
+      { "artifact_type": "summary", "version": 1, "created_by": "system", "meta": {}, "payload": {} }
+    ]
+  },
   "failure": {
     "failed_step": "summarize",
     "error_code": "AI_TIMEOUT",
@@ -267,6 +277,8 @@ Headers:
 
 * 当 status 非 FAILED_* 时 failure 可省略
 * artifacts 缺失允许（例如 PROCESSING 中仅 extraction 已存在）
+* `artifact_versions_selected` 回显被接受的版本选择（未提供或解析失败时为空对象）
+* 仅当 `include_history=true` 时返回 `artifact_history`
 
 ### 6.4 错误
 
