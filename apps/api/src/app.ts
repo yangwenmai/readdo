@@ -893,6 +893,78 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     };
   });
 
+  app.post("/api/items/unarchive-batch", async (request) => {
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const limitRaw = Number(body.limit ?? 50);
+    const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 50;
+    const dryRun = Boolean(body.dry_run);
+    const regenerate = Boolean(body.regenerate);
+
+    const archivedItems = db
+      .prepare(
+        `
+        SELECT * FROM items
+        WHERE status = 'ARCHIVED'
+        ORDER BY updated_at ASC
+        LIMIT ?
+      `,
+      )
+      .all(limit) as DbItemRow[];
+
+    let eligibleReady = 0;
+    let eligibleQueued = 0;
+    let unarchived = 0;
+    let queuedJobsCreated = 0;
+    const eligibleReadyItemIds: string[] = [];
+    const eligibleQueuedItemIds: string[] = [];
+    const unarchivedItemIds: string[] = [];
+    const ts = nowIso();
+
+    for (const item of archivedItems) {
+      const artifacts = latestArtifacts(db, item.id);
+      const ready = isReadyFromArtifacts(artifacts);
+      const targetStatus = regenerate || !ready ? "QUEUED" : "READY";
+
+      if (targetStatus === "READY") {
+        eligibleReady += 1;
+        eligibleReadyItemIds.push(item.id);
+      } else {
+        eligibleQueued += 1;
+        eligibleQueuedItemIds.push(item.id);
+      }
+
+      if (dryRun) {
+        continue;
+      }
+
+      const updateRes = db.prepare("UPDATE items SET status = ?, updated_at = ? WHERE id = ? AND status = 'ARCHIVED'").run(targetStatus, ts, item.id);
+      if (updateRes.changes > 0) {
+        unarchived += 1;
+        unarchivedItemIds.push(item.id);
+        if (targetStatus === "QUEUED") {
+          createProcessJob(db, item.id, `batch-unarchive:${item.id}:${nanoid(8)}`);
+          queuedJobsCreated += 1;
+        }
+      }
+    }
+
+    return {
+      requested_limit: limit,
+      dry_run: dryRun,
+      regenerate,
+      scanned: archivedItems.length,
+      eligible: eligibleReady + eligibleQueued,
+      eligible_ready: eligibleReady,
+      eligible_ready_item_ids: eligibleReadyItemIds,
+      eligible_queued: eligibleQueued,
+      eligible_queued_item_ids: eligibleQueuedItemIds,
+      unarchived,
+      unarchived_item_ids: unarchivedItemIds,
+      queued_jobs_created: queuedJobsCreated,
+      timestamp: nowIso(),
+    };
+  });
+
   app.post("/api/capture", async (request, reply) => {
     const body = request.body as Record<string, unknown>;
     const idempotencyKey = String(request.headers["idempotency-key"] ?? body.capture_id ?? "");

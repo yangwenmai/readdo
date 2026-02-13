@@ -62,6 +62,9 @@ Last Updated: 2026-02-13
   - 建议先 `dry_run=true` 预览，再执行真实归档，避免误操作。
 - `Preview Archive`（dry-run）：调用 `/items/archive-failed` 且 `dry_run=true`，建议展示 `eligible_item_ids` 供用户核对。
   - 可选增加 `Archive Scope`（`blocked/retryable/all`）下拉，对应 `retryable=false/true/null`。
+- `Preview Unarchive`（dry-run）：调用 `/items/unarchive-batch` 且 `dry_run=true`，建议展示 `eligible_ready_item_ids / eligible_queued_item_ids`。
+- `Unarchive Archived`（批量）：调用 `/items/unarchive-batch` 执行取消归档；
+  - 可选增加 `Unarchive Mode`（`smart/regenerate`），对应 `regenerate=false/true`。
 
 ### 1.2 Shipped
 包含状态：

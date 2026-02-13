@@ -697,6 +697,110 @@ test("archive-failed endpoint archives blocked failures with dry-run support", a
   }
 });
 
+test("unarchive-batch endpoint supports dry-run and regenerate mode", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-unarchive-batch-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const readyCapture = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20content%20is%20ready%20for%20processing%20and%20later%20batch%20unarchive%20verification.",
+        title: "Ready Archive Candidate",
+        domain: "example.unarchive.ready",
+        source_type: "web",
+        intent_text: "validate unarchive batch ready behavior",
+      },
+    });
+    assert.equal(readyCapture.statusCode, 201);
+    const readyId = (readyCapture.json() as { item: { id: string } }).item.id;
+    await app.runWorkerOnce();
+
+    const capturedOnly = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,short",
+        title: "Captured Archive Candidate",
+        domain: "example.unarchive.captured",
+        source_type: "web",
+        intent_text: "keep as captured before archive",
+      },
+    });
+    assert.equal(capturedOnly.statusCode, 201);
+    const capturedId = (capturedOnly.json() as { item: { id: string } }).item.id;
+
+    const archiveReadyRes = await app.inject({ method: "POST", url: `/api/items/${readyId}/archive`, payload: { reason: "batch-test" } });
+    const archiveCapturedRes = await app.inject({ method: "POST", url: `/api/items/${capturedId}/archive`, payload: { reason: "batch-test" } });
+    assert.equal(archiveReadyRes.statusCode, 200);
+    assert.equal(archiveCapturedRes.statusCode, 200);
+
+    const previewRes = await app.inject({
+      method: "POST",
+      url: "/api/items/unarchive-batch",
+      payload: { limit: 10, dry_run: true, regenerate: false },
+    });
+    assert.equal(previewRes.statusCode, 200);
+    const preview = previewRes.json() as {
+      dry_run: boolean;
+      scanned: number;
+      eligible: number;
+      eligible_ready: number;
+      eligible_queued: number;
+      eligible_ready_item_ids: string[];
+      eligible_queued_item_ids: string[];
+      unarchived: number;
+      queued_jobs_created: number;
+    };
+    assert.equal(preview.dry_run, true);
+    assert.equal(preview.scanned, 2);
+    assert.equal(preview.eligible, 2);
+    assert.equal(preview.eligible_ready, 1);
+    assert.equal(preview.eligible_queued, 1);
+    assert.ok(preview.eligible_ready_item_ids.includes(readyId));
+    assert.ok(preview.eligible_queued_item_ids.includes(capturedId));
+    assert.equal(preview.unarchived, 0);
+    assert.equal(preview.queued_jobs_created, 0);
+
+    const runRes = await app.inject({
+      method: "POST",
+      url: "/api/items/unarchive-batch",
+      payload: { limit: 10, regenerate: false },
+    });
+    assert.equal(runRes.statusCode, 200);
+    const runPayload = runRes.json() as { unarchived: number; queued_jobs_created: number; unarchived_item_ids: string[] };
+    assert.equal(runPayload.unarchived, 2);
+    assert.equal(runPayload.queued_jobs_created, 1);
+    assert.ok(runPayload.unarchived_item_ids.includes(readyId));
+    assert.ok(runPayload.unarchived_item_ids.includes(capturedId));
+
+    const readyDetail = await app.inject({ method: "GET", url: `/api/items/${readyId}` });
+    const capturedDetail = await app.inject({ method: "GET", url: `/api/items/${capturedId}` });
+    assert.equal((readyDetail.json() as { item: { status: string } }).item.status, "READY");
+    assert.equal((capturedDetail.json() as { item: { status: string } }).item.status, "QUEUED");
+
+    const archiveReadyAgainRes = await app.inject({ method: "POST", url: `/api/items/${readyId}/archive`, payload: { reason: "regenerate-test" } });
+    assert.equal(archiveReadyAgainRes.statusCode, 200);
+    const regenerateUnarchiveRes = await app.inject({
+      method: "POST",
+      url: "/api/items/unarchive-batch",
+      payload: { limit: 10, regenerate: true },
+    });
+    assert.equal(regenerateUnarchiveRes.statusCode, 200);
+    const regeneratePayload = regenerateUnarchiveRes.json() as { eligible_queued: number; unarchived: number; queued_jobs_created: number };
+    assert.ok(regeneratePayload.eligible_queued >= 1);
+    assert.ok(regeneratePayload.unarchived >= 1);
+    assert.ok(regeneratePayload.queued_jobs_created >= 1);
+  } finally {
+    await app.close();
+  }
+});
+
 test("png-only export failure moves item to FAILED_EXPORT", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-fail-"));
   const app = await createApp({

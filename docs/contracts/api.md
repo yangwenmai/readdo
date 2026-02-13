@@ -118,6 +118,7 @@ Artifacts payload 必须满足 `docs/contracts/schemas/*.schema.json`。
 * POST `/system/worker/run-once`（手动执行一次 worker）
 * POST `/items/retry-failed`（批量重试 FAILED_EXTRACTION/FAILED_AI）
 * POST `/items/archive-failed`（批量归档失败项）
+* POST `/items/unarchive-batch`（批量取消归档）
 * GET  `/items`
 * GET  `/items/{id}`
 * POST `/items/{id}/intent`（intent 编辑）
@@ -328,6 +329,53 @@ Headers:
   "archived": 3,
   "archived_item_ids": ["itm_a", "itm_b", "itm_c"],
   "skipped_retryable_mismatch": 5,
+  "timestamp": "2026-02-13T12:00:00Z"
+}
+```
+
+---
+
+## 4.10 POST /items/unarchive-batch（批量取消归档）
+
+### 4.10.1 目的
+
+批量处理 `ARCHIVED` 项，恢复为 `READY` 或 `QUEUED`：
+
+* `regenerate=false`（smart）：若 artifacts 已满足 READY gate，则恢复 `READY`；否则进入 `QUEUED`
+* `regenerate=true`：一律恢复 `QUEUED` 并创建 process job
+
+### 4.10.2 Request
+
+```json
+{
+  "limit": 50,
+  "dry_run": false,
+  "regenerate": false
+}
+```
+
+约束：
+
+* `limit` 可选，范围建议 `1..200`，默认 50
+* `dry_run=true` 时仅返回预估结果，不会修改 item 状态
+* `regenerate=true` 时不走 READY 快速恢复，统一入队重跑
+
+### 4.10.3 Response 200
+
+```json
+{
+  "requested_limit": 50,
+  "dry_run": false,
+  "regenerate": false,
+  "scanned": 6,
+  "eligible": 6,
+  "eligible_ready": 4,
+  "eligible_ready_item_ids": ["itm_r1", "itm_r2"],
+  "eligible_queued": 2,
+  "eligible_queued_item_ids": ["itm_q1", "itm_q2"],
+  "unarchived": 6,
+  "unarchived_item_ids": ["itm_r1", "itm_r2", "itm_q1", "itm_q2"],
+  "queued_jobs_created": 2,
   "timestamp": "2026-02-13T12:00:00Z"
 }
 ```

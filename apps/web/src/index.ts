@@ -61,7 +61,9 @@ const html = `<!doctype html>
         <button id="previewRetryBtn" type="button">Preview Retry</button>
         <button id="retryFailedBtn" type="button">Retry Failed</button>
         <button id="previewArchiveBtn" type="button">Preview Archive</button>
-        <button id="archiveBlockedBtn" type="button">Archive Blocked</button>
+        <button id="archiveBlockedBtn" type="button">Archive Failed</button>
+        <button id="previewUnarchiveBtn" type="button">Preview Unarchive</button>
+        <button id="unarchiveBatchBtn" type="button">Unarchive Archived</button>
         <label class="muted" style="display:flex;align-items:center;gap:4px;">
           <input id="autoRefreshToggle" type="checkbox" />
           Auto refresh
@@ -92,6 +94,10 @@ const html = `<!doctype html>
           <option value="false">Archive Scope: blocked</option>
           <option value="true">Archive Scope: retryable</option>
           <option value="all">Archive Scope: all failed</option>
+        </select>
+        <select id="unarchiveModeFilter">
+          <option value="smart">Unarchive Mode: smart</option>
+          <option value="regenerate">Unarchive Mode: regenerate</option>
         </select>
         <button class="primary" id="refreshBtn">Refresh</button>
       </div>
@@ -126,7 +132,10 @@ const html = `<!doctype html>
       const retryFailedBtn = document.getElementById("retryFailedBtn");
       const previewArchiveBtn = document.getElementById("previewArchiveBtn");
       const archiveBlockedBtn = document.getElementById("archiveBlockedBtn");
+      const previewUnarchiveBtn = document.getElementById("previewUnarchiveBtn");
+      const unarchiveBatchBtn = document.getElementById("unarchiveBatchBtn");
       const autoRefreshToggle = document.getElementById("autoRefreshToggle");
+      const unarchiveModeFilter = document.getElementById("unarchiveModeFilter");
 
       let allItems = [];
       let selectedId = null;
@@ -350,6 +359,7 @@ const html = `<!doctype html>
           const failedExport = stats?.failure_steps?.export ?? 0;
           const retryable = stats?.retry?.retryable_items ?? 0;
           const blocked = stats?.retry?.non_retryable_items ?? 0;
+          const archivedCount = stats?.items?.ARCHIVED ?? 0;
           workerStatsEl.textContent =
             "Queue: " +
             queueQueued +
@@ -372,9 +382,13 @@ const html = `<!doctype html>
           } else {
             archiveBlockedBtn.textContent = "Archive Failed";
           }
+          previewUnarchiveBtn.textContent = archivedCount > 0 ? "Preview Unarchive (" + archivedCount + ")" : "Preview Unarchive";
+          unarchiveBatchBtn.textContent = archivedCount > 0 ? "Unarchive Archived (" + archivedCount + ")" : "Unarchive Archived";
         } catch {
           workerStatsEl.textContent = "Queue: unavailable";
           archiveBlockedBtn.textContent = "Archive Failed";
+          previewUnarchiveBtn.textContent = "Preview Unarchive";
+          unarchiveBatchBtn.textContent = "Unarchive Archived";
         }
       }
 
@@ -981,6 +995,11 @@ const html = `<!doctype html>
         return payload;
       }
 
+      function unarchiveBatchPayload(dryRun) {
+        const regenerate = unarchiveModeFilter.value === "regenerate";
+        return { limit: 100, dry_run: dryRun, regenerate };
+      }
+
       previewArchiveBtn.addEventListener("click", async () => {
         previewArchiveBtn.disabled = true;
         try {
@@ -1163,6 +1182,86 @@ const html = `<!doctype html>
           errorEl.textContent = "Archive blocked failed: " + String(err);
         } finally {
           archiveBlockedBtn.disabled = false;
+          await loadItems();
+        }
+      });
+
+      previewUnarchiveBtn.addEventListener("click", async () => {
+        previewUnarchiveBtn.disabled = true;
+        try {
+          const preview = await request("/items/unarchive-batch", {
+            method: "POST",
+            body: JSON.stringify(unarchiveBatchPayload(true))
+          });
+          errorEl.textContent =
+            "Unarchive preview: scanned=" +
+            (preview.scanned ?? 0) +
+            ", mode=" +
+            (preview.regenerate ? "regenerate" : "smart") +
+            ", eligible_ready=" +
+            (preview.eligible_ready ?? 0) +
+            ", eligible_queued=" +
+            (preview.eligible_queued ?? 0) +
+            ".";
+          retryPreviewOutputEl.style.display = "block";
+          retryPreviewOutputEl.textContent = JSON.stringify(
+            {
+              preview_type: "unarchive_batch",
+              mode: preview.regenerate ? "regenerate" : "smart",
+              eligible_ready_item_ids: preview.eligible_ready_item_ids || [],
+              eligible_queued_item_ids: preview.eligible_queued_item_ids || [],
+            },
+            null,
+            2,
+          );
+        } catch (err) {
+          errorEl.textContent = "Unarchive preview failed: " + String(err);
+          retryPreviewOutputEl.style.display = "none";
+          retryPreviewOutputEl.textContent = "";
+        } finally {
+          previewUnarchiveBtn.disabled = false;
+        }
+      });
+
+      unarchiveBatchBtn.addEventListener("click", async () => {
+        unarchiveBatchBtn.disabled = true;
+        try {
+          const preview = await request("/items/unarchive-batch", {
+            method: "POST",
+            body: JSON.stringify(unarchiveBatchPayload(true))
+          });
+          const eligible = Number(preview.eligible ?? 0);
+          if (!eligible) {
+            errorEl.textContent = "No archived items to unarchive.";
+            return;
+          }
+          const modeLabel = preview.regenerate ? "regenerate" : "smart";
+          const confirmed = confirm(
+            "Unarchive " +
+              eligible +
+              " archived items" +
+              " [mode=" +
+              modeLabel +
+              "]?",
+          );
+          if (!confirmed) {
+            errorEl.textContent = "Unarchive action cancelled.";
+            return;
+          }
+          const result = await request("/items/unarchive-batch", {
+            method: "POST",
+            body: JSON.stringify(unarchiveBatchPayload(false))
+          });
+          errorEl.textContent =
+            "Unarchive done. unarchived=" +
+            (result.unarchived ?? 0) +
+            ", queued_jobs_created=" +
+            (result.queued_jobs_created ?? 0) +
+            ".";
+        } catch (err) {
+          errorEl.textContent = "Unarchive batch failed: " + String(err);
+        } finally {
+          unarchiveBatchBtn.disabled = false;
           await loadItems();
         }
       });
