@@ -311,6 +311,27 @@ const html = `<!doctype html>
       textarea { width: 100%; min-height: 180px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
       .editor-row { display: flex; gap: 8px; margin: 8px 0; align-items: center; flex-wrap: wrap; }
       .hint { font-size: 12px; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 6px 8px; margin-top: 6px; }
+      .coach-card {
+        margin-top: 8px;
+        border: 1px solid #bfdbfe;
+        border-radius: 10px;
+        background: #eff6ff;
+        padding: 8px;
+      }
+      .coach-card h4 {
+        margin: 0 0 6px;
+        font-size: 12px;
+        color: #1e3a8a;
+      }
+      .coach-list {
+        margin: 0 0 8px 16px;
+        padding: 0;
+      }
+      .coach-list li {
+        margin: 4px 0;
+        color: #334155;
+        font-size: 12px;
+      }
       .diff { font-size: 12px; color: #1f2937; background: #ecfeff; border: 1px solid #a5f3fc; border-radius: 6px; padding: 6px 8px; margin-top: 6px; white-space: pre-wrap; }
       .failure-note { font-size: 12px; color: #991b1b; margin-top: 6px; }
       .file-row { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
@@ -1376,7 +1397,68 @@ const html = `<!doctype html>
           <div class="muted">step: \${failure.failed_step || "unknown"} · code: \${failure.error_code || "UNKNOWN"}</div>
           <div class="hint">\${actionGuide}</div>
           <div class="muted">retry: \${retryAttempts}/\${retryLimit || "N/A"} used\${remaining == null ? "" : ", remaining: " + remaining}</div>
+          <div class="coach-card">
+            <h4>Recovery Playbook</h4>
+            <ul class="coach-list" id="failureCoachList"></ul>
+            <div class="actions" id="failureCoachActions"></div>
+          </div>
         \`;
+        const coachListEl = card.querySelector("#failureCoachList");
+        const coachActionsEl = card.querySelector("#failureCoachActions");
+        const steps = [];
+        let primaryAction = null;
+        if (failure.failed_step === "extract") {
+          steps.push("Check whether the source URL is reachable and has readable content.");
+          steps.push("If content is dynamic, try another source URL or capture again.");
+          steps.push("Retry after confirming network accessibility.");
+          if (retryable) {
+            primaryAction = { label: "Retry Extraction", run: () => processItem(detail.item.id, "RETRY") };
+          }
+        } else if (failure.failed_step === "pipeline") {
+          steps.push("Refine intent so the expected output is concrete and narrow.");
+          steps.push("Use Regenerate to re-run the structured pipeline.");
+          steps.push("If repeatedly failing, edit artifact in Advanced mode.");
+          if (retryable) {
+            primaryAction = { label: "Run Regenerate", run: () => processItem(detail.item.id, "REGENERATE") };
+          }
+        } else if (failure.failed_step === "export") {
+          steps.push("Keep md/caption output available while PNG rendering recovers.");
+          steps.push("Re-export to regenerate missing files.");
+          steps.push("Open latest export artifact to verify render output.");
+          if (retryable) {
+            primaryAction = { label: "Retry Export", run: () => exportItem(detail.item.id) };
+          }
+        } else {
+          steps.push("Inspect failure code and message for immediate cause.");
+          steps.push("Try retry/regenerate depending on current item status.");
+        }
+        if (!retryable) {
+          steps.push("Retry is blocked. Switch to Advanced Panels and edit intent/artifacts before rerun.");
+          primaryAction = { label: "Open Advanced Panels", run: () => setDetailAdvancedEnabled(true) };
+        }
+        for (const step of steps) {
+          const li = document.createElement("li");
+          li.textContent = step;
+          coachListEl.appendChild(li);
+        }
+        if (primaryAction) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.textContent = primaryAction.label;
+          btn.addEventListener("click", async () => {
+            const previous = btn.disabled;
+            btn.disabled = true;
+            try {
+              errorEl.textContent = "";
+              await primaryAction.run();
+            } catch (err) {
+              errorEl.textContent = String(err);
+            } finally {
+              btn.disabled = previous;
+            }
+          });
+          coachActionsEl.appendChild(btn);
+        }
         appendDetailSection("detail-failure", "Failure Guidance", "失败原因与恢复建议", card, true);
       }
 
@@ -1414,6 +1496,11 @@ const html = `<!doctype html>
           <h3>Export Records</h3>
           <div class="muted">Current status: \${status}</div>
           \${statusHintHtml}
+          <div class="coach-card">
+            <h4>Shipping Playbook</h4>
+            <ul class="coach-list" id="exportCoachList"></ul>
+            <div class="actions" id="exportCoachActions"></div>
+          </div>
           <div class="export-snapshot">
             <div class="muted">Export Snapshot</div>
             <div class="export-kpi-grid">
@@ -1445,8 +1532,51 @@ const html = `<!doctype html>
         \`;
 
         const listEl = panel.querySelector("#exportRecordList");
+        const exportCoachListEl = panel.querySelector("#exportCoachList");
+        const exportCoachActionsEl = panel.querySelector("#exportCoachActions");
         const copyLatestBtn = panel.querySelector("#copyLatestPathsBtn");
         const openLatestBtn = panel.querySelector("#openLatestFileBtn");
+        const exportSteps = [];
+        let exportPrimaryAction = null;
+        if (status === "READY") {
+          exportSteps.push("Run export now to produce shareable PNG/MD/CAPTION assets.");
+          exportSteps.push("Review generated files and copy paths for downstream sharing.");
+          exportPrimaryAction = { label: "Export Now", run: () => exportItem(detail.item.id) };
+        } else if (status === "FAILED_EXPORT") {
+          exportSteps.push("Retry export to regenerate missing artifacts.");
+          exportSteps.push("Open latest file to inspect renderer output differences.");
+          exportPrimaryAction = { label: "Retry Export", run: () => exportItem(detail.item.id) };
+        } else if (status === "SHIPPED") {
+          exportSteps.push("Use latest file link for immediate sharing.");
+          exportSteps.push("Re-export if intent/artifacts changed and you need a fresh card.");
+          exportPrimaryAction = { label: "Re-export", run: () => exportItem(detail.item.id) };
+        } else {
+          exportSteps.push("Generate artifacts first, then export from READY state.");
+          exportSteps.push("Use Quick Actions to process/regenerate before shipping.");
+        }
+        for (const step of exportSteps) {
+          const li = document.createElement("li");
+          li.textContent = step;
+          exportCoachListEl.appendChild(li);
+        }
+        if (exportPrimaryAction) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.textContent = exportPrimaryAction.label;
+          btn.addEventListener("click", async () => {
+            const previous = btn.disabled;
+            btn.disabled = true;
+            try {
+              errorEl.textContent = "";
+              await exportPrimaryAction.run();
+            } catch (err) {
+              errorEl.textContent = String(err);
+            } finally {
+              btn.disabled = previous;
+            }
+          });
+          exportCoachActionsEl.appendChild(btn);
+        }
         if (copyLatestBtn) {
           copyLatestBtn.addEventListener("click", async () => {
             try {
