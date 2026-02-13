@@ -639,6 +639,19 @@ const html = `<!doctype html>
           retry: "Retrying failed items...",
         },
       };
+      const queueActionMeta = {
+        preview: {
+          archive: { id: "queue_preview_archive", label: "Preview Archive" },
+          retry: { id: "queue_preview_retry", label: "Preview Retry" },
+          unarchive: { id: "queue_preview_unarchive", label: "Preview Unarchive" },
+          next: { id: "queue_preview_next", label: "Preview Next" },
+        },
+        batch: {
+          retry: { id: "queue_retry_failed", label: "Retry Failed Batch" },
+          archive: { id: "queue_archive_failed", label: "Archive Failed Batch" },
+          unarchive: { id: "queue_unarchive_batch", label: "Unarchive Batch" },
+        },
+      };
 
       function statusByFocusChip(focus) {
         if (focus === "ready") return "READY";
@@ -3184,8 +3197,8 @@ const html = `<!doctype html>
         bindQueueAction(
           {
             button,
-            id: "queue_preview_next",
-            label: "Preview Next",
+            id: queueActionMeta.preview.next.id,
+            label: queueActionMeta.preview.next.label,
             errorPrefix: queueActionCopy.preview_error_prefix.next,
           },
           {
@@ -3244,23 +3257,38 @@ const html = `<!doctype html>
       }
 
       const previewActionConfigs = [
-        createPreviewActionConfig(previewArchiveBtn, "queue_preview_archive", "Preview Archive", "archive"),
-        createPreviewActionConfig(previewRetryBtn, "queue_preview_retry", "Preview Retry", "retry"),
-        createPreviewActionConfig(previewUnarchiveBtn, "queue_preview_unarchive", "Preview Unarchive", "unarchive"),
+        createPreviewActionConfig(
+          previewArchiveBtn,
+          queueActionMeta.preview.archive.id,
+          queueActionMeta.preview.archive.label,
+          "archive",
+        ),
+        createPreviewActionConfig(
+          previewRetryBtn,
+          queueActionMeta.preview.retry.id,
+          queueActionMeta.preview.retry.label,
+          "retry",
+        ),
+        createPreviewActionConfig(
+          previewUnarchiveBtn,
+          queueActionMeta.preview.unarchive.id,
+          queueActionMeta.preview.unarchive.label,
+          "unarchive",
+        ),
       ];
 
       const batchActionConfigs = [
         createBatchActionConfig(
           retryFailedBtn,
-          "queue_retry_failed",
-          "Retry Failed Batch",
+          queueActionMeta.batch.retry.id,
+          queueActionMeta.batch.retry.label,
           "retry",
           runRetryBatchFlow,
         ),
         createSimpleBatchActionConfig(
           archiveBlockedBtn,
-          "queue_archive_failed",
-          "Archive Failed Batch",
+          queueActionMeta.batch.archive.id,
+          queueActionMeta.batch.archive.label,
           "archive",
           {
             renderNoEligible: renderArchiveNoEligibleOutput,
@@ -3271,8 +3299,8 @@ const html = `<!doctype html>
         ),
         createSimpleBatchActionConfig(
           unarchiveBatchBtn,
-          "queue_unarchive_batch",
-          "Unarchive Batch",
+          queueActionMeta.batch.unarchive.id,
+          queueActionMeta.batch.unarchive.label,
           "unarchive",
           {
             renderNoEligible: renderUnarchiveNoEligibleOutput,
