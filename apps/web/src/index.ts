@@ -3080,28 +3080,24 @@ const html = `<!doctype html>
       }
 
       function bindPreviewNextAction(button) {
-        button.addEventListener("click", async () => {
-          const continuation = resolvePreviewContinuation();
-          if (!continuation) return;
-          await runQueueAction(
-            {
-              id: "queue_preview_next",
-              label: "Preview Next",
-              action: async () => {
-                await withActionError(
-                  "Preview next failed: ",
-                  async () => {
-                    await loadAndRenderPreview(continuation.kind, continuation.nextOffset);
-                  },
-                  () => {
-                    clearPreviewState();
-                  },
-                );
-              },
+        bindQueueAction(
+          {
+            button,
+            id: "queue_preview_next",
+            label: "Preview Next",
+            errorPrefix: "Preview next failed: ",
+          },
+          {
+            run: async () => {
+              const continuation = resolvePreviewContinuation();
+              if (!continuation) return;
+              await loadAndRenderPreview(continuation.kind, continuation.nextOffset);
             },
-            { button },
-          );
-        });
+            onError: () => {
+              clearPreviewState();
+            },
+          },
+        );
       }
 
       const previewActionConfigs = [
