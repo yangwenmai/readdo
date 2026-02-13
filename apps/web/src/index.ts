@@ -568,6 +568,31 @@ const html = `<!doctype html>
         font-size: 11px;
         color: #475569;
       }
+      .recovery-radar-trend .trend-status {
+        margin-top: 6px;
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 10px;
+        font-weight: 700;
+      }
+      .recovery-radar-trend .trend-status.improving {
+        border-color: #86efac;
+        background: #dcfce7;
+        color: #166534;
+      }
+      .recovery-radar-trend .trend-status.regressing {
+        border-color: #fecaca;
+        background: #fef2f2;
+        color: #991b1b;
+      }
+      .recovery-radar-trend .trend-status.flat {
+        border-color: #dbe2ea;
+        background: #f8fafc;
+        color: #334155;
+      }
       .recovery-radar-trend .trend-subhead {
         margin-top: 8px;
         font-size: 11px;
@@ -1633,6 +1658,13 @@ const html = `<!doctype html>
         return deltas;
       }
 
+      function recoveryTrendStatusByDelta(trend) {
+        const failedDelta = Number(trend?.deltas?.failed ?? 0);
+        if (failedDelta < 0) return { tone: "improving", label: "Trend Status: Improving" };
+        if (failedDelta > 0) return { tone: "regressing", label: "Trend Status: Regressing" };
+        return { tone: "flat", label: "Trend Status: Flat" };
+      }
+
       async function copyRecoverySummary(summary) {
         if (!summary) return false;
         try {
@@ -1686,7 +1718,7 @@ const html = `<!doctype html>
             '</button><button type="button" class="secondary" disabled>' +
             QUEUE_RECOVERY_CLEAR_LABEL +
             "</button></div>" +
-            '<div id="recoveryRadarTrend" class="recovery-radar-trend muted">Trend vs previous: —<br/>Step failed delta: —</div>' +
+            '<div id="recoveryRadarTrend" class="recovery-radar-trend muted">Trend vs previous: —<br/>Trend Status: —<br/>Step failed delta: —</div>' +
             '<div id="recoveryRadarTimeline" class="recovery-radar-timeline muted">' +
             QUEUE_RECOVERY_HISTORY_HINT +
             "</div>";
@@ -1700,10 +1732,16 @@ const html = `<!doctype html>
         const hasLatestRun = activeIndex > 0;
         const trend = recoveryTrendVsPrevious(activeSummary);
         const stepFailedDelta = recoveryStepFailedDeltaVsPrevious(activeSummary);
+        const trendStatus = recoveryTrendStatusByDelta(trend);
         const trendHtml = trend
           ? '<div id="recoveryRadarTrend" class="recovery-radar-trend">' +
             '<div class="trend-head">Trend vs previous · ' +
             trend.previous_label +
+            "</div>" +
+            '<div class="trend-status ' +
+            trendStatus.tone +
+            '">' +
+            trendStatus.label +
             "</div>" +
             '<div class="trend-grid">' +
             '<div class="trend-cell">Targeted <span class="trend-delta ' +
@@ -1748,7 +1786,7 @@ const html = `<!doctype html>
             '">' +
             recoveryDeltaText(stepFailedDelta?.unknown ?? 0) +
             "</span></div></div></div>"
-          : '<div id="recoveryRadarTrend" class="recovery-radar-trend muted">Trend vs previous: need at least two runs.<br/>Step failed delta: need at least two runs.</div>';
+          : '<div id="recoveryRadarTrend" class="recovery-radar-trend muted">Trend vs previous: need at least two runs.<br/>Trend Status: need at least two runs.<br/>Step failed delta: need at least two runs.</div>';
         recoveryRadarEl.innerHTML =
           '<div class="recovery-radar-head"><h4>Recovery Radar ' +
           historyBadge +
