@@ -28,6 +28,7 @@ const shortcutGuideItems = [
   { key: "E", label: "Open Aha Rival" },
   { key: "Shift+E", label: "Copy Aha Duel" },
   { key: "Alt+E", label: "Run Rival Action" },
+  { key: "Shift+D", label: "Copy Decision Brief" },
   { key: "M", label: "Run Primary Item Action" },
   { key: "O", label: "Open Selected Source" },
   { key: "Y", label: "Copy Selected Source" },
@@ -102,7 +103,7 @@ const queueNudgeDuelSeriesLabel = "Lead-Rival";
 const queueNudgeOpenRivalLabel = "Open Rival";
 const queueNudgeCopyDuelLabel = "Copy Duel";
 const queueNudgeRunRivalLabel = "Run Rival Action (Alt+E)";
-const queueNudgeCopyBriefLabel = "Copy Decision Brief";
+const queueNudgeCopyBriefLabel = "Copy Decision Brief (Shift+D)";
 const queueLeadGapLabelPrefix = "Lead Gap";
 const queueDuelRoleLabelPrefix = "Duel Role";
 const detailStoryLabel = "Queue Storyline";
@@ -8317,6 +8318,7 @@ const html = `<!doctype html>
         }
         if (event.altKey && key === "n") return "alt+n";
         if (event.altKey && key === "e") return "alt+e";
+        if (event.shiftKey && key === "d") return "shift+d";
         if (event.shiftKey && key === "e") return "shift+e";
         if (event.shiftKey && key === "u") return "shift+u";
         if (event.shiftKey && key === "p") return "shift+p";
@@ -8403,6 +8405,9 @@ const html = `<!doctype html>
         },
         "alt+e": () => {
           void runRivalAhaPrimaryAction();
+        },
+        "shift+d": () => {
+          void runCopyAhaDecisionBriefAction();
         },
         z: () => {
           void runFocusTopAhaQueueAction();
