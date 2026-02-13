@@ -1238,6 +1238,109 @@ test("export rejects unsupported formats without mutating item status", async ()
   }
 });
 
+test("export supports explicit card_version and validates version availability", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-card-version-"));
+  const dbPath = join(dbDir, "readdo.db");
+  const app = await createApp({
+    dbPath,
+    workerIntervalMs: 20,
+    startWorker: false,
+    disablePngRender: true,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20request%20verifies%20export%20card_version%20selection%20and%20validation%20behavior.",
+        title: "Export Card Version",
+        domain: "example.export.card.version",
+        source_type: "web",
+        intent_text: "validate explicit card_version behavior for export",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const detailBeforeEditRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}`,
+    });
+    assert.equal(detailBeforeEditRes.statusCode, 200);
+    const detailBeforeEdit = detailBeforeEditRes.json() as {
+      artifacts: { card: { payload: Record<string, unknown>; version: number } };
+    };
+    const cardV1Version = detailBeforeEdit.artifacts.card.version;
+
+    const duplicateCardRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/artifacts/card`,
+      payload: { payload: detailBeforeEdit.artifacts.card.payload },
+    });
+    assert.equal(duplicateCardRes.statusCode, 201);
+    const cardV2Version = (duplicateCardRes.json() as { artifact: { version: number } }).artifact.version;
+
+    const db = new DatabaseSync(dbPath);
+    try {
+      db.prepare("UPDATE artifacts SET payload_json = ? WHERE item_id = ? AND artifact_type = 'card' AND version = ?").run(
+        "{bad-json",
+        itemId,
+        cardV2Version,
+      );
+    } finally {
+      db.close();
+    }
+
+    const fallbackExportRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: "exp-card-version-fallback", formats: ["md"] },
+    });
+    assert.equal(fallbackExportRes.statusCode, 200);
+
+    const explicitCorruptedVersionRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: "exp-card-version-corrupted", formats: ["md"], card_version: cardV2Version },
+    });
+    assert.equal(explicitCorruptedVersionRes.statusCode, 500);
+    const explicitCorruptedVersionPayload = explicitCorruptedVersionRes.json() as { error: { code: string; message: string } };
+    assert.equal(explicitCorruptedVersionPayload.error.code, "DATA_CORRUPTION");
+    assert.match(explicitCorruptedVersionPayload.error.message, /card artifact payload is malformed/i);
+
+    const explicitValidVersionRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: "exp-card-version-v1", formats: ["md"], card_version: cardV1Version },
+    });
+    assert.equal(explicitValidVersionRes.statusCode, 200);
+
+    const missingVersionRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: "exp-card-version-missing", formats: ["md"], card_version: 9999 },
+    });
+    assert.equal(missingVersionRes.statusCode, 404);
+    const missingVersionPayload = missingVersionRes.json() as { error: { code: string } };
+    assert.equal(missingVersionPayload.error.code, "NOT_FOUND");
+
+    const invalidVersionTypeRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: "exp-card-version-invalid", formats: ["md"], card_version: "2" },
+    });
+    assert.equal(invalidVersionTypeRes.statusCode, 400);
+    const invalidVersionTypePayload = invalidVersionTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidVersionTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidVersionTypePayload.error.message, /card_version must be an integer >= 1/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("export mismatch check uses first non-empty parsed header key", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-mismatch-idempotent-header-parsed-"));
   const app = await createApp({

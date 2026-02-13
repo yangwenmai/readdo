@@ -1783,6 +1783,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     if (body.export_key != null && typeof body.export_key !== "string") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "export_key must be a string when provided"));
     }
+    if (body.card_version != null && (!Number.isInteger(body.card_version) || Number(body.card_version) < 1)) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "card_version must be an integer >= 1 when provided"));
+    }
+    const requestedCardVersion = typeof body.card_version === "number" ? body.card_version : undefined;
     const headerExportRaw = request.headers["idempotency-key"];
     const headerExportKey = normalizeIdempotencyHeaderKey(headerExportRaw);
     const bodyExportKey = normalizeIdempotencyKey(body.export_key);
@@ -1838,16 +1842,42 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       }
     }
 
-    const artifacts = latestArtifacts(db, id);
-    const cardArtifact = artifacts.card as { payload?: Record<string, unknown> } | undefined;
-    if (!cardArtifact?.payload) {
-      return reply.status(409).send(failure("STATE_CONFLICT", "Card artifact is missing"));
+    let cardPayload: Record<string, unknown> | undefined;
+    if (requestedCardVersion) {
+      const requestedCardRow = artifactVersionRow(db, id, "card", requestedCardVersion);
+      if (!requestedCardRow) {
+        return reply.status(404).send(
+          failure("NOT_FOUND", "Card artifact version not found", {
+            item_id: id,
+            artifact_type: "card",
+            version: requestedCardVersion,
+          }),
+        );
+      }
+      const parsedRequestedCard = parseArtifactRow(requestedCardRow);
+      if (!parsedRequestedCard) {
+        return reply.status(500).send(
+          failure("DATA_CORRUPTION", "Card artifact payload is malformed", {
+            item_id: id,
+            artifact_type: "card",
+            version: requestedCardVersion,
+          }),
+        );
+      }
+      cardPayload = parsedRequestedCard.payload;
+    } else {
+      const artifacts = latestArtifacts(db, id);
+      const cardArtifact = artifacts.card as { payload?: Record<string, unknown> } | undefined;
+      if (!cardArtifact?.payload) {
+        return reply.status(409).send(failure("STATE_CONFLICT", "Card artifact is missing"));
+      }
+      cardPayload = cardArtifact.payload;
     }
 
     const exportDir = resolve(root, "exports", id);
     mkdirSync(exportDir, { recursive: true });
 
-    const card = cardArtifact.payload as {
+    const card = cardPayload as {
       headline: string;
       points: string[];
       insight: string;
