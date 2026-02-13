@@ -2976,24 +2976,22 @@ const html = `<!doctype html>
           event.preventDefault();
           queryInput.focus();
           queryInput.select();
-          return true;
+          return;
         }
         if (key === "f") {
           event.preventDefault();
           setDetailAdvancedEnabled(false);
-          return true;
+          return;
         }
         if (key === "a") {
           event.preventDefault();
           setDetailAdvancedEnabled(true);
-          return true;
+          return;
         }
         if (key === "r") {
           event.preventDefault();
           refreshItemsWithErrorHandling();
-          return true;
         }
-        return false;
       }
 
       function bindAutoRefreshToggle(toggleEl) {
