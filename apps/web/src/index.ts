@@ -297,15 +297,24 @@ const html = `<!doctype html>
           headers: { "content-type": "application/json", ...(options.headers || {}) },
           ...options
         });
-        const data = await response.json();
+        const raw = await response.text();
+        let data = {};
+        if (raw) {
+          try {
+            data = JSON.parse(raw);
+          } catch {
+            data = {};
+          }
+        }
         if (!response.ok) {
-          const message = data?.error?.message || ("Request failed: " + response.status);
+          const fallbackBody = raw && raw.trim() ? raw.trim().slice(0, 200) : "";
+          const message = data?.error?.message || fallbackBody || ("Request failed: " + response.status);
           const code = data?.error?.code || "UNKNOWN_ERROR";
           const err = new Error(message);
           err.code = code;
           throw err;
         }
-        return data;
+        return data || {};
       }
 
       function retryInfo(item) {
