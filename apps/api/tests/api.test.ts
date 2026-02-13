@@ -4196,6 +4196,16 @@ test("batch and unarchive endpoints validate boolean control flags", async () =>
     assert.equal(retryFailureStepValuePayload.error.code, "VALIDATION_ERROR");
     assert.match(retryFailureStepValuePayload.error.message, /failure_step must be extract\|pipeline\|export/i);
 
+    const retryFailureStepBlankRes = await app.inject({
+      method: "POST",
+      url: "/api/items/retry-failed",
+      payload: { failure_step: "   " },
+    });
+    assert.equal(retryFailureStepBlankRes.statusCode, 400);
+    const retryFailureStepBlankPayload = retryFailureStepBlankRes.json() as { error: { code: string; message: string } };
+    assert.equal(retryFailureStepBlankPayload.error.code, "VALIDATION_ERROR");
+    assert.match(retryFailureStepBlankPayload.error.message, /failure_step must be extract\|pipeline\|export/i);
+
     const archiveDryRunTypeRes = await app.inject({
       method: "POST",
       url: "/api/items/archive-failed",
@@ -4255,6 +4265,16 @@ test("batch and unarchive endpoints validate boolean control flags", async () =>
     const archiveFailureStepValuePayload = archiveFailureStepValueRes.json() as { error: { code: string; message: string } };
     assert.equal(archiveFailureStepValuePayload.error.code, "VALIDATION_ERROR");
     assert.match(archiveFailureStepValuePayload.error.message, /failure_step must be extract\|pipeline\|export/i);
+
+    const archiveFailureStepBlankRes = await app.inject({
+      method: "POST",
+      url: "/api/items/archive-failed",
+      payload: { failure_step: "   " },
+    });
+    assert.equal(archiveFailureStepBlankRes.statusCode, 400);
+    const archiveFailureStepBlankPayload = archiveFailureStepBlankRes.json() as { error: { code: string; message: string } };
+    assert.equal(archiveFailureStepBlankPayload.error.code, "VALIDATION_ERROR");
+    assert.match(archiveFailureStepBlankPayload.error.message, /failure_step must be extract\|pipeline\|export/i);
 
     const archiveRetryableBlankStringRes = await app.inject({
       method: "POST",

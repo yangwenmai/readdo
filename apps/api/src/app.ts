@@ -933,6 +933,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const dryRun = (body.dry_run as boolean | undefined) ?? false;
     const q = typeof body.q === "string" ? body.q.trim() : "";
     const failureStepRaw = typeof body.failure_step === "string" ? body.failure_step.trim().toLowerCase() : "";
+    if (body.failure_step !== undefined && !failureStepRaw) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "failure_step must be extract|pipeline|export"));
+    }
     if (failureStepRaw && !["extract", "pipeline", "export"].includes(failureStepRaw)) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "failure_step must be extract|pipeline|export"));
     }
@@ -1073,6 +1076,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const dryRun = (body.dry_run as boolean | undefined) ?? false;
     const q = typeof body.q === "string" ? body.q.trim() : "";
     const failureStepRaw = typeof body.failure_step === "string" ? body.failure_step.trim().toLowerCase() : "";
+    if (body.failure_step !== undefined && !failureStepRaw) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "failure_step must be extract|pipeline|export"));
+    }
     if (failureStepRaw && !["extract", "pipeline", "export"].includes(failureStepRaw)) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "failure_step must be extract|pipeline|export"));
     }
