@@ -40,6 +40,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /press \//u);
     assert.match(text, /id="queueHighlights"/u);
     assert.match(text, /id="ahaNudge"/u);
+    assert.match(text, /id="queueActionBanner"/u);
     assert.match(text, /id="focusChips"/u);
     assert.match(text, /id="statusLegend"/u);
     assert.match(text, /id="detailModeChips"/u);

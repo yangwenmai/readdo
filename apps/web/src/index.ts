@@ -504,6 +504,7 @@ const html = `<!doctype html>
         <p class="panel-subtitle">系统会自动提炼优先级与行动项，下面是当前最有产出的执行视图。</p>
         <div id="queueHighlights" class="aha-strip"></div>
         <div id="ahaNudge" class="aha-nudge"></div>
+        <div id="queueActionBanner" class="muted action-feedback">Ready.</div>
         <div id="focusChips" class="focus-chips">
           <button type="button" class="focus-chip active" data-focus="all">All</button>
           <button type="button" class="focus-chip" data-focus="ready">Ready</button>
@@ -538,6 +539,7 @@ const html = `<!doctype html>
       const errorEl = document.getElementById("error");
       const queueHighlightsEl = document.getElementById("queueHighlights");
       const ahaNudgeEl = document.getElementById("ahaNudge");
+      const queueActionBannerEl = document.getElementById("queueActionBanner");
       const focusChipsEl = document.getElementById("focusChips");
       const statusLegendEl = document.getElementById("statusLegend");
       const retryPreviewOutputEl = document.getElementById("retryPreviewOutput");
@@ -871,50 +873,55 @@ const html = `<!doctype html>
         const capturedCandidate = items.find((item) => item.status === "CAPTURED");
         let title = "Next Recommended Move";
         let message = "Capture or process more items to keep the decision queue active.";
-        let ctaLabel = "";
-        let ctaAction = null;
+        let ctaOp = null;
         if (candidate) {
           title = "Ship momentum available";
           message = "Top ready item score " + Number(candidate.match_score ?? 0).toFixed(1) + ". Ship now to keep output velocity.";
-          ctaLabel = "Open & Export Top Item";
-          ctaAction = async () => {
-            await selectItem(candidate.id);
-            await exportItem(candidate.id);
+          ctaOp = {
+            id: "nudge_export_top",
+            label: "Open & Export Top Item",
+            action: async () => {
+              await selectItem(candidate.id);
+              await exportItem(candidate.id);
+            },
           };
         } else if (retryableFailed) {
           title = "Recover blocked value";
           message = "A retryable failed item is waiting. Recover it first to unblock downstream output.";
-          ctaLabel = "Retry First Failed Item";
-          ctaAction = async () => {
-            await processItem(retryableFailed.id, "RETRY");
+          ctaOp = {
+            id: "nudge_retry_failed",
+            label: "Retry First Failed Item",
+            action: async () => {
+              await processItem(retryableFailed.id, "RETRY");
+            },
           };
         } else if (capturedCandidate) {
           title = "Convert captured into artifacts";
           message = "You still have captured items not processed. Turn one into actionable artifacts now.";
-          ctaLabel = "Process First Captured Item";
-          ctaAction = async () => {
-            await processItem(capturedCandidate.id, "PROCESS");
+          ctaOp = {
+            id: "nudge_process_captured",
+            label: "Process First Captured Item",
+            action: async () => {
+              await processItem(capturedCandidate.id, "PROCESS");
+            },
           };
         }
         ahaNudgeEl.innerHTML = '<h4>' + title + '</h4><span class="muted">' + message + "</span>";
-        if (ctaAction && ctaLabel) {
+        setActionFeedback(queueActionBannerEl, "", "Ready.");
+        if (ctaOp) {
           const btn = document.createElement("button");
           btn.type = "button";
           btn.className = "primary";
-          btn.textContent = ctaLabel;
+          btn.textContent = ctaOp.label;
           btn.addEventListener("click", async () => {
-            const previous = btn.disabled;
-            btn.disabled = true;
-            try {
-              errorEl.textContent = "";
-              await ctaAction();
-            } catch (err) {
-              errorEl.textContent = String(err);
-            } finally {
-              btn.disabled = previous;
-            }
+            await runActionWithFeedback(ctaOp, {
+              button: btn,
+              localFeedbackEl: queueActionBannerEl,
+            });
           });
           ahaNudgeEl.appendChild(btn);
+        } else {
+          setActionFeedback(queueActionBannerEl, "", "No immediate CTA. Capture or process new items.");
         }
       }
 
