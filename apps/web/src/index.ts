@@ -2017,14 +2017,7 @@ const html = `<!doctype html>
       }
 
       function focusRecoveryStepFromShortcut(step) {
-        const summary = activeRecoverySummary();
-        if (!summary) {
-          const hint = "No recovery run available. Run a recovery action first.";
-          setActionFeedbackPair("done", hint, queueActionBannerEl);
-          errorEl.textContent = hint;
-          return;
-        }
-        void focusRecoveryStepFromTrend(step, summary, null);
+        void focusRecoveryStepFromTrend(step, activeRecoverySummary(), null);
       }
 
       function trendStepActionTitle(step) {
