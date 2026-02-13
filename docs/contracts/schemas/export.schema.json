@@ -15,7 +15,7 @@
           "additionalProperties": false,
           "required": ["type", "path"],
           "properties": {
-            "type": { "type": "string", "enum": ["png", "md", "caption", "json"] },
+            "type": { "type": "string", "enum": ["png", "md", "caption"] },
             "path": {
               "type": "string",
               "description": "Local filesystem path or a future blob reference.",

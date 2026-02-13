@@ -1222,6 +1222,16 @@ test("export rejects unsupported formats without mutating item status", async ()
     assert.equal(invalidFormatPayload.error.code, "VALIDATION_ERROR");
     assert.match(invalidFormatPayload.error.message, /formats must include only png\|md\|caption/i);
 
+    const invalidJsonFormatRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: "invalid-format-key-2", formats: ["json"] },
+    });
+    assert.equal(invalidJsonFormatRes.statusCode, 400);
+    const invalidJsonFormatPayload = invalidJsonFormatRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidJsonFormatPayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidJsonFormatPayload.error.message, /formats must include only png\|md\|caption/i);
+
     const detailAfterInvalid = await app.inject({
       method: "GET",
       url: `/api/items/${itemId}`,
