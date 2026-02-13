@@ -348,6 +348,73 @@ const html = `<!doctype html>
       .action-feedback.pending { color: #1d4ed8; }
       .action-feedback.done { color: #166534; }
       .action-feedback.error { color: #b91c1c; }
+      .detail-hero {
+        position: relative;
+        overflow: hidden;
+        border-color: rgba(147, 197, 253, 0.65);
+        box-shadow: 0 14px 32px rgba(15, 23, 42, 0.14);
+      }
+      .detail-hero::before {
+        content: "";
+        position: absolute;
+        inset: -48px auto auto -54px;
+        width: 180px;
+        height: 180px;
+        border-radius: 999px;
+        filter: blur(2px);
+        opacity: 0.55;
+        pointer-events: none;
+      }
+      .detail-hero.hero-ready {
+        background: linear-gradient(135deg, #effcf3 0%, #f8fafc 52%, #eefcf2 100%);
+      }
+      .detail-hero.hero-ready::before {
+        background: radial-gradient(circle, rgba(34, 197, 94, 0.38), rgba(187, 247, 208, 0));
+      }
+      .detail-hero.hero-failed {
+        background: linear-gradient(135deg, #fff1f1 0%, #fff7ed 52%, #fff8f8 100%);
+      }
+      .detail-hero.hero-failed::before {
+        background: radial-gradient(circle, rgba(248, 113, 113, 0.42), rgba(254, 226, 226, 0));
+      }
+      .detail-hero.hero-processing {
+        background: linear-gradient(135deg, #eff6ff 0%, #f5f3ff 52%, #eef5ff 100%);
+      }
+      .detail-hero.hero-processing::before {
+        background: radial-gradient(circle, rgba(59, 130, 246, 0.42), rgba(219, 234, 254, 0));
+      }
+      .detail-hero.hero-captured {
+        background: linear-gradient(135deg, #f5f3ff 0%, #eef2ff 52%, #f8fafc 100%);
+      }
+      .detail-hero.hero-captured::before {
+        background: radial-gradient(circle, rgba(139, 92, 246, 0.4), rgba(221, 214, 254, 0));
+      }
+      .detail-hero.hero-archived {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 52%, #eef2f7 100%);
+      }
+      .detail-hero.hero-archived::before {
+        background: radial-gradient(circle, rgba(148, 163, 184, 0.42), rgba(226, 232, 240, 0));
+      }
+      .detail-hero.hero-default {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 52%, #eef2ff 100%);
+      }
+      .detail-hero.hero-default::before {
+        background: radial-gradient(circle, rgba(99, 102, 241, 0.32), rgba(224, 231, 255, 0));
+      }
+      .hero-kicker {
+        margin-top: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid rgba(59, 130, 246, 0.28);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.78);
+        color: #1e3a8a;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        padding: 4px 9px;
+      }
       .hero-actions {
         margin-top: 8px;
         display: flex;
@@ -1653,6 +1720,27 @@ const html = `<!doctype html>
         if (status === "ARCHIVED") return "archived";
         if (typeof status === "string" && status.startsWith("FAILED_")) return "failed";
         return "default";
+      }
+
+      function detailHeroTone(status) {
+        const tone = statusTone(status);
+        if (tone === "ready") return "hero-ready";
+        if (tone === "captured") return "hero-captured";
+        if (tone === "processing" || tone === "queued") return "hero-processing";
+        if (tone === "archived") return "hero-archived";
+        if (tone === "failed") return "hero-failed";
+        return "hero-default";
+      }
+
+      function detailMomentumLabel(status) {
+        if (status === "READY") return "Aha Momentum · Ready to ship now";
+        if (status === "SHIPPED") return "Aha Momentum · Delivered, now refine or archive";
+        if (status === "PROCESSING") return "Aha Momentum · Pipeline is actively running";
+        if (status === "QUEUED") return "Aha Momentum · Waiting in queue for next run";
+        if (status === "CAPTURED") return "Aha Momentum · Captured, trigger process to unlock value";
+        if (status === "ARCHIVED") return "Aha Momentum · Archived for later revisit";
+        if (typeof status === "string" && status.startsWith("FAILED_")) return "Aha Momentum · Recovery needed before ship";
+        return "Aha Momentum · Keep the flow moving";
       }
 
       function priorityTone(priority) {
@@ -3747,7 +3835,7 @@ const html = `<!doctype html>
 
         const wrap = document.createElement("div");
         wrap.innerHTML = \`
-          <div class="item-card priority-\${priorityTone(detail.item.priority)}">
+          <div class="item-card detail-hero \${detailHeroTone(detail.item.status)} priority-\${priorityTone(detail.item.priority)}">
             <div class="item-head">
               <div class="status-cluster">
                 <span class="status status-\${statusTone(detail.item.status)}">\${detail.item.status}</span>
@@ -3755,6 +3843,7 @@ const html = `<!doctype html>
               </div>
               <span class="muted">\${detail.item.priority || "N/A"} · \${detail.item.match_score ?? "—"}</span>
             </div>
+            <div class="hero-kicker">\${detailMomentumLabel(detail.item.status)}</div>
             <div class="intent">\${detail.item.intent_text}</div>
             <div>\${detail.item.title || detail.item.url}</div>
             <div class="muted">\${detail.item.domain || ""}</div>

@@ -162,6 +162,9 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /id="detailActionBanner"/u);
     assert.match(text, /Queue Recommended/u);
     assert.match(text, /hero-recommendation/u);
+    assert.match(text, /detail-hero/u);
+    assert.match(text, /hero-kicker/u);
+    assert.match(text, /Aha Momentum · Ready to ship now/u);
     assert.match(text, /Blocked Recovery/u);
     assert.match(text, /status-chip/u);
     assert.match(text, /Mirrors global action status/u);
