@@ -848,6 +848,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const dryRun = (body.dry_run as boolean | undefined) ?? false;
     const q = typeof body.q === "string" ? body.q.trim() : "";
     const failureStepRaw = typeof body.failure_step === "string" ? body.failure_step.trim().toLowerCase() : "";
+    if (failureStepRaw && !["extract", "pipeline", "export"].includes(failureStepRaw)) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "failure_step must be extract|pipeline|export"));
+    }
     const failureStepFilter =
       ["extract", "pipeline", "export"].includes(failureStepRaw) ? (failureStepRaw as "extract" | "pipeline" | "export") : null;
     const targetStatuses =
@@ -970,6 +973,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const dryRun = (body.dry_run as boolean | undefined) ?? false;
     const q = typeof body.q === "string" ? body.q.trim() : "";
     const failureStepRaw = typeof body.failure_step === "string" ? body.failure_step.trim().toLowerCase() : "";
+    if (failureStepRaw && !["extract", "pipeline", "export"].includes(failureStepRaw)) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "failure_step must be extract|pipeline|export"));
+    }
     const failureStepFilter =
       ["extract", "pipeline", "export"].includes(failureStepRaw) ? (failureStepRaw as "extract" | "pipeline" | "export") : null;
     const retryableRaw = body.retryable;

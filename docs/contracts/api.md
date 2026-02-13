@@ -283,7 +283,7 @@ Headers:
 * `offset` 可选，默认 0，用于分页扫描批量候选（负值按 0 处理）
 * `dry_run` 若提供，必须为 boolean
 * `dry_run=true` 时仅返回预估结果，不会修改 item 状态或创建新 job
-* `failure_step` 若提供，必须为字符串，且可选值：`extract | pipeline | export`（用于限制扫描范围）
+* `failure_step` 若提供，必须为字符串，且可选值：`extract | pipeline | export`（用于限制扫描范围；其他值返回 `400 VALIDATION_ERROR`）
 * `q` 若提供，必须为字符串；按 `title/domain/intent_text/url` 模糊过滤失败候选
 * `FAILED_EXPORT` 当前不会被该接口处理（计入 `skipped_unsupported_status`）
 * 响应中的 `scanned_total` 为匹配筛选条件的总量（未截断前），`scan_truncated=true` 表示受到 `limit` 截断
@@ -341,7 +341,7 @@ Headers:
 * `dry_run` 若提供，必须为 boolean
 * `dry_run=true` 时仅返回预估结果，不会修改 item 状态
 * `retryable` 可选：`true | false | null | "all"`（默认 `false`，即仅归档已达重试上限项）
-* `failure_step` 若提供，必须为字符串，且可选值：`extract | pipeline | export`
+* `failure_step` 若提供，必须为字符串，且可选值：`extract | pipeline | export`（其他值返回 `400 VALIDATION_ERROR`）
 * `q` 若提供，必须为字符串；按 `title/domain/intent_text/url` 模糊过滤失败候选
 * 响应中的 `scanned_total` 为匹配筛选条件的总量（未截断前），`scan_truncated=true` 表示受到 `limit` 截断
 
