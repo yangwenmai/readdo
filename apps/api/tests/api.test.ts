@@ -2023,6 +2023,24 @@ test("capture validates url and source_type", async () => {
     const inferredNewsletterDetail = inferredNewsletterDetailRes.json() as { item: { source_type: string } };
     assert.equal(inferredNewsletterDetail.item.source_type, "newsletter");
 
+    const falsePositiveNewsletterRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://notnewsletter.com/p/weekly-brief",
+        intent_text: "avoid false-positive newsletter host match",
+      },
+    });
+    assert.equal(falsePositiveNewsletterRes.statusCode, 201);
+    const falsePositiveNewsletterId = (falsePositiveNewsletterRes.json() as { item: { id: string } }).item.id;
+    const falsePositiveNewsletterDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${falsePositiveNewsletterId}`,
+    });
+    assert.equal(falsePositiveNewsletterDetailRes.statusCode, 200);
+    const falsePositiveNewsletterDetail = falsePositiveNewsletterDetailRes.json() as { item: { source_type: string } };
+    assert.equal(falsePositiveNewsletterDetail.item.source_type, "web");
+
     const inferredDataSourceRes = await app.inject({
       method: "POST",
       url: "/api/capture",

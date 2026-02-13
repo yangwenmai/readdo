@@ -199,12 +199,18 @@ function hostMatchesDomain(host: string, domain: string): boolean {
   return normalizedHost === normalizedDomain || normalizedHost.endsWith(`.${normalizedDomain}`);
 }
 
+function isNewsletterLikeHost(host: string): boolean {
+  const normalizedHost = host.toLowerCase();
+  if (hostMatchesDomain(normalizedHost, "substack.com")) return true;
+  return /(^|[.-])newsletter([.-]|$)/u.test(normalizedHost);
+}
+
 function inferSourceTypeFromUrl(url: string): "web" | "youtube" | "newsletter" | "other" {
   try {
     const parsed = new URL(url);
     const host = parsed.hostname.toLowerCase();
     if (hostMatchesDomain(host, "youtube.com") || hostMatchesDomain(host, "youtu.be")) return "youtube";
-    if (hostMatchesDomain(host, "substack.com") || host.includes("newsletter")) return "newsletter";
+    if (isNewsletterLikeHost(host)) return "newsletter";
     if (parsed.protocol === "http:" || parsed.protocol === "https:") return "web";
     return "other";
   } catch {

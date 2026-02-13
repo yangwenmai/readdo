@@ -4,13 +4,19 @@ function hostMatchesDomain(host, domain) {
   return normalizedHost === normalizedDomain || normalizedHost.endsWith(`.${normalizedDomain}`);
 }
 
+function isNewsletterLikeHost(host) {
+  const normalizedHost = String(host ?? "").toLowerCase();
+  if (hostMatchesDomain(normalizedHost, "substack.com")) return true;
+  return /(^|[.-])newsletter([.-]|$)/u.test(normalizedHost);
+}
+
 export function detectSourceType(url) {
   if (!url) return "other";
   try {
     const parsed = new URL(url);
     const host = parsed.hostname.toLowerCase();
     if (hostMatchesDomain(host, "youtube.com") || hostMatchesDomain(host, "youtu.be")) return "youtube";
-    if (hostMatchesDomain(host, "substack.com") || host.includes("newsletter")) return "newsletter";
+    if (isNewsletterLikeHost(host)) return "newsletter";
     if (parsed.protocol === "http:" || parsed.protocol === "https:") return "web";
     return "other";
   } catch {
