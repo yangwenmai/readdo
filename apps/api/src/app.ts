@@ -1045,7 +1045,13 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
   app.post("/api/capture", async (request, reply) => {
     const body = request.body as Record<string, unknown>;
-    const idempotencyKey = String(request.headers["idempotency-key"] ?? body.capture_id ?? "");
+    const headerKeyRaw = request.headers["idempotency-key"];
+    const headerKey = typeof headerKeyRaw === "string" ? headerKeyRaw.trim() : "";
+    const captureId = String(body.capture_id ?? "").trim();
+    if (headerKey && captureId && headerKey !== captureId) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "Idempotency-Key and capture_id must match when both are provided"));
+    }
+    const idempotencyKey = headerKey || captureId;
     const url = String(body.url ?? "").trim();
     const intentText = String(body.intent_text ?? "").trim();
     const title = String(body.title ?? "").trim();

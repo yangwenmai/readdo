@@ -209,6 +209,37 @@ test("capture endpoint supports idempotency via capture_id body field", async ()
   }
 });
 
+test("capture rejects mismatched header idempotency key and capture_id", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-capture-mismatch-idempotent-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      headers: { "Idempotency-Key": "cap-header-key-1" },
+      payload: {
+        capture_id: "cap-body-key-2",
+        url: "data:text/plain,This%20request%20must%20fail%20when%20header%20and%20body%20idempotency%20keys%20differ.",
+        title: "Capture Mismatch",
+        domain: "example.capture.mismatch",
+        source_type: "web",
+        intent_text: "validate key mismatch behavior",
+      },
+    });
+    assert.equal(captureRes.statusCode, 400);
+    const errPayload = captureRes.json() as { error: { code: string; message: string } };
+    assert.equal(errPayload.error.code, "VALIDATION_ERROR");
+    assert.match(errPayload.error.message, /Idempotency-Key and capture_id must match/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("export idempotency replays old export_key beyond recent window", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-idempotent-"));
   const app = await createApp({

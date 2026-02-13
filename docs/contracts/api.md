@@ -165,6 +165,7 @@ Headers:
 * url 必填
 * intent_text 必填（MVP）
 * source_type 枚举：`web | youtube | newsletter | other`（MVP 可先 web/youtube）
+* 若同时提供 `Idempotency-Key` 与 `capture_id`，两者必须一致；不一致返回 `400 VALIDATION_ERROR`
 
 ### 4.4 Response 201
 
