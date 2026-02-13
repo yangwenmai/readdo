@@ -16,6 +16,10 @@ const shortcutGuideItems = [
   { key: "Shift+P", label: "Focus Priority (reverse)" },
   { key: "G", label: "Edit Context Filters" },
   { key: "Shift+G", label: "Clear Step Focus" },
+  { key: "1", label: "Focus extract step" },
+  { key: "2", label: "Focus pipeline step" },
+  { key: "3", label: "Focus export step" },
+  { key: "0", label: "Focus unknown step" },
   { key: "R", label: "Refresh" },
   { key: shortcutTriggerKey, label: "Show shortcuts" },
 ];
@@ -1990,6 +1994,17 @@ const html = `<!doctype html>
           return;
         }
         void focusRecoveryStepFromTrend(activeStep, activeRecoverySummary(), null);
+      }
+
+      function focusRecoveryStepFromShortcut(step) {
+        const summary = activeRecoverySummary();
+        if (!summary) {
+          const hint = "No recovery run available. Run a recovery action first.";
+          setActionFeedbackPair("done", hint, queueActionBannerEl);
+          errorEl.textContent = hint;
+          return;
+        }
+        void focusRecoveryStepFromTrend(step, summary, null);
       }
 
       function trendStepActionTitle(step) {
@@ -5210,6 +5225,18 @@ const html = `<!doctype html>
         },
         g: () => {
           focusRecoveryContextFromShortcut();
+        },
+        "1": () => {
+          focusRecoveryStepFromShortcut("extract");
+        },
+        "2": () => {
+          focusRecoveryStepFromShortcut("pipeline");
+        },
+        "3": () => {
+          focusRecoveryStepFromShortcut("export");
+        },
+        "0": () => {
+          focusRecoveryStepFromShortcut("unknown");
         },
         r: () => {
           refreshItemsWithErrorHandling();

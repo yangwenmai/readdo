@@ -42,9 +42,9 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Shortcuts \(\?\)/u);
     assert.match(text, /id="shortcutHintBtn"/u);
     assert.match(text, /aria-expanded="false"/u);
-    assert.match(text, /title="Shortcuts: \/ Search · F Focus Mode · A Advanced Panels · P Focus Priority · Shift\+P Focus Priority \(reverse\) · G Edit Context Filters · Shift\+G Clear Step Focus · R Refresh · \? Show shortcuts"/u);
-    assert.match(text, /aria-label="Shortcuts: \/ Search · F Focus Mode · A Advanced Panels · P Focus Priority · Shift\+P Focus Priority \(reverse\) · G Edit Context Filters · Shift\+G Clear Step Focus · R Refresh · \? Show shortcuts"/u);
-    assert.match(text, /Shortcuts: \/ Search · F Focus Mode · A Advanced Panels · P Focus Priority · Shift\+P Focus Priority \(reverse\) · G Edit Context Filters · Shift\+G Clear Step Focus · R Refresh · \? Show shortcuts/u);
+    assert.match(text, /title="Shortcuts: \/ Search · F Focus Mode · A Advanced Panels · P Focus Priority · Shift\+P Focus Priority \(reverse\) · G Edit Context Filters · Shift\+G Clear Step Focus · 1 Focus extract step · 2 Focus pipeline step · 3 Focus export step · 0 Focus unknown step · R Refresh · \? Show shortcuts"/u);
+    assert.match(text, /aria-label="Shortcuts: \/ Search · F Focus Mode · A Advanced Panels · P Focus Priority · Shift\+P Focus Priority \(reverse\) · G Edit Context Filters · Shift\+G Clear Step Focus · 1 Focus extract step · 2 Focus pipeline step · 3 Focus export step · 0 Focus unknown step · R Refresh · \? Show shortcuts"/u);
+    assert.match(text, /Shortcuts: \/ Search · F Focus Mode · A Advanced Panels · P Focus Priority · Shift\+P Focus Priority \(reverse\) · G Edit Context Filters · Shift\+G Clear Step Focus · 1 Focus extract step · 2 Focus pipeline step · 3 Focus export step · 0 Focus unknown step · R Refresh · \? Show shortcuts/u);
     assert.match(text, /id="shortcutPanelBackdrop"/u);
     assert.match(text, /id="shortcutPanelCloseBtn"/u);
     assert.match(text, /Shortcut Guide/u);
@@ -55,6 +55,10 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /<kbd>Shift\+P<\/kbd><span>Focus Priority \(reverse\)<\/span>/u);
     assert.match(text, /<kbd>G<\/kbd><span>Edit Context Filters<\/span>/u);
     assert.match(text, /<kbd>Shift\+G<\/kbd><span>Clear Step Focus<\/span>/u);
+    assert.match(text, /<kbd>1<\/kbd><span>Focus extract step<\/span>/u);
+    assert.match(text, /<kbd>2<\/kbd><span>Focus pipeline step<\/span>/u);
+    assert.match(text, /<kbd>3<\/kbd><span>Focus export step<\/span>/u);
+    assert.match(text, /<kbd>0<\/kbd><span>Focus unknown step<\/span>/u);
     assert.match(text, /id="queueHighlights"/u);
     assert.match(text, /id="queueFlowPulse"/u);
     assert.match(text, /Pipeline Pulse/u);
