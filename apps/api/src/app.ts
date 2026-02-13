@@ -90,6 +90,10 @@ function safeParseJson(rawValue: string | null): unknown {
   }
 }
 
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 function normalizeText(input: string): string {
   return input.replace(/\s+/g, " ").trim();
 }
@@ -487,14 +491,14 @@ function parseArtifactRow(row: ArtifactDbRow): {
   created_by: string;
   created_at: string;
   meta: Record<string, unknown>;
-  payload: unknown;
+  payload: Record<string, unknown>;
 } | null {
   const parsedMeta = safeParseJson(row.meta_json);
   const payload = safeParseJson(row.payload_json);
-  if (payload === undefined) {
+  if (!isObjectRecord(payload)) {
     return null;
   }
-  const meta = parsedMeta && typeof parsedMeta === "object" && !Array.isArray(parsedMeta) ? (parsedMeta as Record<string, unknown>) : {};
+  const meta = isObjectRecord(parsedMeta) ? parsedMeta : {};
   return {
     artifact_type: row.artifact_type,
     version: row.version,
@@ -1590,7 +1594,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
     const basePayload = safeParseJson(baseRow.payload_json);
     const targetPayload = safeParseJson(targetRow.payload_json);
-    if (basePayload === undefined || targetPayload === undefined) {
+    if (!isObjectRecord(basePayload) || !isObjectRecord(targetPayload)) {
       return reply.status(500).send(
         failure("DATA_CORRUPTION", "Artifact payload is malformed", {
           item_id: id,
