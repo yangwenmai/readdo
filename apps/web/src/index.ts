@@ -930,7 +930,6 @@ const html = `<!doctype html>
           errorEl.textContent = "No retryable failed items.";
           return;
         }
-        const exportCandidates = candidates.filter((item) => item.status === "FAILED_EXPORT");
         retryFailedBtn.disabled = true;
         let exportSuccess = 0;
         let exportFailed = 0;
@@ -940,9 +939,10 @@ const html = `<!doctype html>
             method: "POST",
             body: JSON.stringify({ limit: 100 })
           });
-          for (const item of exportCandidates) {
+          const exportItemIds = batchRes.eligible_export_item_ids || [];
+          for (const itemId of exportItemIds) {
             try {
-              await request("/items/" + item.id + "/export", {
+              await request("/items/" + itemId + "/export", {
                 method: "POST",
                 body: JSON.stringify({
                   export_key: "batch_retry_" + crypto.randomUUID(),
@@ -960,6 +960,8 @@ const html = `<!doctype html>
             (batchRes.queued ?? 0) +
             ", skipped_non_retryable=" +
             (batchRes.skipped_non_retryable ?? 0) +
+            ", eligible_export=" +
+            (batchRes.eligible_export ?? 0) +
             ", export_success=" +
             exportSuccess +
             ", export_failed=" +
