@@ -38,3 +38,11 @@ export type ArtifactMeta = {
   input_hash?: string;
   upstream_versions?: Record<string, number>;
 };
+
+export {
+  deriveCaptureKey,
+  normalizeCaptureIdempotencyKey,
+  normalizeIdempotencyHeaderKey,
+  normalizeIdempotencyKey,
+  normalizeIntentForCaptureKey,
+} from "./idempotency.js";
