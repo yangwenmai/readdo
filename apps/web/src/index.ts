@@ -3207,6 +3207,14 @@ const html = `<!doctype html>
         );
       }
 
+      function createQueueControlChangeConfig(element, label, options = {}) {
+        return { element, label, ...options };
+      }
+
+      function createListFilterChangeConfig(element, label) {
+        return { element, label };
+      }
+
       const previewActionConfigs = [
         createPreviewActionConfig(previewArchiveBtn, "queue_preview_archive", "Preview Archive", "archive"),
         createPreviewActionConfig(previewRetryBtn, "queue_preview_retry", "Preview Retry", "retry"),
@@ -3247,32 +3255,23 @@ const html = `<!doctype html>
       ];
 
       const queueControlChangeConfigs = [
-        {
-          element: archiveRetryableFilter,
-          label: "Archive Scope",
+        createQueueControlChangeConfig(archiveRetryableFilter, "Archive Scope", {
           options: { refresh_worker_stats: true },
-        },
-        {
-          element: unarchiveModeFilter,
-          label: "Unarchive Mode",
-        },
-        {
-          element: batchLimitInput,
-          label: "Batch Limit",
+        }),
+        createQueueControlChangeConfig(unarchiveModeFilter, "Unarchive Mode"),
+        createQueueControlChangeConfig(batchLimitInput, "Batch Limit", {
           beforeSync: normalizeBatchLimitInputValue,
-        },
-        {
-          element: previewOffsetInput,
-          label: "Preview Offset",
+        }),
+        createQueueControlChangeConfig(previewOffsetInput, "Preview Offset", {
           beforeSync: normalizePreviewOffsetInputValue,
           syncOptions: { resetOffset: false },
-        },
+        }),
       ];
 
       const listFilterChangeConfigs = [
-        { element: statusFilter, label: "Status Filter" },
-        { element: retryableFilter, label: "Retryable Filter" },
-        { element: failureStepFilter, label: "Failure Step Filter" },
+        createListFilterChangeConfig(statusFilter, "Status Filter"),
+        createListFilterChangeConfig(retryableFilter, "Retryable Filter"),
+        createListFilterChangeConfig(failureStepFilter, "Failure Step Filter"),
       ];
 
       function setupQueueActionBindings() {
