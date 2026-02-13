@@ -1,10 +1,23 @@
 const intentEl = document.getElementById("intent");
 const resultEl = document.getElementById("result");
 const captureBtn = document.getElementById("captureBtn");
+const openInboxBtn = document.getElementById("openInboxBtn");
+
+const API_BASE = "http://localhost:8787/api";
+const INBOX_URL = "http://localhost:5173";
 
 async function currentTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   return tab;
+}
+
+function detectSourceType(url) {
+  if (!url) return "other";
+  const lower = url.toLowerCase();
+  if (lower.includes("youtube.com") || lower.includes("youtu.be")) return "youtube";
+  if (lower.includes("substack.com") || lower.includes("newsletter")) return "newsletter";
+  if (lower.startsWith("http")) return "web";
+  return "other";
 }
 
 captureBtn?.addEventListener("click", async () => {
@@ -21,11 +34,11 @@ captureBtn?.addEventListener("click", async () => {
       url: tab.url,
       title: tab.title ?? "",
       domain: new URL(tab.url).hostname,
-      source_type: "web",
+      source_type: detectSourceType(tab.url),
       intent_text: intentText,
     };
 
-    const response = await fetch("http://localhost:8787/api/capture", {
+    const response = await fetch(API_BASE + "/capture", {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -39,8 +52,12 @@ captureBtn?.addEventListener("click", async () => {
       return;
     }
 
-    resultEl.textContent = "Captured. You can close this tab.";
+    resultEl.textContent = "Captured. Open Inbox to continue.";
   } catch (err) {
     resultEl.textContent = `Capture failed: ${String(err)}`;
   }
+});
+
+openInboxBtn?.addEventListener("click", async () => {
+  await chrome.tabs.create({ url: INBOX_URL });
 });
