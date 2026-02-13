@@ -2498,119 +2498,130 @@ const html = `<!doctype html>
       });
 
       retryFailedBtn.addEventListener("click", async () => {
-        clearPreviewContinuation();
-        clearPreviewOutput();
-        retryFailedBtn.disabled = true;
-        let exportSuccess = 0;
-        let exportFailed = 0;
-        let exportReplayed = 0;
-        try {
-          const executionOffset = normalizedPreviewOffset();
-          const previewRes = await request("/items/retry-failed", {
-            method: "POST",
-            body: JSON.stringify(retryFailedPayload(true, executionOffset))
-          });
-          syncPreviewOffsetFromResponse(previewRes);
-          const eligiblePipeline = Number(previewRes.eligible_pipeline ?? 0);
-          const eligibleExport = Number(previewRes.eligible_export ?? 0);
-          if (eligiblePipeline <= 0 && eligibleExport <= 0) {
-            errorEl.textContent =
-              "No retryable failed items matching current filters. scanned=" +
-              (previewRes.scanned ?? 0) +
-              "/" +
-              (previewRes.scanned_total ?? previewRes.scanned ?? 0) +
-              ", limit=" +
-              (previewRes.requested_limit ?? normalizedBatchLimit()) +
-              ", offset=" +
-              (previewRes.requested_offset ?? 0) +
-              ", q=" +
-              (previewRes.q_filter || "all") +
-              ", filter=" +
-              (previewRes.failure_step_filter || "all") +
-              ".";
-            return;
-          }
-          const confirmed = confirm(
-            "Retry failed items [q=" +
-              (previewRes.q_filter || "all") +
-              ", filter=" +
-              (previewRes.failure_step_filter || "all") +
-              "]? pipeline=" +
-              eligiblePipeline +
-              ", export=" +
-              eligibleExport +
-              ", scanned=" +
-              (previewRes.scanned ?? 0) +
-              "/" +
-              (previewRes.scanned_total ?? previewRes.scanned ?? 0),
-          );
-          if (!confirmed) {
-            errorEl.textContent = "Retry failed action cancelled.";
-            return;
-          }
-          errorEl.textContent = "Retrying failed items...";
-          const executeOffset = normalizedPreviewOffset();
-          const batchRes = await request("/items/retry-failed", {
-            method: "POST",
-            body: JSON.stringify(retryFailedPayload(false, executeOffset))
-          });
-          syncPreviewOffsetFromResponse(batchRes);
-          const exportItemIds = batchRes.eligible_export_item_ids || [];
-          for (const itemId of exportItemIds) {
-            try {
-              const requestId = crypto.randomUUID();
-              const response = await request("/items/" + itemId + "/export", {
-                method: "POST",
-                body: JSON.stringify({
-                  export_key: "batch_retry_" + requestId,
-                  formats: ["png", "md", "caption"]
-                }),
-                headers: { "Idempotency-Key": requestId }
-              });
-              exportSuccess += 1;
-              if (response?.idempotent_replay === true) {
-                exportReplayed += 1;
+        await runActionWithFeedback(
+          {
+            id: "queue_retry_failed",
+            label: "Retry Failed Batch",
+            action: async () => {
+              clearPreviewContinuation();
+              clearPreviewOutput();
+              let exportSuccess = 0;
+              let exportFailed = 0;
+              let exportReplayed = 0;
+              try {
+                const executionOffset = normalizedPreviewOffset();
+                const previewRes = await request("/items/retry-failed", {
+                  method: "POST",
+                  body: JSON.stringify(retryFailedPayload(true, executionOffset))
+                });
+                syncPreviewOffsetFromResponse(previewRes);
+                const eligiblePipeline = Number(previewRes.eligible_pipeline ?? 0);
+                const eligibleExport = Number(previewRes.eligible_export ?? 0);
+                if (eligiblePipeline <= 0 && eligibleExport <= 0) {
+                  errorEl.textContent =
+                    "No retryable failed items matching current filters. scanned=" +
+                    (previewRes.scanned ?? 0) +
+                    "/" +
+                    (previewRes.scanned_total ?? previewRes.scanned ?? 0) +
+                    ", limit=" +
+                    (previewRes.requested_limit ?? normalizedBatchLimit()) +
+                    ", offset=" +
+                    (previewRes.requested_offset ?? 0) +
+                    ", q=" +
+                    (previewRes.q_filter || "all") +
+                    ", filter=" +
+                    (previewRes.failure_step_filter || "all") +
+                    ".";
+                  return;
+                }
+                const confirmed = confirm(
+                  "Retry failed items [q=" +
+                    (previewRes.q_filter || "all") +
+                    ", filter=" +
+                    (previewRes.failure_step_filter || "all") +
+                    "]? pipeline=" +
+                    eligiblePipeline +
+                    ", export=" +
+                    eligibleExport +
+                    ", scanned=" +
+                    (previewRes.scanned ?? 0) +
+                    "/" +
+                    (previewRes.scanned_total ?? previewRes.scanned ?? 0),
+                );
+                if (!confirmed) {
+                  errorEl.textContent = "Retry failed action cancelled.";
+                  return;
+                }
+                errorEl.textContent = "Retrying failed items...";
+                const executeOffset = normalizedPreviewOffset();
+                const batchRes = await request("/items/retry-failed", {
+                  method: "POST",
+                  body: JSON.stringify(retryFailedPayload(false, executeOffset))
+                });
+                syncPreviewOffsetFromResponse(batchRes);
+                const exportItemIds = batchRes.eligible_export_item_ids || [];
+                for (const itemId of exportItemIds) {
+                  try {
+                    const requestId = crypto.randomUUID();
+                    const response = await request("/items/" + itemId + "/export", {
+                      method: "POST",
+                      body: JSON.stringify({
+                        export_key: "batch_retry_" + requestId,
+                        formats: ["png", "md", "caption"]
+                      }),
+                      headers: { "Idempotency-Key": requestId }
+                    });
+                    exportSuccess += 1;
+                    if (response?.idempotent_replay === true) {
+                      exportReplayed += 1;
+                    }
+                  } catch {
+                    exportFailed += 1;
+                  }
+                }
+                errorEl.textContent =
+                  "Batch retry done. queued=" +
+                  (batchRes.queued ?? 0) +
+                  ", scanned=" +
+                  (batchRes.scanned ?? 0) +
+                  "/" +
+                  (batchRes.scanned_total ?? batchRes.scanned ?? 0) +
+                  ", limit=" +
+                  (batchRes.requested_limit ?? normalizedBatchLimit()) +
+                  ", offset=" +
+                  (batchRes.requested_offset ?? 0) +
+                  ", q=" +
+                  (batchRes.q_filter || "all") +
+                  ", filter=" +
+                  (batchRes.failure_step_filter || "all") +
+                  ", truncated=" +
+                  (batchRes.scan_truncated ? "yes" : "no") +
+                  ", next_offset=" +
+                  (batchRes.next_offset == null ? "null" : String(batchRes.next_offset)) +
+                  ", skipped_non_retryable=" +
+                  (batchRes.skipped_non_retryable ?? 0) +
+                  ", eligible_export=" +
+                  (batchRes.eligible_export ?? 0) +
+                  ", export_success=" +
+                  exportSuccess +
+                  ", export_replayed=" +
+                  exportReplayed +
+                  ", export_failed=" +
+                  exportFailed +
+                  ".";
+              } catch (err) {
+                throw new Error("Retry failed batch action failed: " + String(err));
               }
-            } catch {
-              exportFailed += 1;
-            }
-          }
-          errorEl.textContent =
-            "Batch retry done. queued=" +
-            (batchRes.queued ?? 0) +
-            ", scanned=" +
-            (batchRes.scanned ?? 0) +
-            "/" +
-            (batchRes.scanned_total ?? batchRes.scanned ?? 0) +
-            ", limit=" +
-            (batchRes.requested_limit ?? normalizedBatchLimit()) +
-            ", offset=" +
-            (batchRes.requested_offset ?? 0) +
-            ", q=" +
-            (batchRes.q_filter || "all") +
-            ", filter=" +
-            (batchRes.failure_step_filter || "all") +
-            ", truncated=" +
-            (batchRes.scan_truncated ? "yes" : "no") +
-            ", next_offset=" +
-            (batchRes.next_offset == null ? "null" : String(batchRes.next_offset)) +
-            ", skipped_non_retryable=" +
-            (batchRes.skipped_non_retryable ?? 0) +
-            ", eligible_export=" +
-            (batchRes.eligible_export ?? 0) +
-            ", export_success=" +
-            exportSuccess +
-            ", export_replayed=" +
-            exportReplayed +
-            ", export_failed=" +
-            exportFailed +
-            ".";
-        } catch (err) {
-          errorEl.textContent = "Retry failed batch action failed: " + String(err);
-        } finally {
-          retryFailedBtn.disabled = false;
-          await loadItems();
-        }
+            },
+          },
+          {
+            button: retryFailedBtn,
+            localFeedbackEl: queueActionBannerEl,
+            onFinally: async () => {
+              await loadItems();
+            },
+          },
+        );
       });
 
       previewRetryBtn.addEventListener("click", async () => {
