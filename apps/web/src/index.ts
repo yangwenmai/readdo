@@ -2446,26 +2446,48 @@ const html = `<!doctype html>
         persistControls();
       }
 
+      function scanCountSummary(payload) {
+        return String(payload.scanned ?? 0) + "/" + String(payload.scanned_total ?? payload.scanned ?? 0);
+      }
+
+      function scanWindowSummary(payload) {
+        return (
+          "scanned=" +
+          scanCountSummary(payload) +
+          ", limit=" +
+          (payload.requested_limit ?? normalizedBatchLimit()) +
+          ", offset=" +
+          (payload.requested_offset ?? 0)
+        );
+      }
+
+      function scanContinuationSummary(payload) {
+        return (
+          "truncated=" +
+          (payload.scan_truncated ? "yes" : "no") +
+          ", next_offset=" +
+          (payload.next_offset == null ? "null" : String(payload.next_offset))
+        );
+      }
+
+      function failureFilterSummary(payload) {
+        return "q=" + (payload.q_filter || "all") + ", filter=" + (payload.failure_step_filter || "all");
+      }
+
+      function qFilterSummary(payload) {
+        return "q=" + (payload.q_filter || "all");
+      }
+
       function renderArchivePreviewOutput(preview) {
         errorEl.textContent =
-          "Archive preview: scanned=" +
-          (preview.scanned ?? 0) +
-          "/" +
-          (preview.scanned_total ?? preview.scanned ?? 0) +
-          ", limit=" +
-          (preview.requested_limit ?? normalizedBatchLimit()) +
-          ", offset=" +
-          (preview.requested_offset ?? 0) +
+          "Archive preview: " +
+          scanWindowSummary(preview) +
           ", retryable=" +
           (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
-          ", q=" +
-          (preview.q_filter || "all") +
-          ", filter=" +
-          (preview.failure_step_filter || "all") +
-          ", truncated=" +
-          (preview.scan_truncated ? "yes" : "no") +
-          ", next_offset=" +
-          (preview.next_offset == null ? "null" : String(preview.next_offset)) +
+          ", " +
+          failureFilterSummary(preview) +
+          ", " +
+          scanContinuationSummary(preview) +
           ", eligible=" +
           (preview.eligible ?? 0) +
           ", skipped_retryable_mismatch=" +
@@ -2493,22 +2515,12 @@ const html = `<!doctype html>
 
       function renderRetryPreviewOutput(preview) {
         errorEl.textContent =
-          "Retry preview: scanned=" +
-          (preview.scanned ?? 0) +
-          "/" +
-          (preview.scanned_total ?? preview.scanned ?? 0) +
-          ", limit=" +
-          (preview.requested_limit ?? normalizedBatchLimit()) +
-          ", offset=" +
-          (preview.requested_offset ?? 0) +
-          ", q=" +
-          (preview.q_filter || "all") +
-          ", filter=" +
-          (preview.failure_step_filter || "all") +
-          ", truncated=" +
-          (preview.scan_truncated ? "yes" : "no") +
-          ", next_offset=" +
-          (preview.next_offset == null ? "null" : String(preview.next_offset)) +
+          "Retry preview: " +
+          scanWindowSummary(preview) +
+          ", " +
+          failureFilterSummary(preview) +
+          ", " +
+          scanContinuationSummary(preview) +
           ", eligible_pipeline=" +
           (preview.eligible_pipeline ?? 0) +
           ", eligible_export=" +
@@ -2537,22 +2549,14 @@ const html = `<!doctype html>
 
       function renderUnarchivePreviewOutput(preview) {
         errorEl.textContent =
-          "Unarchive preview: scanned=" +
-          (preview.scanned ?? 0) +
-          "/" +
-          (preview.scanned_total ?? preview.scanned ?? 0) +
-          ", limit=" +
-          (preview.requested_limit ?? normalizedBatchLimit()) +
-          ", offset=" +
-          (preview.requested_offset ?? 0) +
+          "Unarchive preview: " +
+          scanWindowSummary(preview) +
           ", mode=" +
           (preview.regenerate ? "regenerate" : "smart") +
-          ", q=" +
-          (preview.q_filter || "all") +
-          ", truncated=" +
-          (preview.scan_truncated ? "yes" : "no") +
-          ", next_offset=" +
-          (preview.next_offset == null ? "null" : String(preview.next_offset)) +
+          ", " +
+          qFilterSummary(preview) +
+          ", " +
+          scanContinuationSummary(preview) +
           ", eligible_ready=" +
           (preview.eligible_ready ?? 0) +
           ", eligible_queued=" +
@@ -2594,9 +2598,7 @@ const html = `<!doctype html>
                 renderArchivePreviewOutput(preview);
                 setPreviewContinuation("archive", preview.next_offset);
               } catch (err) {
-                retryPreviewOutputEl.style.display = "none";
-                retryPreviewOutputEl.textContent = "";
-                clearPreviewContinuation();
+                clearPreviewState();
                 throw new Error("Archive preview failed: " + String(err));
               }
             },
@@ -2626,18 +2628,10 @@ const html = `<!doctype html>
                 const eligibleExport = Number(previewRes.eligible_export ?? 0);
                 if (eligiblePipeline <= 0 && eligibleExport <= 0) {
                   errorEl.textContent =
-                    "No retryable failed items matching current filters. scanned=" +
-                    (previewRes.scanned ?? 0) +
-                    "/" +
-                    (previewRes.scanned_total ?? previewRes.scanned ?? 0) +
-                    ", limit=" +
-                    (previewRes.requested_limit ?? normalizedBatchLimit()) +
-                    ", offset=" +
-                    (previewRes.requested_offset ?? 0) +
-                    ", q=" +
-                    (previewRes.q_filter || "all") +
-                    ", filter=" +
-                    (previewRes.failure_step_filter || "all") +
+                    "No retryable failed items matching current filters. " +
+                    scanWindowSummary(previewRes) +
+                    ", " +
+                    failureFilterSummary(previewRes) +
                     ".";
                   return;
                 }
@@ -2651,9 +2645,7 @@ const html = `<!doctype html>
                     ", export=" +
                     eligibleExport +
                     ", scanned=" +
-                    (previewRes.scanned ?? 0) +
-                    "/" +
-                    (previewRes.scanned_total ?? previewRes.scanned ?? 0),
+                    scanCountSummary(previewRes),
                 );
                 if (!confirmed) {
                   errorEl.textContent = "Retry failed action cancelled.";
@@ -2689,22 +2681,12 @@ const html = `<!doctype html>
                 errorEl.textContent =
                   "Batch retry done. queued=" +
                   (batchRes.queued ?? 0) +
-                  ", scanned=" +
-                  (batchRes.scanned ?? 0) +
-                  "/" +
-                  (batchRes.scanned_total ?? batchRes.scanned ?? 0) +
-                  ", limit=" +
-                  (batchRes.requested_limit ?? normalizedBatchLimit()) +
-                  ", offset=" +
-                  (batchRes.requested_offset ?? 0) +
-                  ", q=" +
-                  (batchRes.q_filter || "all") +
-                  ", filter=" +
-                  (batchRes.failure_step_filter || "all") +
-                  ", truncated=" +
-                  (batchRes.scan_truncated ? "yes" : "no") +
-                  ", next_offset=" +
-                  (batchRes.next_offset == null ? "null" : String(batchRes.next_offset)) +
+                  ", " +
+                  scanWindowSummary(batchRes) +
+                  ", " +
+                  failureFilterSummary(batchRes) +
+                  ", " +
+                  scanContinuationSummary(batchRes) +
                   ", skipped_non_retryable=" +
                   (batchRes.skipped_non_retryable ?? 0) +
                   ", eligible_export=" +
@@ -2748,9 +2730,7 @@ const html = `<!doctype html>
                 renderRetryPreviewOutput(preview);
                 setPreviewContinuation("retry", preview.next_offset);
               } catch (err) {
-                retryPreviewOutputEl.style.display = "none";
-                retryPreviewOutputEl.textContent = "";
-                clearPreviewContinuation();
+                clearPreviewState();
                 throw new Error("Retry preview failed: " + String(err));
               }
             },
@@ -2778,24 +2758,7 @@ const html = `<!doctype html>
                   errorEl.textContent = "No failed items matching archive filter.";
                   return;
                 }
-                retryPreviewOutputEl.style.display = "block";
-                retryPreviewOutputEl.textContent = JSON.stringify(
-                  {
-                    preview_type: "archive_blocked",
-                    retryable_filter: preview.retryable_filter == null ? "all" : preview.retryable_filter,
-                    q_filter: preview.q_filter || null,
-                    filter: preview.failure_step_filter || "all",
-                    scanned: preview.scanned ?? 0,
-                    scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
-                    scan_truncated: Boolean(preview.scan_truncated),
-                    requested_offset: preview.requested_offset ?? 0,
-                    next_offset: preview.next_offset ?? null,
-                    eligible_item_ids: preview.eligible_item_ids || [],
-                    skipped_retryable_mismatch: preview.skipped_retryable_mismatch || 0,
-                  },
-                  null,
-                  2,
-                );
+                renderArchivePreviewOutput(preview);
                 const confirmed = confirm(
                   "Archive " +
                     eligible +
@@ -2821,24 +2784,16 @@ const html = `<!doctype html>
                 errorEl.textContent =
                   "Archive blocked done. archived=" +
                   (result.archived ?? 0) +
-                  ", scanned=" +
-                  (result.scanned ?? 0) +
-                  "/" +
-                  (result.scanned_total ?? result.scanned ?? 0) +
-                  ", limit=" +
-                  (result.requested_limit ?? normalizedBatchLimit()) +
-                  ", offset=" +
-                  (result.requested_offset ?? 0) +
-                  ", q=" +
-                  (result.q_filter || "all") +
+                  ", " +
+                  scanWindowSummary(result) +
+                  ", " +
+                  qFilterSummary(result) +
                   ", retryable=" +
                   (result.retryable_filter == null ? "all" : String(result.retryable_filter)) +
                   ", filter=" +
                   (result.failure_step_filter || "all") +
-                  ", truncated=" +
-                  (result.scan_truncated ? "yes" : "no") +
-                  ", next_offset=" +
-                  (result.next_offset == null ? "null" : String(result.next_offset)) +
+                  ", " +
+                  scanContinuationSummary(result) +
                   ", skipped_retryable_mismatch=" +
                   (result.skipped_retryable_mismatch ?? 0) +
                   ".";
@@ -2874,9 +2829,7 @@ const html = `<!doctype html>
                 renderUnarchivePreviewOutput(preview);
                 setPreviewContinuation("unarchive", preview.next_offset);
               } catch (err) {
-                retryPreviewOutputEl.style.display = "none";
-                retryPreviewOutputEl.textContent = "";
-                clearPreviewContinuation();
+                clearPreviewState();
                 throw new Error("Unarchive preview failed: " + String(err));
               }
             },
@@ -2978,22 +2931,14 @@ const html = `<!doctype html>
                 errorEl.textContent =
                   "Unarchive done. unarchived=" +
                   (result.unarchived ?? 0) +
-                  ", scanned=" +
-                  (result.scanned ?? 0) +
-                  "/" +
-                  (result.scanned_total ?? result.scanned ?? 0) +
-                  ", limit=" +
-                  (result.requested_limit ?? normalizedBatchLimit()) +
-                  ", offset=" +
-                  (result.requested_offset ?? 0) +
+                  ", " +
+                  scanWindowSummary(result) +
                   ", mode=" +
                   (result.regenerate ? "regenerate" : "smart") +
-                  ", q=" +
-                  (result.q_filter || "all") +
-                  ", truncated=" +
-                  (result.scan_truncated ? "yes" : "no") +
-                  ", next_offset=" +
-                  (result.next_offset == null ? "null" : String(result.next_offset)) +
+                  ", " +
+                  qFilterSummary(result) +
+                  ", " +
+                  scanContinuationSummary(result) +
                   ", queued_jobs_created=" +
                   (result.queued_jobs_created ?? 0) +
                   ".";
