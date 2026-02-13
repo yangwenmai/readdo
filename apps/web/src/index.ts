@@ -2446,6 +2446,137 @@ const html = `<!doctype html>
         persistControls();
       }
 
+      function renderArchivePreviewOutput(preview) {
+        errorEl.textContent =
+          "Archive preview: scanned=" +
+          (preview.scanned ?? 0) +
+          "/" +
+          (preview.scanned_total ?? preview.scanned ?? 0) +
+          ", limit=" +
+          (preview.requested_limit ?? normalizedBatchLimit()) +
+          ", offset=" +
+          (preview.requested_offset ?? 0) +
+          ", retryable=" +
+          (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
+          ", q=" +
+          (preview.q_filter || "all") +
+          ", filter=" +
+          (preview.failure_step_filter || "all") +
+          ", truncated=" +
+          (preview.scan_truncated ? "yes" : "no") +
+          ", next_offset=" +
+          (preview.next_offset == null ? "null" : String(preview.next_offset)) +
+          ", eligible=" +
+          (preview.eligible ?? 0) +
+          ", skipped_retryable_mismatch=" +
+          (preview.skipped_retryable_mismatch ?? 0) +
+          ".";
+        retryPreviewOutputEl.style.display = "block";
+        retryPreviewOutputEl.textContent = JSON.stringify(
+          {
+            preview_type: "archive_blocked",
+            retryable_filter: preview.retryable_filter == null ? "all" : preview.retryable_filter,
+            q_filter: preview.q_filter || null,
+            filter: preview.failure_step_filter || "all",
+            scanned: preview.scanned ?? 0,
+            scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
+            scan_truncated: Boolean(preview.scan_truncated),
+            requested_offset: preview.requested_offset ?? 0,
+            next_offset: preview.next_offset ?? null,
+            eligible_item_ids: preview.eligible_item_ids || [],
+            skipped_retryable_mismatch: preview.skipped_retryable_mismatch || 0,
+          },
+          null,
+          2,
+        );
+      }
+
+      function renderRetryPreviewOutput(preview) {
+        errorEl.textContent =
+          "Retry preview: scanned=" +
+          (preview.scanned ?? 0) +
+          "/" +
+          (preview.scanned_total ?? preview.scanned ?? 0) +
+          ", limit=" +
+          (preview.requested_limit ?? normalizedBatchLimit()) +
+          ", offset=" +
+          (preview.requested_offset ?? 0) +
+          ", q=" +
+          (preview.q_filter || "all") +
+          ", filter=" +
+          (preview.failure_step_filter || "all") +
+          ", truncated=" +
+          (preview.scan_truncated ? "yes" : "no") +
+          ", next_offset=" +
+          (preview.next_offset == null ? "null" : String(preview.next_offset)) +
+          ", eligible_pipeline=" +
+          (preview.eligible_pipeline ?? 0) +
+          ", eligible_export=" +
+          (preview.eligible_export ?? 0) +
+          ", skipped_non_retryable=" +
+          (preview.skipped_non_retryable ?? 0) +
+          ".";
+        retryPreviewOutputEl.style.display = "block";
+        retryPreviewOutputEl.textContent = JSON.stringify(
+          {
+            q_filter: preview.q_filter || null,
+            filter: preview.failure_step_filter || "all",
+            scanned: preview.scanned ?? 0,
+            scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
+            scan_truncated: Boolean(preview.scan_truncated),
+            requested_offset: preview.requested_offset ?? 0,
+            next_offset: preview.next_offset ?? null,
+            eligible_pipeline_item_ids: preview.eligible_pipeline_item_ids || [],
+            eligible_export_item_ids: preview.eligible_export_item_ids || [],
+            skipped_non_retryable: preview.skipped_non_retryable || 0,
+          },
+          null,
+          2,
+        );
+      }
+
+      function renderUnarchivePreviewOutput(preview) {
+        errorEl.textContent =
+          "Unarchive preview: scanned=" +
+          (preview.scanned ?? 0) +
+          "/" +
+          (preview.scanned_total ?? preview.scanned ?? 0) +
+          ", limit=" +
+          (preview.requested_limit ?? normalizedBatchLimit()) +
+          ", offset=" +
+          (preview.requested_offset ?? 0) +
+          ", mode=" +
+          (preview.regenerate ? "regenerate" : "smart") +
+          ", q=" +
+          (preview.q_filter || "all") +
+          ", truncated=" +
+          (preview.scan_truncated ? "yes" : "no") +
+          ", next_offset=" +
+          (preview.next_offset == null ? "null" : String(preview.next_offset)) +
+          ", eligible_ready=" +
+          (preview.eligible_ready ?? 0) +
+          ", eligible_queued=" +
+          (preview.eligible_queued ?? 0) +
+          ".";
+        retryPreviewOutputEl.style.display = "block";
+        retryPreviewOutputEl.textContent = JSON.stringify(
+          {
+            preview_type: "unarchive_batch",
+            mode: preview.regenerate ? "regenerate" : "smart",
+            q_filter: preview.q_filter || null,
+            scanned: preview.scanned ?? 0,
+            scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
+            scan_truncated: Boolean(preview.scan_truncated),
+            requested_offset: preview.requested_offset ?? 0,
+            next_offset: preview.next_offset ?? null,
+            eligible_ready_item_ids: preview.eligible_ready_item_ids || [],
+            eligible_queued_item_ids: preview.eligible_queued_item_ids || [],
+          },
+          null,
+          2,
+        );
+      }
+
       previewArchiveBtn.addEventListener("click", async () => {
         await runActionWithFeedback(
           {
@@ -2460,48 +2591,7 @@ const html = `<!doctype html>
                   body: JSON.stringify(archiveBlockedPayload(true, previewOffset))
                 });
                 syncPreviewOffsetFromResponse(preview);
-                errorEl.textContent =
-                  "Archive preview: scanned=" +
-                  (preview.scanned ?? 0) +
-                  "/" +
-                  (preview.scanned_total ?? preview.scanned ?? 0) +
-                  ", limit=" +
-                  (preview.requested_limit ?? normalizedBatchLimit()) +
-                  ", offset=" +
-                  (preview.requested_offset ?? 0) +
-                  ", retryable=" +
-                  (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
-                  ", q=" +
-                  (preview.q_filter || "all") +
-                  ", filter=" +
-                  (preview.failure_step_filter || "all") +
-                  ", truncated=" +
-                  (preview.scan_truncated ? "yes" : "no") +
-                  ", next_offset=" +
-                  (preview.next_offset == null ? "null" : String(preview.next_offset)) +
-                  ", eligible=" +
-                  (preview.eligible ?? 0) +
-                  ", skipped_retryable_mismatch=" +
-                  (preview.skipped_retryable_mismatch ?? 0) +
-                  ".";
-                retryPreviewOutputEl.style.display = "block";
-                retryPreviewOutputEl.textContent = JSON.stringify(
-                  {
-                    preview_type: "archive_blocked",
-                    retryable_filter: preview.retryable_filter == null ? "all" : preview.retryable_filter,
-                    q_filter: preview.q_filter || null,
-                    filter: preview.failure_step_filter || "all",
-                    scanned: preview.scanned ?? 0,
-                    scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
-                    scan_truncated: Boolean(preview.scan_truncated),
-                    requested_offset: preview.requested_offset ?? 0,
-                    next_offset: preview.next_offset ?? null,
-                    eligible_item_ids: preview.eligible_item_ids || [],
-                    skipped_retryable_mismatch: preview.skipped_retryable_mismatch || 0,
-                  },
-                  null,
-                  2,
-                );
+                renderArchivePreviewOutput(preview);
                 setPreviewContinuation("archive", preview.next_offset);
               } catch (err) {
                 retryPreviewOutputEl.style.display = "none";
@@ -2656,47 +2746,7 @@ const html = `<!doctype html>
                   body: JSON.stringify(retryFailedPayload(true, previewOffset))
                 });
                 syncPreviewOffsetFromResponse(preview);
-                errorEl.textContent =
-                  "Retry preview: scanned=" +
-                  (preview.scanned ?? 0) +
-                  "/" +
-                  (preview.scanned_total ?? preview.scanned ?? 0) +
-                  ", limit=" +
-                  (preview.requested_limit ?? normalizedBatchLimit()) +
-                  ", offset=" +
-                  (preview.requested_offset ?? 0) +
-                  ", q=" +
-                  (preview.q_filter || "all") +
-                  ", filter=" +
-                  (preview.failure_step_filter || "all") +
-                  ", truncated=" +
-                  (preview.scan_truncated ? "yes" : "no") +
-                  ", next_offset=" +
-                  (preview.next_offset == null ? "null" : String(preview.next_offset)) +
-                  ", eligible_pipeline=" +
-                  (preview.eligible_pipeline ?? 0) +
-                  ", eligible_export=" +
-                  (preview.eligible_export ?? 0) +
-                  ", skipped_non_retryable=" +
-                  (preview.skipped_non_retryable ?? 0) +
-                  ".";
-                retryPreviewOutputEl.style.display = "block";
-                retryPreviewOutputEl.textContent = JSON.stringify(
-                  {
-                    q_filter: preview.q_filter || null,
-                    filter: preview.failure_step_filter || "all",
-                    scanned: preview.scanned ?? 0,
-                    scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
-                    scan_truncated: Boolean(preview.scan_truncated),
-                    requested_offset: preview.requested_offset ?? 0,
-                    next_offset: preview.next_offset ?? null,
-                    eligible_pipeline_item_ids: preview.eligible_pipeline_item_ids || [],
-                    eligible_export_item_ids: preview.eligible_export_item_ids || [],
-                    skipped_non_retryable: preview.skipped_non_retryable || 0,
-                  },
-                  null,
-                  2,
-                );
+                renderRetryPreviewOutput(preview);
                 setPreviewContinuation("retry", preview.next_offset);
               } catch (err) {
                 retryPreviewOutputEl.style.display = "none";
@@ -2823,45 +2873,7 @@ const html = `<!doctype html>
                   body: JSON.stringify(unarchiveBatchPayload(true, previewOffset))
                 });
                 syncPreviewOffsetFromResponse(preview);
-                errorEl.textContent =
-                  "Unarchive preview: scanned=" +
-                  (preview.scanned ?? 0) +
-                  "/" +
-                  (preview.scanned_total ?? preview.scanned ?? 0) +
-                  ", limit=" +
-                  (preview.requested_limit ?? normalizedBatchLimit()) +
-                  ", offset=" +
-                  (preview.requested_offset ?? 0) +
-                  ", mode=" +
-                  (preview.regenerate ? "regenerate" : "smart") +
-                  ", q=" +
-                  (preview.q_filter || "all") +
-                  ", truncated=" +
-                  (preview.scan_truncated ? "yes" : "no") +
-                  ", next_offset=" +
-                  (preview.next_offset == null ? "null" : String(preview.next_offset)) +
-                  ", eligible_ready=" +
-                  (preview.eligible_ready ?? 0) +
-                  ", eligible_queued=" +
-                  (preview.eligible_queued ?? 0) +
-                  ".";
-                retryPreviewOutputEl.style.display = "block";
-                retryPreviewOutputEl.textContent = JSON.stringify(
-                  {
-                    preview_type: "unarchive_batch",
-                    mode: preview.regenerate ? "regenerate" : "smart",
-                    q_filter: preview.q_filter || null,
-                    scanned: preview.scanned ?? 0,
-                    scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
-                    scan_truncated: Boolean(preview.scan_truncated),
-                    requested_offset: preview.requested_offset ?? 0,
-                    next_offset: preview.next_offset ?? null,
-                    eligible_ready_item_ids: preview.eligible_ready_item_ids || [],
-                    eligible_queued_item_ids: preview.eligible_queued_item_ids || [],
-                  },
-                  null,
-                  2,
-                );
+                renderUnarchivePreviewOutput(preview);
                 setPreviewContinuation("unarchive", preview.next_offset);
               } catch (err) {
                 retryPreviewOutputEl.style.display = "none";
@@ -2890,47 +2902,7 @@ const html = `<!doctype html>
                     body: JSON.stringify(retryFailedPayload(true, nextOffset))
                   });
                   syncPreviewOffsetFromResponse(preview);
-                  errorEl.textContent =
-                    "Retry preview: scanned=" +
-                    (preview.scanned ?? 0) +
-                    "/" +
-                    (preview.scanned_total ?? preview.scanned ?? 0) +
-                    ", limit=" +
-                    (preview.requested_limit ?? normalizedBatchLimit()) +
-                    ", offset=" +
-                    (preview.requested_offset ?? 0) +
-                    ", q=" +
-                    (preview.q_filter || "all") +
-                    ", filter=" +
-                    (preview.failure_step_filter || "all") +
-                    ", truncated=" +
-                    (preview.scan_truncated ? "yes" : "no") +
-                    ", next_offset=" +
-                    (preview.next_offset == null ? "null" : String(preview.next_offset)) +
-                    ", eligible_pipeline=" +
-                    (preview.eligible_pipeline ?? 0) +
-                    ", eligible_export=" +
-                    (preview.eligible_export ?? 0) +
-                    ", skipped_non_retryable=" +
-                    (preview.skipped_non_retryable ?? 0) +
-                    ".";
-                  retryPreviewOutputEl.style.display = "block";
-                  retryPreviewOutputEl.textContent = JSON.stringify(
-                    {
-                      q_filter: preview.q_filter || null,
-                      filter: preview.failure_step_filter || "all",
-                      scanned: preview.scanned ?? 0,
-                      scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
-                      scan_truncated: Boolean(preview.scan_truncated),
-                      requested_offset: preview.requested_offset ?? 0,
-                      next_offset: preview.next_offset ?? null,
-                      eligible_pipeline_item_ids: preview.eligible_pipeline_item_ids || [],
-                      eligible_export_item_ids: preview.eligible_export_item_ids || [],
-                      skipped_non_retryable: preview.skipped_non_retryable || 0,
-                    },
-                    null,
-                    2,
-                  );
+                  renderRetryPreviewOutput(preview);
                   setPreviewContinuation("retry", preview.next_offset);
                   return;
                 }
@@ -2940,48 +2912,7 @@ const html = `<!doctype html>
                     body: JSON.stringify(archiveBlockedPayload(true, nextOffset))
                   });
                   syncPreviewOffsetFromResponse(preview);
-                  errorEl.textContent =
-                    "Archive preview: scanned=" +
-                    (preview.scanned ?? 0) +
-                    "/" +
-                    (preview.scanned_total ?? preview.scanned ?? 0) +
-                    ", limit=" +
-                    (preview.requested_limit ?? normalizedBatchLimit()) +
-                    ", offset=" +
-                    (preview.requested_offset ?? 0) +
-                    ", retryable=" +
-                    (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
-                    ", q=" +
-                    (preview.q_filter || "all") +
-                    ", filter=" +
-                    (preview.failure_step_filter || "all") +
-                    ", truncated=" +
-                    (preview.scan_truncated ? "yes" : "no") +
-                    ", next_offset=" +
-                    (preview.next_offset == null ? "null" : String(preview.next_offset)) +
-                    ", eligible=" +
-                    (preview.eligible ?? 0) +
-                    ", skipped_retryable_mismatch=" +
-                    (preview.skipped_retryable_mismatch ?? 0) +
-                    ".";
-                  retryPreviewOutputEl.style.display = "block";
-                  retryPreviewOutputEl.textContent = JSON.stringify(
-                    {
-                      preview_type: "archive_blocked",
-                      retryable_filter: preview.retryable_filter == null ? "all" : preview.retryable_filter,
-                      q_filter: preview.q_filter || null,
-                      filter: preview.failure_step_filter || "all",
-                      scanned: preview.scanned ?? 0,
-                      scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
-                      scan_truncated: Boolean(preview.scan_truncated),
-                      requested_offset: preview.requested_offset ?? 0,
-                      next_offset: preview.next_offset ?? null,
-                      eligible_item_ids: preview.eligible_item_ids || [],
-                      skipped_retryable_mismatch: preview.skipped_retryable_mismatch || 0,
-                    },
-                    null,
-                    2,
-                  );
+                  renderArchivePreviewOutput(preview);
                   setPreviewContinuation("archive", preview.next_offset);
                   return;
                 }
@@ -2991,45 +2922,7 @@ const html = `<!doctype html>
                     body: JSON.stringify(unarchiveBatchPayload(true, nextOffset))
                   });
                   syncPreviewOffsetFromResponse(preview);
-                  errorEl.textContent =
-                    "Unarchive preview: scanned=" +
-                    (preview.scanned ?? 0) +
-                    "/" +
-                    (preview.scanned_total ?? preview.scanned ?? 0) +
-                    ", limit=" +
-                    (preview.requested_limit ?? normalizedBatchLimit()) +
-                    ", offset=" +
-                    (preview.requested_offset ?? 0) +
-                    ", mode=" +
-                    (preview.regenerate ? "regenerate" : "smart") +
-                    ", q=" +
-                    (preview.q_filter || "all") +
-                    ", truncated=" +
-                    (preview.scan_truncated ? "yes" : "no") +
-                    ", next_offset=" +
-                    (preview.next_offset == null ? "null" : String(preview.next_offset)) +
-                    ", eligible_ready=" +
-                    (preview.eligible_ready ?? 0) +
-                    ", eligible_queued=" +
-                    (preview.eligible_queued ?? 0) +
-                    ".";
-                  retryPreviewOutputEl.style.display = "block";
-                  retryPreviewOutputEl.textContent = JSON.stringify(
-                    {
-                      preview_type: "unarchive_batch",
-                      mode: preview.regenerate ? "regenerate" : "smart",
-                      q_filter: preview.q_filter || null,
-                      scanned: preview.scanned ?? 0,
-                      scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
-                      scan_truncated: Boolean(preview.scan_truncated),
-                      requested_offset: preview.requested_offset ?? 0,
-                      next_offset: preview.next_offset ?? null,
-                      eligible_ready_item_ids: preview.eligible_ready_item_ids || [],
-                      eligible_queued_item_ids: preview.eligible_queued_item_ids || [],
-                    },
-                    null,
-                    2,
-                  );
+                  renderUnarchivePreviewOutput(preview);
                   setPreviewContinuation("unarchive", preview.next_offset);
                   return;
                 }
