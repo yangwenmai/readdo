@@ -209,6 +209,72 @@ test("capture endpoint supports idempotency via capture_id body field", async ()
   }
 });
 
+test("capture endpoint replays without explicit key using canonical url plus intent", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-capture-derived-idempotent-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const firstCaptureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://Example.com.:443/path?b=2&utm_source=x&a=1#section",
+        title: "Derived Idempotency First",
+        source_type: "web",
+        intent_text: "  keep   this focused  ",
+      },
+    });
+    assert.equal(firstCaptureRes.statusCode, 201);
+    const firstPayload = firstCaptureRes.json() as {
+      item: { id: string };
+      idempotent_replay: boolean;
+    };
+    assert.equal(firstPayload.idempotent_replay, false);
+
+    const replayCaptureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://example.com/path?a=1&b=2",
+        title: "Derived Idempotency Replay",
+        source_type: "web",
+        intent_text: "keep this focused",
+      },
+    });
+    assert.equal(replayCaptureRes.statusCode, 201);
+    const replayPayload = replayCaptureRes.json() as {
+      item: { id: string };
+      idempotent_replay: boolean;
+    };
+    assert.equal(replayPayload.idempotent_replay, true);
+    assert.equal(replayPayload.item.id, firstPayload.item.id);
+
+    const changedIntentRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://example.com/path?a=1&b=2",
+        title: "Derived Idempotency Different Intent",
+        source_type: "web",
+        intent_text: "keep this as a different action",
+      },
+    });
+    assert.equal(changedIntentRes.statusCode, 201);
+    const changedIntentPayload = changedIntentRes.json() as {
+      item: { id: string };
+      idempotent_replay: boolean;
+    };
+    assert.equal(changedIntentPayload.idempotent_replay, false);
+    assert.notEqual(changedIntentPayload.item.id, firstPayload.item.id);
+  } finally {
+    await app.close();
+  }
+});
+
 test("capture rejects mismatched header idempotency key and capture_id", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-capture-mismatch-idempotent-"));
   const app = await createApp({

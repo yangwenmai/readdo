@@ -234,6 +234,19 @@ function sanitizeUrlForStorage(parsedUrl: URL): string {
   return parsedUrl.toString();
 }
 
+function normalizeIntentForCaptureKey(intentText: string): string {
+  return intentText.replace(/\s+/g, " ").trim();
+}
+
+function deriveCaptureKey(url: string, intentText: string): string {
+  const normalizedIntent = normalizeIntentForCaptureKey(intentText);
+  const digest = createHash("sha256")
+    .update(`${url}\n${normalizedIntent}`)
+    .digest("hex")
+    .slice(0, 32);
+  return `srvcap_${digest}`;
+}
+
 function hostMatchesDomain(host: string, domain: string): boolean {
   const normalizedHost = normalizeHostname(host);
   const normalizedDomain = normalizeHostname(domain);
@@ -1147,21 +1160,20 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const normalizedProvidedDomain = normalizeHostname(providedDomain);
     const domain = isWebLikeUrl ? inferredDomain : normalizedProvidedDomain;
     const sanitizedUrl = sanitizeUrlForStorage(parsedUrl);
+    const requestCaptureKey = idempotencyKey || deriveCaptureKey(sanitizedUrl, intentText);
 
-    if (idempotencyKey) {
-      const existing = db
-        .prepare("SELECT * FROM items WHERE capture_key = ?")
-        .get(idempotencyKey) as DbItemRow | undefined;
-      if (existing) {
-        return reply.status(201).send({
-          item: {
-            id: existing.id,
-            status: existing.status,
-            created_at: existing.created_at,
-          },
-          idempotent_replay: true,
-        });
-      }
+    const existing = db
+      .prepare("SELECT * FROM items WHERE capture_key = ?")
+      .get(requestCaptureKey) as DbItemRow | undefined;
+    if (existing) {
+      return reply.status(201).send({
+        item: {
+          id: existing.id,
+          status: existing.status,
+          created_at: existing.created_at,
+        },
+        idempotent_replay: true,
+      });
     }
 
     const id = `itm_${nanoid(10)}`;
@@ -1171,9 +1183,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       INSERT INTO items(id, url, title, domain, source_type, intent_text, status, created_at, updated_at, capture_key)
       VALUES(?, ?, ?, ?, ?, ?, 'CAPTURED', ?, ?, ?)
       `,
-    ).run(id, sanitizedUrl, title, domain, sourceType, intentText, ts, ts, idempotencyKey || null);
+    ).run(id, sanitizedUrl, title, domain, sourceType, intentText, ts, ts, requestCaptureKey);
 
-    createProcessJob(db, id, `capture:${id}:${idempotencyKey || "default"}`);
+    createProcessJob(db, id, `capture:${id}:${requestCaptureKey}`);
 
     return reply.status(201).send({
       item: {

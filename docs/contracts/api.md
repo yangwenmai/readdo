@@ -169,6 +169,7 @@ Headers:
 * source_type 枚举：`web | youtube | newsletter | other`（大小写不敏感，服务端会归一化为小写）；若缺省则服务端会基于 URL `hostname` 推断（hostname 会先做小写归一化并移除尾随 `.`；`youtube.com|youtu.be` 域名命中 -> youtube；`substack.com` 或 newsletter 形态子域命中 -> newsletter；其余 http(s) -> web）
 * url 协议白名单：`http | https | data`（如 `ftp://`、`chrome://`、`file://` 应返回 `400 VALIDATION_ERROR`）
 * 若同时提供 `Idempotency-Key` 与 `capture_id`，两者必须一致；不一致返回 `400 VALIDATION_ERROR`
+* 若未提供 `Idempotency-Key/capture_id`，服务端会基于“规范化后的 url + 规范化 intent_text（合并空白）”推导稳定 capture key，用于避免重复创建
 
 ### 4.4 Response 201
 
@@ -183,7 +184,8 @@ Headers:
 }
 ```
 
-> 当重复使用同一 `Idempotency-Key`（或 `capture_id`）提交 capture 时，服务端返回既有 item，`idempotent_replay=true`，且不重复创建新 item。
+> 当重复使用同一 `Idempotency-Key`（或 `capture_id`）提交 capture 时，服务端返回既有 item，`idempotent_replay=true`，且不重复创建新 item。  
+> 未显式提供幂等键时，若规范化后的 `url + intent_text` 命中服务端推导 key，也会返回 `idempotent_replay=true`。
 
 ### 4.5 错误
 
