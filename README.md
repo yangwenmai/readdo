@@ -9,12 +9,14 @@ Read→Do is an AI-native “Read → Decide → Do → Ship” system:
 
 ## What’s inside
 - `apps/api`        Local backend (API + orchestrator + worker)
-- `apps/web`        Web app (Inbox / Detail / Edit / Export)
+- `apps/web`        Web app (Inbox / Detail / Status Actions)
 - `apps/extension`  Chrome extension (one-click capture)
-- `packages/core`   Core engine (pipeline steps, interfaces)
-- `contracts/schemas` JSON schemas (source of truth)
-- `templates`       Prompt templates (versioned)
-- `evals`           Regression cases + rubric
+- `packages/core`   Core engine (summary/score/todos/card generation)
+- `packages/contracts` Runtime schema validators (AJV)
+- `packages/eval-runner` Eval CLI (`pnpm eval`)
+- `docs/contracts/schemas` JSON schemas (source of truth)
+- `docs/templates`  Prompt templates (versioned)
+- `docs/evals`      Regression cases + rubric + reports
 - `docs`            PRD / System Design / Tech Spec / Execution Plan
 
 ---
@@ -30,7 +32,7 @@ pnpm install
 ### 2) Start API
 
 ```bash
-pnpm -C apps/api dev
+pnpm dev:api
 ```
 
 Default:
@@ -42,10 +44,10 @@ Default:
 ### 3) Start Web
 
 ```bash
-pnpm -C apps/web dev
+pnpm dev:web
 ```
 
-Open the Inbox in your browser.
+Open `http://localhost:5173` in your browser.
 
 ### 4) Load Chrome Extension
 
@@ -80,8 +82,8 @@ Quality gates:
 See:
 
 * `docs/05-Quality-Evals.md`
-* `evals/rubric.md`
-* `evals/cases/*`
+* `docs/evals/rubric.md`
+* `docs/evals/cases/*`
 
 ---
 
@@ -89,7 +91,7 @@ See:
 
 Artifacts are the source of truth. Any AI output must:
 
-1. Match schema in `contracts/schemas/*`
+1. Match schema in `docs/contracts/schemas/*`
 2. Carry required meta fields (run_id / engine_version / template_version / created_by / created_at)
 3. Pass eval gates when templates/engine change
 
@@ -105,10 +107,10 @@ Key docs:
 
 MVP export targets:
 
-* PNG (preferred, via HTML render_spec)
-* Markdown + caption (fallback)
+* Markdown + caption（已落地）
+* PNG（下一步补齐，基于 HTML render_spec）
 
-See `contracts/schemas/card.schema.json` for `render_spec`.
+See `docs/contracts/schemas/card.schema.json` for `render_spec`.
 
 ---
 
