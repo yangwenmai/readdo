@@ -419,6 +419,46 @@ test("process endpoint replays idempotent request with same key", async () => {
   }
 });
 
+test("process rejects mismatched header idempotency key and process_request_id", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-mismatch-idempotent-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20request%20validates%20process%20idempotency%20key%20mismatch%20rejection.",
+        title: "Process Mismatch",
+        domain: "example.process.mismatch",
+        source_type: "web",
+        intent_text: "validate process key mismatch",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const processRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      headers: { "Idempotency-Key": "process-header-key-1" },
+      payload: { mode: "REGENERATE", process_request_id: "process-body-key-2" },
+    });
+    assert.equal(processRes.statusCode, 400);
+    const errPayload = processRes.json() as { error: { code: string; message: string } };
+    assert.equal(errPayload.error.code, "VALIDATION_ERROR");
+    assert.match(errPayload.error.message, /Idempotency-Key and process_request_id must match/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("items endpoint supports status and query filtering", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-list-"));
   const app = await createApp({

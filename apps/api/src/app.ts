@@ -1413,8 +1413,13 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     if (!mode) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "mode must be PROCESS | RETRY | REGENERATE"));
     }
-    const processKeySource = request.headers["idempotency-key"] ?? body.process_request_id;
-    const explicitProcessKey = typeof processKeySource === "string" ? processKeySource.trim() : "";
+    const headerProcessRaw = request.headers["idempotency-key"];
+    const headerProcessKey = typeof headerProcessRaw === "string" ? headerProcessRaw.trim() : "";
+    const bodyProcessKey = typeof body.process_request_id === "string" ? body.process_request_id.trim() : "";
+    if (headerProcessKey && bodyProcessKey && headerProcessKey !== bodyProcessKey) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "Idempotency-Key and process_request_id must match when both are provided"));
+    }
+    const explicitProcessKey = headerProcessKey || bodyProcessKey;
     const processKey = explicitProcessKey || `manual_${nanoid(8)}`;
     const requestKey = `process:${id}:${mode}:${processKey}`;
     if (explicitProcessKey) {

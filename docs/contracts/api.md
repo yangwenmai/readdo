@@ -708,6 +708,7 @@ mode 枚举：
 * `REGENERATE`：重新生成新版本 artifacts（READY/ARCHIVED）
 
 > RETRY 会读取 item.failure.retryable；当达到重试上限时返回 `409 RETRY_LIMIT_REACHED`。
+> 若同时提供 `Idempotency-Key` 与 `process_request_id`，两者必须一致；不一致返回 `400 VALIDATION_ERROR`。
 
 options（MVP 可选）：
 
