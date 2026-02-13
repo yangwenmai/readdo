@@ -42,9 +42,9 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Shortcuts \(\?\)/u);
     assert.match(text, /id="shortcutHintBtn"/u);
     assert.match(text, /aria-expanded="false"/u);
-    assert.match(text, /title="Shortcuts: \/ Search · F Focus Mode · A Advanced Panels · P Focus Priority · Shift\+P Focus Priority \(reverse\) · R Refresh · \? Show shortcuts"/u);
-    assert.match(text, /aria-label="Shortcuts: \/ Search · F Focus Mode · A Advanced Panels · P Focus Priority · Shift\+P Focus Priority \(reverse\) · R Refresh · \? Show shortcuts"/u);
-    assert.match(text, /Shortcuts: \/ Search · F Focus Mode · A Advanced Panels · P Focus Priority · Shift\+P Focus Priority \(reverse\) · R Refresh · \? Show shortcuts/u);
+    assert.match(text, /title="Shortcuts: \/ Search · F Focus Mode · A Advanced Panels · P Focus Priority · Shift\+P Focus Priority \(reverse\) · G Edit Context Filters · R Refresh · \? Show shortcuts"/u);
+    assert.match(text, /aria-label="Shortcuts: \/ Search · F Focus Mode · A Advanced Panels · P Focus Priority · Shift\+P Focus Priority \(reverse\) · G Edit Context Filters · R Refresh · \? Show shortcuts"/u);
+    assert.match(text, /Shortcuts: \/ Search · F Focus Mode · A Advanced Panels · P Focus Priority · Shift\+P Focus Priority \(reverse\) · G Edit Context Filters · R Refresh · \? Show shortcuts/u);
     assert.match(text, /id="shortcutPanelBackdrop"/u);
     assert.match(text, /id="shortcutPanelCloseBtn"/u);
     assert.match(text, /Shortcut Guide/u);
@@ -53,6 +53,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /<kbd>\/<\/kbd><span>Search<\/span>/u);
     assert.match(text, /<kbd>P<\/kbd><span>Focus Priority<\/span>/u);
     assert.match(text, /<kbd>Shift\+P<\/kbd><span>Focus Priority \(reverse\)<\/span>/u);
+    assert.match(text, /<kbd>G<\/kbd><span>Edit Context Filters<\/span>/u);
     assert.match(text, /id="queueHighlights"/u);
     assert.match(text, /id="queueFlowPulse"/u);
     assert.match(text, /Pipeline Pulse/u);

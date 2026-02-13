@@ -14,6 +14,7 @@ const shortcutGuideItems = [
   { key: "A", label: "Advanced Panels" },
   { key: "P", label: "Focus Priority" },
   { key: "Shift+P", label: "Focus Priority (reverse)" },
+  { key: "G", label: "Edit Context Filters" },
   { key: "R", label: "Refresh" },
   { key: shortcutTriggerKey, label: "Show shortcuts" },
 ];
@@ -1963,6 +1964,20 @@ const html = `<!doctype html>
         const target = recoveryContextTarget(step);
         focusQueueFilterControl(target.control);
         return target;
+      }
+
+      function focusRecoveryContextFromShortcut() {
+        const activeStep = activeFailedStepKey();
+        if (!activeStep) {
+          const hint = "No step focus active. Select a trend step delta first.";
+          setActionFeedbackPair("done", hint, queueActionBannerEl);
+          errorEl.textContent = hint;
+          return;
+        }
+        const target = focusRecoveryContextControl(activeStep);
+        const feedback = "Focused control: " + target.label + ".";
+        setActionFeedbackPair("done", feedback, queueActionBannerEl);
+        errorEl.textContent = feedback;
       }
 
       function trendStepActionTitle(step) {
@@ -5180,6 +5195,9 @@ const html = `<!doctype html>
         },
         p: () => {
           cycleRecoveryContextFocusMode();
+        },
+        g: () => {
+          focusRecoveryContextFromShortcut();
         },
         r: () => {
           refreshItemsWithErrorHandling();
