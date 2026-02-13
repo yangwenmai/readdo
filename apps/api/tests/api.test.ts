@@ -2074,6 +2074,17 @@ test("items endpoint applies retryable filter before limit truncation", async ()
     assert.equal(retryableOffsetPayload.items.length, 1);
     assert.equal(retryableOffsetPayload.items[0].id, failedItemAId);
     assert.ok(retryableOffsetPayload.items[0].status.startsWith("FAILED_"));
+
+    const failedWildcardRes = await app.inject({
+      method: "GET",
+      url: "/api/items?status=FAILED_*&sort=created_desc&limit=10",
+    });
+    assert.equal(failedWildcardRes.statusCode, 200);
+    const failedWildcardItems = (failedWildcardRes.json() as { items: Array<{ id: string; status: string }> }).items;
+    assert.ok(failedWildcardItems.length >= 2);
+    assert.ok(failedWildcardItems.some((x) => x.id === failedItemAId));
+    assert.ok(failedWildcardItems.some((x) => x.id === failedItemBId));
+    assert.ok(failedWildcardItems.every((x) => x.status.startsWith("FAILED_")));
   } finally {
     await app.close();
   }

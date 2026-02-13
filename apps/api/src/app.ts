@@ -1306,7 +1306,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
   app.get("/api/items", async (request, reply) => {
     const query = request.query as Record<string, unknown>;
-    const statuses = normalizeQueryList(query.status).map((x) => x.toUpperCase());
+    const rawStatuses = normalizeQueryList(query.status).map((x) => x.toUpperCase());
+    const statuses = Array.from(
+      new Set(
+        rawStatuses.flatMap((status) =>
+          status === "FAILED_*" ? ["FAILED_EXTRACTION", "FAILED_AI", "FAILED_EXPORT"] : [status],
+        ),
+      ),
+    );
     const priorities = normalizeQueryList(query.priority).map((x) => x.toUpperCase());
     const sourceTypes = normalizeQueryList(query.source_type).map((x) => x.toLowerCase());
     const allowedStatuses = new Set([
@@ -1317,12 +1324,13 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       "FAILED_EXTRACTION",
       "FAILED_AI",
       "FAILED_EXPORT",
+      "FAILED_*",
       "SHIPPED",
       "ARCHIVED",
     ]);
     const allowedPriorities = new Set(["READ_NEXT", "WORTH_IT", "IF_TIME", "SKIP"]);
     const allowedSourceTypes = new Set(["web", "youtube", "newsletter", "other"]);
-    const invalidStatus = statuses.find((status) => !allowedStatuses.has(status));
+    const invalidStatus = rawStatuses.find((status) => !allowedStatuses.has(status));
     if (invalidStatus) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "status must contain valid item statuses"));
     }
