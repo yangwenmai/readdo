@@ -1,0 +1,8 @@
+{
+    "id": "case_002",
+    "title": "YouTube productivity talk (transcript excerpt)",
+    "source_type": "youtube",
+    "intent_text": "I want to decide whether this talk is worth watching fully and extract actionable steps for reducing tab overload.",
+    "extracted_text": "The speaker explains how tab overload creates attention debt. They recommend capturing links immediately with a one-sentence reason, then closing tabs. They propose a triage system: read now, read later, skip. They also highlight making outputs: summary cards and next actions, not just bookmarks. The talk provides a 5-step method: capture, clarify intent, auto-summarize, rank by relevance, and export a shareable artifact. It mentions that even a simple scoring system with explainable reasons is better than an opaque model."
+  }
+  

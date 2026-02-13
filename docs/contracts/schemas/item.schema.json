@@ -1,0 +1,50 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://readdo.dev/schemas/item.schema.json",
+    "title": "ReadDo Item (v1)",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["id", "url", "source_type", "intent_text", "status", "created_at", "updated_at"],
+    "properties": {
+      "id": { "type": "string", "minLength": 4, "maxLength": 64 },
+      "url": { "type": "string", "minLength": 8, "maxLength": 2048 },
+      "title": { "type": "string", "minLength": 0, "maxLength": 300 },
+      "domain": { "type": "string", "minLength": 0, "maxLength": 200 },
+      "source_type": { "type": "string", "enum": ["web", "youtube", "newsletter", "other"] },
+      "intent_text": { "type": "string", "minLength": 3, "maxLength": 800 },
+  
+      "status": {
+        "type": "string",
+        "enum": [
+          "CAPTURED",
+          "QUEUED",
+          "PROCESSING",
+          "READY",
+          "FAILED_EXTRACTION",
+          "FAILED_AI",
+          "FAILED_EXPORT",
+          "SHIPPED",
+          "ARCHIVED"
+        ]
+      },
+  
+      "priority": { "type": "string", "enum": ["READ_NEXT", "WORTH_IT", "IF_TIME", "SKIP"] },
+      "match_score": { "type": "number", "minimum": 0, "maximum": 100 },
+  
+      "failure": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["error_code", "message"],
+        "properties": {
+          "failed_step": { "type": "string", "minLength": 0, "maxLength": 32 },
+          "error_code": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "message": { "type": "string", "minLength": 1, "maxLength": 300 },
+          "retryable": { "type": "boolean" }
+        }
+      },
+  
+      "created_at": { "type": "string", "format": "date-time" },
+      "updated_at": { "type": "string", "format": "date-time" }
+    }
+  }
+  

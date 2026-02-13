@@ -1,0 +1,95 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://readdo.dev/schemas/score.schema.json",
+    "title": "ReadDo Score Artifact (v1)",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["match_score", "priority", "reasons"],
+    "properties": {
+      "match_score": {
+        "type": "number",
+        "description": "0-100 match score between the content and the user's intent.",
+        "minimum": 0,
+        "maximum": 100
+      },
+      "priority": {
+        "type": "string",
+        "description": "Action-oriented priority label for decision queue.",
+        "enum": ["READ_NEXT", "WORTH_IT", "IF_TIME", "SKIP"]
+      },
+      "reasons": {
+        "type": "array",
+        "description": "At least 3 concrete reasons explaining the score and priority. Must be specific and non-generic.",
+        "minItems": 3,
+        "maxItems": 6,
+        "items": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 220
+        }
+      },
+      "confidence": {
+        "type": "number",
+        "description": "Optional confidence 0-1 for the scoring decision.",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "signals": {
+        "type": "object",
+        "description": "Optional signal breakdown for explainability/tuning. Not shown to users by default.",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {
+          "intent_match": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "How well the content aligns with the user's stated intent."
+          },
+          "content_signal": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "How actionable/high-signal the content is (steps, data, frameworks)."
+          },
+          "novelty": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "How non-overlapping it is with recent items (higher is more novel)."
+          },
+          "effort_fit": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Effort-to-value fit given typical constraints (time, complexity)."
+          }
+        }
+      },
+      "evidence": {
+        "type": "array",
+        "description": "Optional minimal evidence snippets supporting reasons (privacy-friendly).",
+        "minItems": 0,
+        "maxItems": 5,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["quote", "supports"],
+          "properties": {
+            "quote": { "type": "string", "minLength": 10, "maxLength": 220 },
+            "supports": {
+              "type": "string",
+              "description": "Which reason this supports (e.g. 'reason#1').",
+              "pattern": "^reason#([1-6])$"
+            },
+            "source_hint": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 80
+            }
+          }
+        }
+      }
+    }
+  }
+  

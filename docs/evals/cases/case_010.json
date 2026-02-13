@@ -1,0 +1,8 @@
+{
+    "id": "case_010",
+    "title": "Long-form comparison (high effort, high value)",
+    "source_type": "web",
+    "intent_text": "I want a deep comparison between web MVP and desktop (Tauri) for a local-first product, with migration strategy.",
+    "extracted_text": "The analysis compares web-based MVPs with desktop shells like Tauri. It argues web MVPs ship faster and reduce OS-specific issues, while desktop enables system integration and stronger local-first UX. It recommends designing a portable core engine and keeping UI as a replaceable layer. It suggests starting with a local backend + web UI, then moving to Tauri when product-market fit is clearer. It also discusses risks: signing, permissions, rendering differences, and update mechanisms."
+  }
+  

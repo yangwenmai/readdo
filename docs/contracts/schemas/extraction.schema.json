@@ -1,0 +1,43 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://readdo.dev/schemas/extraction.schema.json",
+    "title": "ReadDo Extraction Artifact (v1)",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["normalized_text", "extraction_hash", "content_meta"],
+    "properties": {
+      "normalized_text": {
+        "type": "string",
+        "description": "Readable normalized main content text. Truncated if too long.",
+        "minLength": 50,
+        "maxLength": 50000
+      },
+      "extraction_hash": {
+        "type": "string",
+        "description": "Hash of normalized_text + url (or other canonical inputs) for caching/reproducibility.",
+        "minLength": 8,
+        "maxLength": 128
+      },
+      "content_meta": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {
+          "author": { "type": "string", "minLength": 0, "maxLength": 120 },
+          "publish_date": { "type": "string", "minLength": 0, "maxLength": 40 },
+          "language": { "type": "string", "minLength": 0, "maxLength": 20 },
+          "duration_seconds": { "type": "integer", "minimum": 0 },
+          "word_count": { "type": "integer", "minimum": 0 },
+          "source_hint": { "type": "string", "minLength": 0, "maxLength": 120 }
+        }
+      },
+      "warnings": {
+        "type": "array",
+        "description": "Optional warnings (e.g., truncated, low confidence extraction).",
+        "minItems": 0,
+        "maxItems": 5,
+        "items": { "type": "string", "minLength": 1, "maxLength": 120 }
+      }
+    }
+  }
+  

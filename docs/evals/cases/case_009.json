@@ -1,0 +1,8 @@
+{
+    "id": "case_009",
+    "title": "Tutorial-style content with steps",
+    "source_type": "web",
+    "intent_text": "I want to extract a small, executable plan that I can finish in 1-2 hours to move the MVP forward.",
+    "extracted_text": "This tutorial provides a step-by-step plan for building a minimal web app: set up a project, implement a capture endpoint, store records in SQLite, build an inbox list, and add an export function. It highlights doing one feature end-to-end before adding more. It includes a short section on error handling and adding a retry button for failed tasks."
+  }
+  

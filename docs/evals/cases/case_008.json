@@ -1,0 +1,8 @@
+{
+    "id": "case_008",
+    "title": "How to write better AI prompts (practical)",
+    "source_type": "web",
+    "intent_text": "I want a practical, structured way to control AI outputs using schemas and templates rather than long prompts.",
+    "extracted_text": "The guide explains that schemas provide hard constraints, while templates provide soft direction. It proposes designing outputs as artifacts with typed fields, then using an evaluation set to keep them stable. It recommends keeping prompts short and referencing the schema directly. It also suggests recording model id, template version, and prompt hash for reproducibility. The article includes examples of JSON schema validation and regression tests for AI outputs."
+  }
+  

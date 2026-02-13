@@ -1,0 +1,8 @@
+{
+    "id": "case_006",
+    "title": "Engineering postmortem template guide",
+    "source_type": "web",
+    "intent_text": "I want to create a repeatable template for turning reading into concrete actions and outputs for my team.",
+    "extracted_text": "The article introduces a lightweight postmortem template: context, impact, timeline, contributing factors, actions, and follow-ups. It argues that good templates reduce handoff by making expectations explicit. It recommends storing templates in version control and validating outputs against a schema. The piece includes practical examples of action items with owners and ETAs, and suggests measuring completion rate as a feedback loop."
+  }
+  

@@ -1,0 +1,48 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://readdo.dev/schemas/summary.schema.json",
+    "title": "ReadDo Summary Artifact (v1)",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["bullets", "insight"],
+    "properties": {
+      "bullets": {
+        "type": "array",
+        "description": "Key takeaways. Short, factual, non-redundant.",
+        "minItems": 3,
+        "maxItems": 3,
+        "items": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 180
+        }
+      },
+      "insight": {
+        "type": "string",
+        "description": "One-sentence insight that connects the content to user's intent or a broader principle.",
+        "minLength": 12,
+        "maxLength": 240
+      },
+      "evidence": {
+        "type": "array",
+        "description": "Optional short evidence snippets from extracted text that support bullets/insight. Keep minimal for privacy.",
+        "minItems": 0,
+        "maxItems": 5,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["quote"],
+          "properties": {
+            "quote": { "type": "string", "minLength": 10, "maxLength": 220 },
+            "source_hint": {
+              "type": "string",
+              "description": "Optional hint like 'intro', 'section: pricing', 'timestamp 12:34' (no URLs).",
+              "minLength": 0,
+              "maxLength": 80
+            }
+          }
+        }
+      }
+    }
+  }
+  

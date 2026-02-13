@@ -1,0 +1,8 @@
+{
+    "id": "case_007",
+    "title": "Opinionated essay with mixed signal",
+    "source_type": "web",
+    "intent_text": "I want to decide quickly if this is worth my time and extract one actionable takeaway.",
+    "extracted_text": "The essay argues that most productivity systems fail because people over-optimize tools instead of outcomes. It offers a few examples but mostly focuses on opinion. It briefly suggests one concrete practice: define a weekly output goal and reject inputs that do not support it. Beyond that, it does not provide a step-by-step method or measurable checklist."
+  }
+  
