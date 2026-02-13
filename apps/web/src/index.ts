@@ -3385,10 +3385,16 @@ const html = `<!doctype html>
         bindConfigList(listFilterChangeConfigs, bindListFilterChangeConfig);
       }
 
+      function runQueueSetupStages(stages) {
+        for (const stage of stages) {
+          if (typeof stage === "function") {
+            stage();
+          }
+        }
+      }
+
       function setupQueueShell() {
-        setupQueueActionBindings();
-        setupQueueInteractionBindings();
-        startQueueRuntime();
+        runQueueSetupStages([setupQueueActionBindings, setupQueueInteractionBindings, startQueueRuntime]);
       }
 
       function setAutoRefresh(enabled) {
