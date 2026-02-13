@@ -7,9 +7,17 @@ const port = Number(process.env.WEB_PORT ?? 5173);
 const apiBase = process.env.API_BASE_URL ?? "http://localhost:8787/api";
 const repoRoot = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const exportsRoot = resolve(repoRoot, "exports");
-const shortcutDiscoveryText = "Press ? for shortcuts";
-const shortcutSummaryText = "Shortcuts: / Search · F Focus Mode · A Advanced Panels · R Refresh";
-const shortcutHintButtonText = "Shortcuts (?)";
+const shortcutTriggerKey = "?";
+const shortcutGuideItems = [
+  { key: "/", label: "Search" },
+  { key: "F", label: "Focus Mode" },
+  { key: "A", label: "Advanced Panels" },
+  { key: "R", label: "Refresh" },
+];
+const shortcutDiscoveryText = `Press ${shortcutTriggerKey} for shortcuts`;
+const shortcutSummaryText =
+  "Shortcuts: " + shortcutGuideItems.map((item) => `${item.key} ${item.label}`).join(" · ");
+const shortcutHintButtonText = `Shortcuts (${shortcutTriggerKey})`;
 
 const html = `<!doctype html>
 <html lang="en">
@@ -540,6 +548,7 @@ const html = `<!doctype html>
     </main>
     <script>
       const API_BASE = ${JSON.stringify(apiBase)};
+      const SHORTCUT_TRIGGER_KEY = ${JSON.stringify(shortcutTriggerKey)};
       const inboxEl = document.getElementById("inbox");
       const detailEl = document.getElementById("detail");
       const detailModeChipsEl = document.getElementById("detailModeChips");
@@ -2994,7 +3003,7 @@ const html = `<!doctype html>
       }
 
       function shortcutActionByKey(key) {
-        if (key === "?") {
+        if (key === SHORTCUT_TRIGGER_KEY) {
           return () => {
             showShortcutHint();
           };
