@@ -2305,52 +2305,68 @@ const html = `<!doctype html>
       }
 
       refreshBtn.addEventListener("click", async () => {
-        try {
-          errorEl.textContent = "";
-          clearPreviewContinuation();
-          clearPreviewOutput();
-          await loadItems();
-        } catch (err) {
-          errorEl.textContent = String(err);
-        }
+        await runActionWithFeedback(
+          {
+            id: "queue_refresh",
+            label: "Refresh Queue",
+            action: async () => {
+              clearPreviewContinuation();
+              clearPreviewOutput();
+              await loadItems();
+            },
+          },
+          { button: refreshBtn, localFeedbackEl: queueActionBannerEl },
+        );
       });
 
       resetControlsBtn.addEventListener("click", async () => {
-        try {
-          clearPreviewContinuation();
-          clearPreviewOutput();
-          applyControlDefaults();
-          localStorage.removeItem(controlsStorageKey);
-          setAutoRefresh(false);
-          errorEl.textContent = "Controls reset to defaults.";
-          await loadItems();
-        } catch (err) {
-          errorEl.textContent = "Reset controls failed: " + String(err);
-        }
+        await runActionWithFeedback(
+          {
+            id: "queue_reset_controls",
+            label: "Reset Controls",
+            action: async () => {
+              clearPreviewContinuation();
+              clearPreviewOutput();
+              applyControlDefaults();
+              localStorage.removeItem(controlsStorageKey);
+              setAutoRefresh(false);
+              await loadItems();
+            },
+          },
+          { button: resetControlsBtn, localFeedbackEl: queueActionBannerEl },
+        );
       });
 
       clearFiltersBtn.addEventListener("click", async () => {
-        try {
-          clearListFilters();
-          resetPreviewOffset();
-          clearPreviewContinuation();
-          clearPreviewOutput();
-          persistControls();
-          errorEl.textContent = "Filters cleared.";
-          await loadItems();
-        } catch (err) {
-          errorEl.textContent = "Clear filters failed: " + String(err);
-        }
+        await runActionWithFeedback(
+          {
+            id: "queue_clear_filters",
+            label: "Clear Filters",
+            action: async () => {
+              clearListFilters();
+              resetPreviewOffset();
+              clearPreviewContinuation();
+              clearPreviewOutput();
+              persistControls();
+              await loadItems();
+            },
+          },
+          { button: clearFiltersBtn, localFeedbackEl: queueActionBannerEl },
+        );
       });
 
       runWorkerBtn.addEventListener("click", async () => {
-        try {
-          errorEl.textContent = "";
-          await request("/system/worker/run-once", { method: "POST", body: JSON.stringify({}) });
-          await loadItems();
-        } catch (err) {
-          errorEl.textContent = String(err);
-        }
+        await runActionWithFeedback(
+          {
+            id: "queue_run_worker_once",
+            label: "Run Worker Once",
+            action: async () => {
+              await request("/system/worker/run-once", { method: "POST", body: JSON.stringify({}) });
+              await loadItems();
+            },
+          },
+          { button: runWorkerBtn, localFeedbackEl: queueActionBannerEl },
+        );
       });
 
       function retryFailedPayload(dryRun, offset = 0) {
