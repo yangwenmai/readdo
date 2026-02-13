@@ -30,6 +30,7 @@ test("web root serves inbox html shell", async () => {
     assert.equal(res.status, 200);
     const text = await res.text();
     assert.match(text, /Read→Do Inbox/u);
+    assert.match(text, /Clear Filters/u);
   });
 });
 
