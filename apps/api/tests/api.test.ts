@@ -426,6 +426,61 @@ test("capture rejects non-string capture_id", async () => {
   }
 });
 
+test("capture rejects non-string core text fields", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-capture-invalid-core-field-types-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const invalidIntentTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://example.com/invalid-intent-type",
+        source_type: "web",
+        intent_text: { bad: true },
+      },
+    });
+    assert.equal(invalidIntentTypeRes.statusCode, 400);
+    const invalidIntentTypePayload = invalidIntentTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidIntentTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidIntentTypePayload.error.message, /intent_text must be a string/i);
+
+    const invalidUrlTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: { href: "https://example.com/invalid-url-type" },
+        source_type: "web",
+        intent_text: "valid intent",
+      },
+    });
+    assert.equal(invalidUrlTypeRes.statusCode, 400);
+    const invalidUrlTypePayload = invalidUrlTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidUrlTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidUrlTypePayload.error.message, /url must be a string/i);
+
+    const invalidSourceTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://example.com/invalid-source-type-field",
+        source_type: ["web"],
+        intent_text: "valid intent",
+      },
+    });
+    assert.equal(invalidSourceTypeRes.statusCode, 400);
+    const invalidSourceTypePayload = invalidSourceTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidSourceTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidSourceTypePayload.error.message, /source_type must be a string/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("capture mismatch check uses first non-empty parsed header key", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-capture-mismatch-idempotent-header-parsed-"));
   const app = await createApp({

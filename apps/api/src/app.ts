@@ -1172,9 +1172,24 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   });
 
   app.post("/api/capture", async (request, reply) => {
-    const body = request.body as Record<string, unknown>;
+    const body = (request.body ?? {}) as Record<string, unknown>;
     if (body.capture_id != null && typeof body.capture_id !== "string") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "capture_id must be a string when provided"));
+    }
+    if (body.url != null && typeof body.url !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "url must be a string"));
+    }
+    if (body.intent_text != null && typeof body.intent_text !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "intent_text must be a string"));
+    }
+    if (body.title != null && typeof body.title !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "title must be a string when provided"));
+    }
+    if (body.domain != null && typeof body.domain !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "domain must be a string when provided"));
+    }
+    if (body.source_type != null && typeof body.source_type !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "source_type must be a string when provided"));
     }
     const headerKey = normalizeCaptureIdempotencyKey(request.headers["idempotency-key"], true);
     const captureId = normalizeCaptureIdempotencyKey(body.capture_id);
@@ -1182,14 +1197,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       return reply.status(400).send(failure("VALIDATION_ERROR", "Idempotency-Key and capture_id must match when both are provided"));
     }
     const idempotencyKey = headerKey || captureId;
-    const url = String(body.url ?? "").trim();
-    const intentText = String(body.intent_text ?? "").trim();
-    const title = String(body.title ?? "").trim();
-    const sourceTypeInput = String(body.source_type ?? "")
+    const url = typeof body.url === "string" ? body.url.trim() : "";
+    const intentText = typeof body.intent_text === "string" ? body.intent_text.trim() : "";
+    const title = typeof body.title === "string" ? body.title.trim() : "";
+    const sourceTypeInput = (typeof body.source_type === "string" ? body.source_type : "")
       .trim()
       .toLowerCase();
     const sourceType = sourceTypeInput || inferSourceTypeFromUrl(url);
-    const providedDomain = String(body.domain ?? "").trim();
+    const providedDomain = typeof body.domain === "string" ? body.domain.trim() : "";
 
     if (!url || !intentText) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "url and intent_text are required"));
