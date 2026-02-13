@@ -41,6 +41,7 @@ const queueRecoveryDownloadLabel = "Download Summary";
 const queueRecoveryHistoryHint = "History keeps last 5 recovery runs.";
 const queueRecoveryPrevLabel = "Previous Run";
 const queueRecoveryNextLabel = "Next Run";
+const queueRecoveryLatestLabel = "Latest Run";
 
 const html = `<!doctype html>
 <html lang="en">
@@ -1027,6 +1028,7 @@ const html = `<!doctype html>
             <button type="button" class="secondary" disabled>${queueRecoveryDownloadLabel}</button>
             <button type="button" class="secondary" disabled>${queueRecoveryPrevLabel}</button>
             <button type="button" class="secondary" disabled>${queueRecoveryNextLabel}</button>
+            <button type="button" class="secondary" disabled>${queueRecoveryLatestLabel}</button>
             <button type="button" class="secondary" disabled>${queueRecoveryClearLabel}</button>
           </div>
           <div id="recoveryRadarTrend" class="recovery-radar-trend muted">Trend vs previous: —</div>
@@ -1068,6 +1070,7 @@ const html = `<!doctype html>
       const QUEUE_RECOVERY_HISTORY_HINT = ${JSON.stringify(queueRecoveryHistoryHint)};
       const QUEUE_RECOVERY_PREV_LABEL = ${JSON.stringify(queueRecoveryPrevLabel)};
       const QUEUE_RECOVERY_NEXT_LABEL = ${JSON.stringify(queueRecoveryNextLabel)};
+      const QUEUE_RECOVERY_LATEST_LABEL = ${JSON.stringify(queueRecoveryLatestLabel)};
       const RECOVERY_HISTORY_LIMIT = 5;
       const inboxEl = document.getElementById("inbox");
       const detailEl = document.getElementById("detail");
@@ -1656,6 +1659,8 @@ const html = `<!doctype html>
             '</button><button type="button" class="secondary" disabled>' +
             QUEUE_RECOVERY_NEXT_LABEL +
             '</button><button type="button" class="secondary" disabled>' +
+            QUEUE_RECOVERY_LATEST_LABEL +
+            '</button><button type="button" class="secondary" disabled>' +
             QUEUE_RECOVERY_CLEAR_LABEL +
             "</button></div>" +
             '<div id="recoveryRadarTrend" class="recovery-radar-trend muted">Trend vs previous: —</div>' +
@@ -1669,6 +1674,7 @@ const html = `<!doctype html>
         const activeIndex = recoveryRadarHistory.findIndex((entry) => entry.summary_id === activeSummary.summary_id);
         const hasPrevRun = activeIndex >= 0 && activeIndex < recoveryRadarHistory.length - 1;
         const hasNextRun = activeIndex > 0;
+        const hasLatestRun = activeIndex > 0;
         const trend = recoveryTrendVsPrevious(activeSummary);
         const trendHtml = trend
           ? '<div id="recoveryRadarTrend" class="recovery-radar-trend">' +
@@ -1729,6 +1735,10 @@ const html = `<!doctype html>
           (hasNextRun ? "" : "disabled") +
           ">" +
           QUEUE_RECOVERY_NEXT_LABEL +
+          '</button><button type="button" class="secondary" id="latestRecoverySummaryBtn" ' +
+          (hasLatestRun ? "" : "disabled") +
+          ">" +
+          QUEUE_RECOVERY_LATEST_LABEL +
           '</button><button type="button" class="secondary" id="clearRecoverySummaryBtn">' +
           QUEUE_RECOVERY_CLEAR_LABEL +
           "</button></div>" +
@@ -1817,6 +1827,13 @@ const html = `<!doctype html>
         nextBtn?.addEventListener("click", () => {
           if (!hasNextRun) return;
           const target = recoveryRadarHistory[activeIndex - 1];
+          if (!target) return;
+          activateRecoverySummary(target.summary_id);
+        });
+        const latestBtn = recoveryRadarEl.querySelector("#latestRecoverySummaryBtn");
+        latestBtn?.addEventListener("click", () => {
+          if (!hasLatestRun) return;
+          const target = recoveryRadarHistory[0];
           if (!target) return;
           activateRecoverySummary(target.summary_id);
         });
