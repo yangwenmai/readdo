@@ -5472,6 +5472,24 @@ test("artifact compare endpoint returns structured diff summary", async () => {
     assert.ok(compare.summary.changed_paths.length >= 1);
     assert.ok(compare.summary.changed_line_count >= 1);
     assert.ok(compare.summary.compared_line_count >= compare.summary.changed_line_count);
+
+    const compareUnknownQueryRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}/artifacts/todos/compare?base_version=1&target_version=2&unknown=true`,
+    });
+    assert.equal(compareUnknownQueryRes.statusCode, 400);
+    const compareUnknownQueryPayload = compareUnknownQueryRes.json() as { error: { code: string; message: string } };
+    assert.equal(compareUnknownQueryPayload.error.code, "VALIDATION_ERROR");
+    assert.match(compareUnknownQueryPayload.error.message, /compare query supports only base_version\|target_version/i);
+
+    const compareBlankVersionRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}/artifacts/todos/compare?base_version=%20%20%20&target_version=2`,
+    });
+    assert.equal(compareBlankVersionRes.statusCode, 400);
+    const compareBlankVersionPayload = compareBlankVersionRes.json() as { error: { code: string; message: string } };
+    assert.equal(compareBlankVersionPayload.error.code, "VALIDATION_ERROR");
+    assert.match(compareBlankVersionPayload.error.message, /base_version and target_version must be integers >= 1/i);
   } finally {
     await app.close();
   }

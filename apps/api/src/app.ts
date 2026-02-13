@@ -1829,8 +1829,20 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     }
 
     const query = request.query as Record<string, unknown>;
-    const baseVersion = Number(query.base_version);
-    const targetVersion = Number(query.target_version);
+    const unknownCompareQueryKey = Object.keys(query).find((key) => !["base_version", "target_version"].includes(key));
+    if (unknownCompareQueryKey) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "compare query supports only base_version|target_version"));
+    }
+    if (typeof query.base_version !== "string" || typeof query.target_version !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "base_version and target_version must be integers >= 1"));
+    }
+    const baseVersionRaw = query.base_version.trim();
+    const targetVersionRaw = query.target_version.trim();
+    if (!baseVersionRaw || !targetVersionRaw) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "base_version and target_version must be integers >= 1"));
+    }
+    const baseVersion = Number(baseVersionRaw);
+    const targetVersion = Number(targetVersionRaw);
     if (!Number.isInteger(baseVersion) || baseVersion < 1 || !Number.isInteger(targetVersion) || targetVersion < 1) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "base_version and target_version must be integers >= 1"));
     }

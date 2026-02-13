@@ -683,8 +683,9 @@ Headers:
 
 ### 6.7.2 Query Params
 
-* `base_version`（必填，int>=1）
-* `target_version`（必填，int>=1）
+* 仅支持键：`base_version`、`target_version`（出现其他键返回 `400 VALIDATION_ERROR`）
+* `base_version`（必填，非空字符串，解析后 `int>=1`）
+* `target_version`（必填，非空字符串，解析后 `int>=1`）
 
 ### 6.7.3 Response 200
 
