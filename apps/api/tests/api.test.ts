@@ -511,6 +511,25 @@ test("retry-failed endpoint queues retryable pipeline failures only", async () =
     assert.ok(limitedDryRun.scanned_total >= 3);
     assert.equal(limitedDryRun.scan_truncated, true);
 
+    const pagedDryRunRes = await app.inject({
+      method: "POST",
+      url: "/api/items/retry-failed",
+      payload: { limit: 1, offset: 1, dry_run: true },
+    });
+    assert.equal(pagedDryRunRes.statusCode, 200);
+    const pagedDryRun = pagedDryRunRes.json() as {
+      requested_offset: number;
+      scanned: number;
+      scanned_total: number;
+      scan_truncated: boolean;
+      next_offset: number | null;
+    };
+    assert.equal(pagedDryRun.requested_offset, 1);
+    assert.equal(pagedDryRun.scanned, 1);
+    assert.ok(pagedDryRun.scanned_total >= 3);
+    assert.equal(pagedDryRun.scan_truncated, true);
+    assert.equal(pagedDryRun.next_offset, 2);
+
     const exportOnlyDryRunRes = await app.inject({
       method: "POST",
       url: "/api/items/retry-failed",
@@ -728,10 +747,16 @@ test("archive-failed endpoint archives blocked failures with dry-run support", a
       payload: { limit: 1, dry_run: true, retryable: "all", failure_step: "extract" },
     });
     assert.equal(limitedArchivePreviewRes.statusCode, 200);
-    const limitedArchivePreview = limitedArchivePreviewRes.json() as { scanned: number; scanned_total: number; scan_truncated: boolean };
+    const limitedArchivePreview = limitedArchivePreviewRes.json() as {
+      scanned: number;
+      scanned_total: number;
+      scan_truncated: boolean;
+      next_offset: number | null;
+    };
     assert.equal(limitedArchivePreview.scanned, 1);
     assert.equal(limitedArchivePreview.scanned_total, 2);
     assert.equal(limitedArchivePreview.scan_truncated, true);
+    assert.equal(limitedArchivePreview.next_offset, 1);
 
     const invalidRetryableRes = await app.inject({
       method: "POST",
@@ -870,10 +895,16 @@ test("unarchive-batch endpoint supports dry-run and regenerate mode", async () =
       payload: { limit: 1, dry_run: true, regenerate: false },
     });
     assert.equal(limitedUnarchivePreviewRes.statusCode, 200);
-    const limitedUnarchivePreview = limitedUnarchivePreviewRes.json() as { scanned: number; scanned_total: number; scan_truncated: boolean };
+    const limitedUnarchivePreview = limitedUnarchivePreviewRes.json() as {
+      scanned: number;
+      scanned_total: number;
+      scan_truncated: boolean;
+      next_offset: number | null;
+    };
     assert.equal(limitedUnarchivePreview.scanned, 1);
     assert.equal(limitedUnarchivePreview.scanned_total, 2);
     assert.equal(limitedUnarchivePreview.scan_truncated, true);
+    assert.equal(limitedUnarchivePreview.next_offset, 1);
 
     const runRes = await app.inject({
       method: "POST",

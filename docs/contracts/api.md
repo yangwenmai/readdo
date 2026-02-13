@@ -257,6 +257,7 @@ Headers:
 ```json
 {
   "limit": 20,
+  "offset": 0,
   "dry_run": false,
   "failure_step": "extract",
   "q": "optional keyword"
@@ -266,6 +267,7 @@ Headers:
 约束：
 
 * `limit` 可选，范围建议 `1..200`，默认 20
+* `offset` 可选，默认 0，用于分页扫描批量候选
 * `dry_run=true` 时仅返回预估结果，不会修改 item 状态或创建新 job
 * `failure_step` 可选：`extract | pipeline | export`（用于限制扫描范围）
 * `q` 可选，按 `title/domain/intent_text/url` 模糊过滤失败候选
@@ -277,12 +279,14 @@ Headers:
 ```json
 {
   "requested_limit": 20,
+  "requested_offset": 0,
   "dry_run": false,
   "failure_step_filter": "extract",
   "q_filter": "optional keyword",
   "scanned": 5,
   "scanned_total": 8,
   "scan_truncated": true,
+  "next_offset": 5,
   "queued": 3,
   "queued_item_ids": ["itm_a", "itm_b", "itm_c"],
   "eligible_pipeline": 3,
@@ -308,6 +312,7 @@ Headers:
 ```json
 {
   "limit": 50,
+  "offset": 0,
   "dry_run": false,
   "retryable": false,
   "failure_step": "extract",
@@ -318,6 +323,7 @@ Headers:
 约束：
 
 * `limit` 可选，范围建议 `1..200`，默认 50
+* `offset` 可选，默认 0，用于分页扫描批量候选
 * `dry_run=true` 时仅返回预估结果，不会修改 item 状态
 * `retryable` 可选：`true | false | null | "all"`（默认 `false`，即仅归档已达重试上限项）
 * `failure_step` 可选：`extract | pipeline | export`
@@ -329,6 +335,7 @@ Headers:
 ```json
 {
   "requested_limit": 50,
+  "requested_offset": 0,
   "dry_run": false,
   "retryable_filter": false,
   "failure_step_filter": "extract",
@@ -336,6 +343,7 @@ Headers:
   "scanned": 8,
   "scanned_total": 12,
   "scan_truncated": true,
+  "next_offset": 8,
   "eligible": 3,
   "eligible_item_ids": ["itm_a", "itm_b", "itm_c"],
   "archived": 3,
@@ -361,6 +369,7 @@ Headers:
 ```json
 {
   "limit": 50,
+  "offset": 0,
   "dry_run": false,
   "regenerate": false,
   "q": "optional keyword"
@@ -370,6 +379,7 @@ Headers:
 约束：
 
 * `limit` 可选，范围建议 `1..200`，默认 50
+* `offset` 可选，默认 0，用于分页扫描 archived 候选
 * `dry_run=true` 时仅返回预估结果，不会修改 item 状态
 * `regenerate=true` 时不走 READY 快速恢复，统一入队重跑
 * `q` 可选，按 `title/domain/intent_text/url` 模糊过滤 archived 候选
@@ -380,12 +390,14 @@ Headers:
 ```json
 {
   "requested_limit": 50,
+  "requested_offset": 0,
   "dry_run": false,
   "regenerate": false,
   "q_filter": "optional keyword",
   "scanned": 6,
   "scanned_total": 9,
   "scan_truncated": true,
+  "next_offset": 6,
   "eligible": 6,
   "eligible_ready": 4,
   "eligible_ready_item_ids": ["itm_r1", "itm_r2"],

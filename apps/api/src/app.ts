@@ -704,6 +704,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const body = (request.body ?? {}) as Record<string, unknown>;
     const limitRaw = Number(body.limit ?? 20);
     const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 20;
+    const offsetRaw = Number(body.offset ?? 0);
+    const offset = Number.isInteger(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
     const dryRun = Boolean(body.dry_run);
     const q = typeof body.q === "string" ? body.q.trim() : "";
     const failureStepRaw = typeof body.failure_step === "string" ? body.failure_step.trim().toLowerCase() : "";
@@ -742,9 +744,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
         WHERE ${whereParts.join(" AND ")}
         ORDER BY updated_at ASC
         LIMIT ?
+        OFFSET ?
       `,
       )
-      .all(...params, limit) as DbItemRow[];
+      .all(...params, limit, offset) as DbItemRow[];
 
     let queued = 0;
     let skippedNonRetryable = 0;
@@ -797,12 +800,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
     return {
       requested_limit: limit,
+      requested_offset: offset,
       dry_run: dryRun,
       failure_step_filter: failureStepFilter,
       q_filter: q || null,
       scanned: failedItems.length,
       scanned_total: scannedTotal,
-      scan_truncated: scannedTotal > failedItems.length,
+      scan_truncated: offset + failedItems.length < scannedTotal,
+      next_offset: offset + failedItems.length < scannedTotal ? offset + failedItems.length : null,
       queued,
       queued_item_ids: queuedItemIds,
       eligible_pipeline: eligiblePipeline,
@@ -819,6 +824,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const body = (request.body ?? {}) as Record<string, unknown>;
     const limitRaw = Number(body.limit ?? 50);
     const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 50;
+    const offsetRaw = Number(body.offset ?? 0);
+    const offset = Number.isInteger(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
     const dryRun = Boolean(body.dry_run);
     const q = typeof body.q === "string" ? body.q.trim() : "";
     const failureStepRaw = typeof body.failure_step === "string" ? body.failure_step.trim().toLowerCase() : "";
@@ -880,9 +887,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
         WHERE ${whereParts.join(" AND ")}
         ORDER BY updated_at ASC
         LIMIT ?
+        OFFSET ?
       `,
       )
-      .all(...params, limit) as DbItemRow[];
+      .all(...params, limit, offset) as DbItemRow[];
 
     let eligible = 0;
     let archived = 0;
@@ -919,13 +927,15 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
     return {
       requested_limit: limit,
+      requested_offset: offset,
       dry_run: dryRun,
       retryable_filter: retryableFilter,
       failure_step_filter: failureStepFilter,
       q_filter: q || null,
       scanned: failedItems.length,
       scanned_total: scannedTotal,
-      scan_truncated: scannedTotal > failedItems.length,
+      scan_truncated: offset + failedItems.length < scannedTotal,
+      next_offset: offset + failedItems.length < scannedTotal ? offset + failedItems.length : null,
       eligible,
       eligible_item_ids: eligibleItemIds,
       archived,
@@ -939,6 +949,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const body = (request.body ?? {}) as Record<string, unknown>;
     const limitRaw = Number(body.limit ?? 50);
     const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 50;
+    const offsetRaw = Number(body.offset ?? 0);
+    const offset = Number.isInteger(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
     const dryRun = Boolean(body.dry_run);
     const regenerate = Boolean(body.regenerate);
     const q = typeof body.q === "string" ? body.q.trim() : "";
@@ -967,9 +979,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
         WHERE ${whereParts.join(" AND ")}
         ORDER BY updated_at ASC
         LIMIT ?
+        OFFSET ?
       `,
       )
-      .all(...params, limit) as DbItemRow[];
+      .all(...params, limit, offset) as DbItemRow[];
 
     let eligibleReady = 0;
     let eligibleQueued = 0;
@@ -1010,12 +1023,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
     return {
       requested_limit: limit,
+      requested_offset: offset,
       dry_run: dryRun,
       regenerate,
       q_filter: q || null,
       scanned: archivedItems.length,
       scanned_total: scannedTotal,
-      scan_truncated: scannedTotal > archivedItems.length,
+      scan_truncated: offset + archivedItems.length < scannedTotal,
+      next_offset: offset + archivedItems.length < scannedTotal ? offset + archivedItems.length : null,
       eligible: eligibleReady + eligibleQueued,
       eligible_ready: eligibleReady,
       eligible_ready_item_ids: eligibleReadyItemIds,

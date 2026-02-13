@@ -61,6 +61,7 @@ Web Inbox 还支持 `Failure Step` 下拉筛选（extract/pipeline/export），�
 若输入搜索关键词，Unarchive 预览/执行会仅作用于匹配关键词的 archived 项。
 批量预览会显示 `scanned/scanned_total` 与 `truncated`，用于识别是否被 limit 截断。
 可通过 `Batch Limit` 输入框控制每次批量预览/执行扫描的最大条数（1..200）。
+当 `truncated=yes` 时，可根据返回的 `next_offset` 继续翻页预览下一批候选。
 
 ### 4) Load Chrome Extension
 
@@ -162,17 +163,17 @@ curl -X POST "http://localhost:8787/api/items/retry-failed" \
 # Dry-run preview for batch retry (no state changes)
 curl -X POST "http://localhost:8787/api/items/retry-failed" \
   -H "content-type: application/json" \
-  -d '{"limit":20,"dry_run":true,"q":"Fail One"}'
+  -d '{"limit":20,"offset":0,"dry_run":true,"q":"Fail One"}'
 
 # Dry-run preview for batch archive blocked failed items
 curl -X POST "http://localhost:8787/api/items/archive-failed" \
   -H "content-type: application/json" \
-  -d '{"limit":20,"dry_run":true,"retryable":false,"q":"Retryable Failure"}'
+  -d '{"limit":20,"offset":0,"dry_run":true,"retryable":false,"q":"Retryable Failure"}'
 
 # Dry-run preview for batch unarchive
 curl -X POST "http://localhost:8787/api/items/unarchive-batch" \
   -H "content-type: application/json" \
-  -d '{"limit":20,"dry_run":true,"regenerate":false,"q":"AI-native"}'
+  -d '{"limit":20,"offset":0,"dry_run":true,"regenerate":false,"q":"AI-native"}'
 ```
 
 ---

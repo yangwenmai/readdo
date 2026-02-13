@@ -1038,6 +1038,8 @@ const html = `<!doctype html>
             (preview.scanned_total ?? preview.scanned ?? 0) +
             ", limit=" +
             (preview.requested_limit ?? normalizedBatchLimit()) +
+            ", offset=" +
+            (preview.requested_offset ?? 0) +
             ", retryable=" +
             (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
             ", q=" +
@@ -1046,6 +1048,8 @@ const html = `<!doctype html>
             (preview.failure_step_filter || "all") +
             ", truncated=" +
             (preview.scan_truncated ? "yes" : "no") +
+            ", next_offset=" +
+            (preview.next_offset == null ? "null" : String(preview.next_offset)) +
             ", eligible=" +
             (preview.eligible ?? 0) +
             ", skipped_retryable_mismatch=" +
@@ -1061,6 +1065,8 @@ const html = `<!doctype html>
               scanned: preview.scanned ?? 0,
               scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
               scan_truncated: Boolean(preview.scan_truncated),
+              requested_offset: preview.requested_offset ?? 0,
+              next_offset: preview.next_offset ?? null,
               eligible_item_ids: preview.eligible_item_ids || [],
               skipped_retryable_mismatch: preview.skipped_retryable_mismatch || 0,
             },
@@ -1118,10 +1124,14 @@ const html = `<!doctype html>
             (batchRes.scanned_total ?? batchRes.scanned ?? 0) +
             ", limit=" +
             (batchRes.requested_limit ?? normalizedBatchLimit()) +
+            ", offset=" +
+            (batchRes.requested_offset ?? 0) +
             ", q=" +
             (batchRes.q_filter || "all") +
             ", truncated=" +
             (batchRes.scan_truncated ? "yes" : "no") +
+            ", next_offset=" +
+            (batchRes.next_offset == null ? "null" : String(batchRes.next_offset)) +
             ", skipped_non_retryable=" +
             (batchRes.skipped_non_retryable ?? 0) +
             ", eligible_export=" +
@@ -1151,12 +1161,16 @@ const html = `<!doctype html>
             (preview.scanned_total ?? preview.scanned ?? 0) +
             ", limit=" +
             (preview.requested_limit ?? normalizedBatchLimit()) +
+            ", offset=" +
+            (preview.requested_offset ?? 0) +
             ", q=" +
             (preview.q_filter || "all") +
             ", filter=" +
             (preview.failure_step_filter || "all") +
             ", truncated=" +
             (preview.scan_truncated ? "yes" : "no") +
+            ", next_offset=" +
+            (preview.next_offset == null ? "null" : String(preview.next_offset)) +
             ", eligible_pipeline=" +
             (preview.eligible_pipeline ?? 0) +
             ", eligible_export=" +
@@ -1172,6 +1186,8 @@ const html = `<!doctype html>
               scanned: preview.scanned ?? 0,
               scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
               scan_truncated: Boolean(preview.scan_truncated),
+              requested_offset: preview.requested_offset ?? 0,
+              next_offset: preview.next_offset ?? null,
               eligible_pipeline_item_ids: preview.eligible_pipeline_item_ids || [],
               eligible_export_item_ids: preview.eligible_export_item_ids || [],
               skipped_non_retryable: preview.skipped_non_retryable || 0,
@@ -1210,6 +1226,8 @@ const html = `<!doctype html>
               scanned: preview.scanned ?? 0,
               scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
               scan_truncated: Boolean(preview.scan_truncated),
+              requested_offset: preview.requested_offset ?? 0,
+              next_offset: preview.next_offset ?? null,
               eligible_item_ids: preview.eligible_item_ids || [],
               skipped_retryable_mismatch: preview.skipped_retryable_mismatch || 0,
             },
@@ -1264,12 +1282,16 @@ const html = `<!doctype html>
             (preview.scanned_total ?? preview.scanned ?? 0) +
             ", limit=" +
             (preview.requested_limit ?? normalizedBatchLimit()) +
+            ", offset=" +
+            (preview.requested_offset ?? 0) +
             ", mode=" +
             (preview.regenerate ? "regenerate" : "smart") +
             ", q=" +
             (preview.q_filter || "all") +
             ", truncated=" +
             (preview.scan_truncated ? "yes" : "no") +
+            ", next_offset=" +
+            (preview.next_offset == null ? "null" : String(preview.next_offset)) +
             ", eligible_ready=" +
             (preview.eligible_ready ?? 0) +
             ", eligible_queued=" +
@@ -1284,6 +1306,8 @@ const html = `<!doctype html>
               scanned: preview.scanned ?? 0,
               scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
               scan_truncated: Boolean(preview.scan_truncated),
+              requested_offset: preview.requested_offset ?? 0,
+              next_offset: preview.next_offset ?? null,
               eligible_ready_item_ids: preview.eligible_ready_item_ids || [],
               eligible_queued_item_ids: preview.eligible_queued_item_ids || [],
             },
