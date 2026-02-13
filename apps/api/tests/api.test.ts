@@ -628,6 +628,19 @@ test("items endpoint supports status and query filtering", async () => {
     });
     assert.equal(secondCapture.statusCode, 201);
 
+    const thirdCapture = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20is%20a%20video%20note%20for%20testing%20source%20type%20query%20normalization.",
+        title: "Video Source",
+        domain: "example.video",
+        source_type: "YouTube",
+        intent_text: "Collect video workflow ideas",
+      },
+    });
+    assert.equal(thirdCapture.statusCode, 201);
+
     await app.runWorkerOnce();
 
     const readyItemsRes = await app.inject({
@@ -646,6 +659,15 @@ test("items endpoint supports status and query filtering", async () => {
     assert.equal(searchRes.statusCode, 200);
     const searchItems = (searchRes.json() as { items: Array<{ title?: string }> }).items;
     assert.ok(searchItems.some((x) => (x.title ?? "").toLowerCase().includes("creator")));
+
+    const sourceTypeRes = await app.inject({
+      method: "GET",
+      url: "/api/items?source_type=YOUTUBE",
+    });
+    assert.equal(sourceTypeRes.statusCode, 200);
+    const sourceTypeItems = (sourceTypeRes.json() as { items: Array<{ source_type: string }> }).items;
+    assert.ok(sourceTypeItems.length >= 1);
+    assert.ok(sourceTypeItems.every((x) => x.source_type === "youtube"));
 
     const limitOneRes = await app.inject({
       method: "GET",
@@ -1894,6 +1916,25 @@ test("capture validates url and source_type", async () => {
       },
     });
     assert.equal(validRes.statusCode, 201);
+
+    const normalizedSourceTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://example.com/source-normalize",
+        source_type: "WEB",
+        intent_text: "validate source type normalization",
+      },
+    });
+    assert.equal(normalizedSourceTypeRes.statusCode, 201);
+    const normalizedId = (normalizedSourceTypeRes.json() as { item: { id: string } }).item.id;
+    const normalizedDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${normalizedId}`,
+    });
+    assert.equal(normalizedDetailRes.statusCode, 200);
+    const normalizedDetail = normalizedDetailRes.json() as { item: { source_type: string } };
+    assert.equal(normalizedDetail.item.source_type, "web");
   } finally {
     await app.close();
   }

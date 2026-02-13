@@ -164,7 +164,7 @@ Headers:
 
 * url 必填
 * intent_text 必填（MVP）
-* source_type 枚举：`web | youtube | newsletter | other`（MVP 可先 web/youtube）
+* source_type 枚举：`web | youtube | newsletter | other`（大小写不敏感，服务端会归一化为小写）
 * url 协议白名单：`http | https | data`（如 `ftp://`、`chrome://`、`file://` 应返回 `400 VALIDATION_ERROR`）
 * 若同时提供 `Idempotency-Key` 与 `capture_id`，两者必须一致；不一致返回 `400 VALIDATION_ERROR`
 
@@ -427,7 +427,7 @@ Headers:
 
 * `status`（可重复）：CAPTURED, QUEUED, PROCESSING, READY, FAILED_*, SHIPPED, ARCHIVED
 * `priority`（可重复）：READ_NEXT, WORTH_IT, IF_TIME, SKIP
-* `source_type`（可重复）：web, youtube, newsletter, other
+* `source_type`（可重复）：web, youtube, newsletter, other（大小写不敏感）
 * `retryable`：`true | false`（仅对 FAILED_* 生效；用于筛选可重试/不可重试失败项）
 * `failure_step`：`extract | pipeline | export`（仅对 FAILED_* 生效；按失败阶段筛选）
 * `q`：搜索（MVP 可仅 title/domain/intent_text）

@@ -1055,7 +1055,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const url = String(body.url ?? "").trim();
     const intentText = String(body.intent_text ?? "").trim();
     const title = String(body.title ?? "").trim();
-    const sourceType = String(body.source_type ?? "web").trim();
+    const sourceType = String(body.source_type ?? "web")
+      .trim()
+      .toLowerCase();
     const domain = String(body.domain ?? "").trim();
 
     if (!url || !intentText) {
@@ -1114,7 +1116,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const query = request.query as Record<string, unknown>;
     const statuses = normalizeQueryList(query.status);
     const priorities = normalizeQueryList(query.priority);
-    const sourceTypes = normalizeQueryList(query.source_type);
+    const sourceTypes = normalizeQueryList(query.source_type).map((x) => x.toLowerCase());
     const retryableQuery = typeof query.retryable === "string" ? query.retryable.toLowerCase() : "";
     const retryableFilter = retryableQuery === "true" ? true : retryableQuery === "false" ? false : null;
     const failureStepQuery = typeof query.failure_step === "string" ? query.failure_step.trim().toLowerCase() : "";
