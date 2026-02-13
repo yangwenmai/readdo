@@ -62,3 +62,11 @@ test("stableCaptureKey normalizes whitespace in intent text", async () => {
   const b = await stableCaptureKey("https://example.com/path", "  keep this  ");
   assert.equal(a, b);
 });
+
+test("stableCaptureKey matches explicit and implicit default ports after canonicalization", async () => {
+  const canonicalA = canonicalizeUrlForCapture("https://example.com:443/path?a=1");
+  const canonicalB = canonicalizeUrlForCapture("https://example.com/path?a=1");
+  const keyA = await stableCaptureKey(canonicalA, "same intent");
+  const keyB = await stableCaptureKey(canonicalB, "same intent");
+  assert.equal(keyA, keyB);
+});
