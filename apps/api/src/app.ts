@@ -1122,7 +1122,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       ["extract", "pipeline", "export"].includes(failureStepQuery) ? (failureStepQuery as "extract" | "pipeline" | "export") : null;
     const q = typeof query.q === "string" ? query.q.trim() : "";
     const sort = typeof query.sort === "string" ? query.sort : "priority_score_desc";
-    const limit = Math.min(Number(query.limit ?? 20), 100);
+    const limitRaw = Number(query.limit ?? 20);
+    const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 100) : 20;
     const whereParts: string[] = [];
     const params: Array<string | number | null> = [];
     if (statuses.length) {

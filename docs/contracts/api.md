@@ -434,7 +434,7 @@ Headers:
 
   * 默认：`priority_score_desc`
 * `cursor`：分页游标（可选）
-* `limit`：默认 20，最大 100
+* `limit`：默认 20，范围 `1..100`；非法值回退为默认值 20
 
 ### 5.3 Response 200
 

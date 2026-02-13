@@ -472,6 +472,30 @@ test("items endpoint supports status and query filtering", async () => {
     assert.equal(searchRes.statusCode, 200);
     const searchItems = (searchRes.json() as { items: Array<{ title?: string }> }).items;
     assert.ok(searchItems.some((x) => (x.title ?? "").toLowerCase().includes("creator")));
+
+    const limitOneRes = await app.inject({
+      method: "GET",
+      url: "/api/items?limit=1",
+    });
+    assert.equal(limitOneRes.statusCode, 200);
+    const limitOneItems = (limitOneRes.json() as { items: Array<{ id: string }> }).items;
+    assert.equal(limitOneItems.length, 1);
+
+    const limitNegativeRes = await app.inject({
+      method: "GET",
+      url: "/api/items?limit=-5",
+    });
+    assert.equal(limitNegativeRes.statusCode, 200);
+    const limitNegativeItems = (limitNegativeRes.json() as { items: Array<{ id: string }> }).items;
+    assert.equal(limitNegativeItems.length, 1);
+
+    const limitInvalidRes = await app.inject({
+      method: "GET",
+      url: "/api/items?limit=not-a-number",
+    });
+    assert.equal(limitInvalidRes.statusCode, 200);
+    const limitInvalidItems = (limitInvalidRes.json() as { items: Array<{ id: string }> }).items;
+    assert.ok(limitInvalidItems.length >= 2);
   } finally {
     await app.close();
   }
