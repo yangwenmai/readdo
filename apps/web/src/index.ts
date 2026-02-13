@@ -524,6 +524,11 @@ const html = `<!doctype html>
         color: #1d4ed8;
         font-size: 11px;
       }
+      .recovery-step button.secondary {
+        border-color: #e2e8f0;
+        background: #ffffff;
+        color: #334155;
+      }
       .legend-item {
         border: 1px solid #dbe2ea;
         border-radius: 999px;
@@ -1466,6 +1471,22 @@ const html = `<!doctype html>
               });
             });
             cell.appendChild(sampleBtn);
+          }
+          if (def.key !== "unknown") {
+            const filterBtn = document.createElement("button");
+            filterBtn.type = "button";
+            filterBtn.className = "secondary";
+            filterBtn.textContent = "Filter Step";
+            filterBtn.addEventListener("click", async () => {
+              await applyListContextAndReload("Recovery Step: " + def.label, {
+                button: filterBtn,
+                mutate: () => {
+                  statusFilter.value = "FAILED_EXTRACTION,FAILED_AI,FAILED_EXPORT";
+                  failureStepFilter.value = def.key;
+                },
+              });
+            });
+            cell.appendChild(filterBtn);
           }
           stepGrid.appendChild(cell);
         }
