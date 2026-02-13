@@ -23,6 +23,7 @@ type CreateAppOptions = {
   engineVersion?: string;
   workerIntervalMs?: number;
   startWorker?: boolean;
+  disablePngRender?: boolean;
 };
 
 type DbItemRow = {
@@ -247,7 +248,17 @@ async function tryRenderPngFromCard(
       };
     };
   },
+  options?: { disabled?: boolean },
 ): Promise<{ path?: string; renderer: { name: string; version: string }; error_message?: string }> {
+  if (options?.disabled) {
+    return {
+      renderer: {
+        name: "markdown-caption-fallback",
+        version: "0.1.0",
+      },
+      error_message: "PNG rendering disabled by configuration",
+    };
+  }
   try {
     const require = createRequire(import.meta.url);
     const playwright = require("playwright") as { chromium: { launch: (options: Record<string, unknown>) => Promise<unknown> } };
@@ -587,6 +598,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   const defaultProfile = (process.env.DEFAULT_PROFILE as "engineer" | "creator" | "manager" | undefined) ?? "engineer";
   const workerIntervalMs = options.workerIntervalMs ?? 1500;
   const startWorker = options.startWorker ?? true;
+  const disablePngRender = options.disablePngRender ?? process.env.DISABLE_PNG_RENDER === "1";
 
   const db = openDatabase(dbPath);
   const app = Fastify({ logger: true });
@@ -1034,6 +1046,26 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     if (!["READY", "SHIPPED", "FAILED_EXPORT"].includes(item.status)) {
       return reply.status(409).send(failure("EXPORT_NOT_ALLOWED", "Export is only allowed for READY/SHIPPED/FAILED_EXPORT states"));
     }
+    if (item.status === "FAILED_EXPORT" && item.failure_json) {
+      try {
+        const failurePayload = JSON.parse(item.failure_json) as {
+          retryable?: boolean;
+          retry_attempts?: number;
+          retry_limit?: number;
+        };
+        if (failurePayload.retryable === false) {
+          return reply.status(409).send(
+            failure("RETRY_LIMIT_REACHED", "Retry limit reached for this item", {
+              item_id: id,
+              retry_attempts: failurePayload.retry_attempts ?? null,
+              retry_limit: failurePayload.retry_limit ?? MAX_ITEM_RETRY_ATTEMPTS,
+            }),
+          );
+        }
+      } catch {
+        // ignore malformed legacy payloads
+      }
+    }
 
     const artifacts = latestArtifacts(db, id);
     const cardArtifact = artifacts.card as { payload?: Record<string, unknown> } | undefined;
@@ -1086,7 +1118,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     let pngErrorMessage: string | undefined;
 
     if (formats.includes("png")) {
-      const pngResult = await tryRenderPngFromCard(root, id, card);
+      const pngResult = await tryRenderPngFromCard(root, id, card, { disabled: disablePngRender });
       if (pngResult.path) {
         files.push({ type: "png", path: pngResult.path, created_at: nowIso() });
       } else {
@@ -1112,11 +1144,26 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
     if (files.length === 0) {
       const ts = nowIso();
+      let previousAttempts = 0;
+      if (item.failure_json) {
+        try {
+          const previousFailure = JSON.parse(item.failure_json) as { failed_step?: string; retry_attempts?: number };
+          if (previousFailure.failed_step === "export") {
+            previousAttempts = Number(previousFailure.retry_attempts ?? 0);
+          }
+        } catch {
+          previousAttempts = 0;
+        }
+      }
+      const retryAttempts = previousAttempts + 1;
+      const retryable = retryAttempts < MAX_ITEM_RETRY_ATTEMPTS;
       const failurePayload = {
         failed_step: "export",
         error_code: "EXPORT_RENDER_FAILED",
         message: pngErrorMessage ?? "No export files generated",
-        retryable: true,
+        retryable,
+        retry_attempts: retryAttempts,
+        retry_limit: MAX_ITEM_RETRY_ATTEMPTS,
       };
       db.prepare("UPDATE items SET status = 'FAILED_EXPORT', failure_json = ?, updated_at = ? WHERE id = ?").run(
         JSON.stringify(failurePayload),

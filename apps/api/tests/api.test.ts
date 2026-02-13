@@ -376,6 +376,7 @@ test("png-only export failure moves item to FAILED_EXPORT", async () => {
     dbPath: join(dbDir, "readdo.db"),
     workerIntervalMs: 20,
     startWorker: false,
+    disablePngRender: true,
   });
 
   try {
@@ -403,20 +404,23 @@ test("png-only export failure moves item to FAILED_EXPORT", async () => {
         formats: ["png"],
       },
     });
-    assert.ok([200, 500].includes(exportRes.statusCode));
+    assert.equal(exportRes.statusCode, 500);
+    const errPayload = exportRes.json() as { error: { code: string } };
+    assert.equal(errPayload.error.code, "EXPORT_RENDER_FAILED");
 
-    if (exportRes.statusCode === 500) {
-      const errPayload = exportRes.json() as { error: { code: string } };
-      assert.equal(errPayload.error.code, "EXPORT_RENDER_FAILED");
-
-      const detailRes = await app.inject({
-        method: "GET",
-        url: `/api/items/${itemId}`,
-      });
-      assert.equal(detailRes.statusCode, 200);
-      const detail = detailRes.json() as { item: { status: string } };
-      assert.equal(detail.item.status, "FAILED_EXPORT");
-    }
+    const detailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}`,
+    });
+    assert.equal(detailRes.statusCode, 200);
+    const detail = detailRes.json() as {
+      item: { status: string };
+      failure: { retryable: boolean; retry_attempts: number; retry_limit: number };
+    };
+    assert.equal(detail.item.status, "FAILED_EXPORT");
+    assert.equal(detail.failure.retryable, true);
+    assert.equal(detail.failure.retry_attempts, 1);
+    assert.equal(detail.failure.retry_limit, 3);
   } finally {
     await app.close();
   }
@@ -568,6 +572,67 @@ test("retry mode is blocked after retry limit reached", async () => {
     });
     assert.equal(blockedRetryRes.statusCode, 409);
     assert.equal((blockedRetryRes.json() as { error: { code: string } }).error.code, "RETRY_LIMIT_REACHED");
+  } finally {
+    await app.close();
+  }
+});
+
+test("export retry is blocked after retry limit reached", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-retry-limit-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+    disablePngRender: true,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20content%20is%20used%20to%20test%20export%20retry%20limit%20handling.",
+        title: "Export Retry Limit",
+        domain: "example.export.retry",
+        source_type: "web",
+        intent_text: "check export retry limit",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    for (let i = 1; i <= 3; i += 1) {
+      const exportRes = await app.inject({
+        method: "POST",
+        url: `/api/items/${itemId}/export`,
+        payload: { export_key: `png-fail-${i}`, formats: ["png"] },
+      });
+      assert.equal(exportRes.statusCode, 500);
+    }
+
+    const detailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}`,
+    });
+    assert.equal(detailRes.statusCode, 200);
+    const detail = detailRes.json() as {
+      item: { status: string };
+      failure: { retryable: boolean; retry_attempts: number; retry_limit: number };
+    };
+    assert.equal(detail.item.status, "FAILED_EXPORT");
+    assert.equal(detail.failure.retryable, false);
+    assert.equal(detail.failure.retry_attempts, 3);
+    assert.equal(detail.failure.retry_limit, 3);
+
+    const blockedRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: "png-fail-blocked", formats: ["png"] },
+    });
+    assert.equal(blockedRes.statusCode, 409);
+    assert.equal((blockedRes.json() as { error: { code: string } }).error.code, "RETRY_LIMIT_REACHED");
   } finally {
     await app.close();
   }

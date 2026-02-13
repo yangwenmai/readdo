@@ -566,6 +566,8 @@ options（MVP 可选）：
 成功 To：SHIPPED
 失败：FAILED_EXPORT（或保持 READY 并记录 failure；MVP 推荐 FAILED_EXPORT）
 
+> 当 `failure.retryable=false`（达到导出重试上限）时，再次调用 export 返回 `409 RETRY_LIMIT_REACHED`。
+
 ### 8.3 Request
 
 Headers:
@@ -610,6 +612,7 @@ Headers:
 * 404 NOT_FOUND
 * 409 EXPORT_NOT_ALLOWED
 * 409 STATE_CONFLICT
+* 409 RETRY_LIMIT_REACHED（导出失败重试已达上限）
 * 500 EXPORT_RENDER_FAILED（例如仅请求 png 且渲染失败；item 将进入 FAILED_EXPORT）
 
 ---
