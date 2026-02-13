@@ -10,6 +10,7 @@ const exportsRoot = resolve(repoRoot, "exports");
 const shortcutTriggerKey = "?";
 const shortcutGuideItems = [
   { key: "/", label: "Search" },
+  { key: "H", label: "Toggle Shortcut Guide" },
   { key: "J", label: "Select next item" },
   { key: "K", label: "Select previous item" },
   { key: "F", label: "Focus Mode" },
@@ -5588,6 +5589,13 @@ const html = `<!doctype html>
           }
           showShortcutHint();
         },
+        h: () => {
+          if (isShortcutPanelOpen()) {
+            hideShortcutHint();
+            return;
+          }
+          showShortcutHint();
+        },
         "/": () => {
           queryInput.focus();
           queryInput.select();
@@ -5688,7 +5696,7 @@ const html = `<!doctype html>
       function handleGlobalShortcutKey(event) {
         const key = event.key.toLowerCase();
         if (isShortcutPanelOpen()) {
-          if (key === "escape" || key === SHORTCUT_TRIGGER_KEY.toLowerCase()) {
+          if (key === "escape" || key === SHORTCUT_TRIGGER_KEY.toLowerCase() || key === "h") {
             event.preventDefault();
             hideShortcutHint();
           }
