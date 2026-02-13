@@ -1073,6 +1073,55 @@ const html = `<!doctype html>
         return buttonsFor(item).filter((op) => op.id !== "detail");
       }
 
+      function detailActionBannerEl() {
+        return document.getElementById("detailActionBanner");
+      }
+
+      function setActionFeedback(targetEl, state, text) {
+        if (!targetEl) return;
+        targetEl.textContent = text;
+        targetEl.className = "muted action-feedback" + (state ? " " + state : "");
+      }
+
+      async function runActionWithFeedback(op, options = {}) {
+        if (op.disabled) return;
+        const button = options.button;
+        const label = options.label || op.label || "Action";
+        const localFeedbackEl = options.localFeedbackEl || null;
+        const disableAll = typeof options.disableAll === "function" ? options.disableAll : null;
+        const onStart = typeof options.onStart === "function" ? options.onStart : null;
+        const onFinally = typeof options.onFinally === "function" ? options.onFinally : null;
+        if (disableAll) disableAll(true);
+        const previousDisabled = button ? button.disabled : false;
+        if (button) {
+          button.disabled = true;
+        }
+        if (onStart) {
+          onStart();
+        }
+        setActionFeedback(detailActionBannerEl(), "pending", "Running: " + label);
+        setActionFeedback(localFeedbackEl, "pending", "Running: " + label);
+        try {
+          errorEl.textContent = "";
+          await op.action();
+          setActionFeedback(detailActionBannerEl(), "done", "Completed: " + label);
+          setActionFeedback(localFeedbackEl, "done", "Completed: " + label);
+        } catch (err) {
+          const message = String(err);
+          setActionFeedback(detailActionBannerEl(), "error", "Failed: " + label + " — " + message);
+          setActionFeedback(localFeedbackEl, "error", "Failed: " + label + " — " + message);
+          errorEl.textContent = message;
+        } finally {
+          if (button) {
+            button.disabled = previousDisabled;
+          }
+          if (disableAll) disableAll(false);
+          if (onFinally) {
+            onFinally();
+          }
+        }
+      }
+
       function renderItem(item) {
         const card = document.createElement("div");
         const isSelected = selectedId === item.id;
@@ -1225,7 +1274,7 @@ const html = `<!doctype html>
           <div class="muted">无需回到列表，直接在详情完成处理、导出与归档。</div>
           <div class="hint">Recommended Action: \${primaryOp?.label || "Choose any action below based on your goal."}</div>
           <div class="quick-action-grid" id="detailQuickActions"></div>
-          <div class="muted action-feedback" id="detailQuickActionMsg">Ready.</div>
+          <div class="muted action-feedback" id="detailQuickActionMsg">Mirrors global action status.</div>
         \`;
         const actionEl = card.querySelector("#detailQuickActions");
         const msgEl = card.querySelector("#detailQuickActionMsg");
@@ -1258,26 +1307,19 @@ const html = `<!doctype html>
             btn.dataset.locked = locked ? "true" : "false";
             quickButtons.push(btn);
             btn.addEventListener("click", async () => {
-              if (op.disabled) return;
               const initialLabel = btn.textContent;
-              setButtonsDisabled(true);
-              btn.textContent = "Working…";
-              msgEl.textContent = "Running: " + initialLabel;
-              msgEl.className = "muted action-feedback pending";
-              try {
-                errorEl.textContent = "";
-                await op.action();
-                msgEl.textContent = "Completed: " + initialLabel;
-                msgEl.className = "muted action-feedback done";
-              } catch (err) {
-                const message = String(err);
-                msgEl.textContent = "Failed: " + initialLabel + " — " + message;
-                msgEl.className = "muted action-feedback error";
-                errorEl.textContent = message;
-              } finally {
-                btn.textContent = initialLabel;
-                setButtonsDisabled(false);
-              }
+              await runActionWithFeedback(op, {
+                button: btn,
+                label: initialLabel,
+                localFeedbackEl: msgEl,
+                disableAll: setButtonsDisabled,
+                onStart: () => {
+                  btn.textContent = "Working…";
+                },
+                onFinally: () => {
+                  btn.textContent = initialLabel;
+                },
+              });
             });
             groupActionEl.appendChild(btn);
           }
@@ -1448,17 +1490,7 @@ const html = `<!doctype html>
           if (op.is_primary) btn.classList.add("primary");
           btn.disabled = Boolean(op.disabled);
           btn.addEventListener("click", async () => {
-            if (op.disabled) return;
-            const previous = btn.disabled;
-            btn.disabled = true;
-            try {
-              errorEl.textContent = "";
-              await op.action();
-            } catch (err) {
-              errorEl.textContent = String(err);
-            } finally {
-              btn.disabled = previous;
-            }
+            await runActionWithFeedback(op, { button: btn });
           });
           actionHost.appendChild(btn);
           usedIds.add(op.id);
@@ -1501,6 +1533,7 @@ const html = `<!doctype html>
             <div>\${detail.item.title || detail.item.url}</div>
             <div class="muted">\${detail.item.domain || ""}</div>
             <div id="detailHeroActions" class="hero-actions"></div>
+            <div id="detailActionBanner" class="muted action-feedback">Ready.</div>
           </div>
         \`;
         detailEl.appendChild(wrap);
@@ -1619,16 +1652,7 @@ const html = `<!doctype html>
             btn.classList.add("primary");
           }
           btn.addEventListener("click", async () => {
-            const previous = btn.disabled;
-            btn.disabled = true;
-            try {
-              errorEl.textContent = "";
-              await primaryAction.action();
-            } catch (err) {
-              errorEl.textContent = String(err);
-            } finally {
-              btn.disabled = previous;
-            }
+            await runActionWithFeedback(primaryAction, { button: btn });
           });
           coachActionsEl.appendChild(btn);
         } else if (primaryAction) {
@@ -1740,16 +1764,7 @@ const html = `<!doctype html>
           btn.type = "button";
           btn.textContent = exportPrimaryAction.label;
           btn.addEventListener("click", async () => {
-            const previous = btn.disabled;
-            btn.disabled = true;
-            try {
-              errorEl.textContent = "";
-              await exportPrimaryAction.action();
-            } catch (err) {
-              errorEl.textContent = String(err);
-            } finally {
-              btn.disabled = previous;
-            }
+            await runActionWithFeedback(exportPrimaryAction, { button: btn });
           });
           exportCoachActionsEl.appendChild(btn);
         } else if (exportPrimaryAction) {
