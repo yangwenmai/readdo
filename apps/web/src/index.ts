@@ -423,6 +423,20 @@ const html = `<!doctype html>
         background: #f5f3ff;
         color: #5b21b6;
       }
+      .aha-rank-delta {
+        margin-left: 4px;
+        font-size: 10px;
+        font-weight: 700;
+      }
+      .aha-rank-delta.delta-up {
+        color: #166534;
+      }
+      .aha-rank-delta.delta-down {
+        color: #b91c1c;
+      }
+      .aha-rank-delta.delta-flat {
+        color: #475569;
+      }
       .score-meter {
         margin-top: 7px;
         display: grid;
@@ -1740,6 +1754,7 @@ const html = `<!doctype html>
       let queueNudgeState = { ...emptyQueueNudgeState };
       let ahaCandidateCycleCursor = -1;
       let currentAhaRankMap = new Map();
+      let previousAhaRankMap = new Map();
 
       function statusByFocusChip(focus) {
         if (focus === "ready") return "READY";
@@ -2298,6 +2313,7 @@ const html = `<!doctype html>
       }
 
       function refreshAhaRankMap(items) {
+        previousAhaRankMap = currentAhaRankMap;
         const nextMap = new Map();
         const ranked = sortedAhaItems(items);
         for (let index = 0; index < ranked.length; index += 1) {
@@ -2315,6 +2331,20 @@ const html = `<!doctype html>
       function ahaRankFromMap(item) {
         if (!item) return null;
         return currentAhaRankMap.get(String(item.id)) || null;
+      }
+
+      function ahaRankDeltaFromMap(item, currentRank = ahaRankFromMap(item)) {
+        if (!item || !currentRank) return null;
+        const previous = previousAhaRankMap.get(String(item.id)) || null;
+        if (!previous) return null;
+        const delta = Number(previous.rank ?? 0) - Number(currentRank.rank ?? 0);
+        if (delta > 0) {
+          return { value: delta, label: "↑" + delta, tone: "delta-up" };
+        }
+        if (delta < 0) {
+          return { value: delta, label: "↓" + Math.abs(delta), tone: "delta-down" };
+        }
+        return { value: 0, label: "→0", tone: "delta-flat" };
       }
 
       function ahaCandidateChipLabel(item, rank) {
@@ -4103,9 +4133,15 @@ const html = `<!doctype html>
         const flowRailHtml = queueFlowRailHtml(item);
         const insightPillsHtml = queueInsightPillsHtml(item);
         const ahaRank = ahaRankFromMap(item);
+        const ahaDelta = ahaRankDeltaFromMap(item, ahaRank);
+        const ahaDeltaHtml = ahaDelta
+          ? '<span class="aha-rank-delta ' + ahaDelta.tone + '">' + ahaDelta.label + "</span>"
+          : "";
         const ahaRankTone =
           ahaRank?.rank === 1 ? " rank-top" : ahaRank?.rank && ahaRank.rank <= 3 ? " rank-strong" : "";
-        const ahaRankHtml = ahaRank ? '<span class="aha-rank-chip' + ahaRankTone + '">Aha #' + ahaRank.rank + "</span>" : "";
+        const ahaRankHtml = ahaRank
+          ? '<span class="aha-rank-chip' + ahaRankTone + '">Aha #' + ahaRank.rank + ahaDeltaHtml + "</span>"
+          : "";
         const scoreMeter = scoreMeterHtml(item.match_score);
         const freshnessChip = freshnessChipHtml(item.updated_at);
         const ahaIndex = ahaIndexHtml(item);
@@ -4512,10 +4548,12 @@ const html = `<!doctype html>
         const heroImpactMeta = impactMetaForItem(detail.item);
         const heroUrgencyMeta = urgencyMetaForItem(detail.item);
         const heroAhaRank = ahaRankFromMap(detail.item) || ahaRankForItem(detail.item);
+        const heroAhaDelta = ahaRankDeltaFromMap(detail.item, heroAhaRank);
+        const heroAhaDeltaLabel = heroAhaDelta ? " " + heroAhaDelta.label : "";
         const heroAhaRankTone =
           heroAhaRank?.rank === 1 ? " rank-top" : heroAhaRank?.rank && heroAhaRank.rank <= 3 ? " rank-strong" : "";
         const heroAhaRankHtml = heroAhaRank
-          ? '<span class="aha-rank-chip' + heroAhaRankTone + '">Aha Rank #' + heroAhaRank.rank + "/" + heroAhaRank.total + "</span>"
+          ? '<span class="aha-rank-chip' + heroAhaRankTone + '">Aha Rank #' + heroAhaRank.rank + "/" + heroAhaRank.total + heroAhaDeltaLabel + "</span>"
           : '<span class="aha-rank-chip">Aha Rank —</span>';
         const heroScoreMeter = scoreMeterHtml(detail.item.match_score);
         const heroFreshnessChip = freshnessChipHtml(detail.item.updated_at);
@@ -5505,7 +5543,9 @@ const html = `<!doctype html>
         const ahaRank = ahaRankForItem(item);
         const title = truncateSelectionLabel(item.title || item.url || "Untitled");
         const actionLabel = primary?.label || "No action";
-        const ahaLabel = ahaRank ? "Aha #" + ahaRank.rank + "/" + ahaRank.total + " (" + ahaRank.value + ")" : "Aha —";
+        const ahaDelta = ahaRankDeltaFromMap(item, ahaRank);
+        const ahaDeltaLabel = ahaDelta ? " " + ahaDelta.label : "";
+        const ahaLabel = ahaRank ? "Aha #" + ahaRank.rank + "/" + ahaRank.total + " (" + ahaRank.value + ")" + ahaDeltaLabel : "Aha —";
         selectionHintEl.textContent =
           "Selected: #" +
           String(item.id ?? "—") +

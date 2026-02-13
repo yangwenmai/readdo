@@ -189,6 +189,10 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /aha-rank-chip/u);
     assert.match(text, /Aha Rank #/u);
     assert.match(text, /rank-top/u);
+    assert.match(text, /aha-rank-delta/u);
+    assert.match(text, /delta-up/u);
+    assert.match(text, /delta-down/u);
+    assert.match(text, /→0/u);
     assert.match(text, /Impact: High/u);
     assert.match(text, /Urgency: Now/u);
     assert.match(text, /score-meter-track/u);
