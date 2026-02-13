@@ -47,6 +47,7 @@ const shortcutGuideItems = [
   { key: "T", label: "Toggle Auto Refresh" },
   { key: "W", label: "Run Worker Once" },
   { key: "R", label: "Refresh" },
+  { key: "Shift+R", label: "Reset Aha Cycle" },
   { key: shortcutTriggerKey, label: "Show shortcuts" },
 ];
 const shortcutDiscoveryText = `Press ${shortcutTriggerKey} for shortcuts`;
@@ -74,6 +75,7 @@ const queueNudgeFocusTopLabel = "Focus Top Aha (Z)";
 const queueNudgeFocusNextLabel = "Focus Next Aha (Shift+N)";
 const queueNudgeFocusPrevLabel = "Focus Previous Aha (Alt+N)";
 const queueNudgeFocusSecondLabel = "Focus 2nd Aha (Shift+Z)";
+const queueNudgeResetCycleLabel = "Reset Aha Cycle (Shift+R)";
 const queueNudgeCandidatesLabel = "Top Aha Candidates";
 const queueNudgeCandidateOpenLabel = "Open Candidate";
 const queueNudgePoolPrefix = "Aha pool";
@@ -1599,6 +1601,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_FOCUS_NEXT_LABEL = ${JSON.stringify(queueNudgeFocusNextLabel)};
       const QUEUE_NUDGE_FOCUS_PREV_LABEL = ${JSON.stringify(queueNudgeFocusPrevLabel)};
       const QUEUE_NUDGE_FOCUS_SECOND_LABEL = ${JSON.stringify(queueNudgeFocusSecondLabel)};
+      const QUEUE_NUDGE_RESET_CYCLE_LABEL = ${JSON.stringify(queueNudgeResetCycleLabel)};
       const QUEUE_NUDGE_CANDIDATES_LABEL = ${JSON.stringify(queueNudgeCandidatesLabel)};
       const QUEUE_NUDGE_CANDIDATE_OPEN_LABEL = ${JSON.stringify(queueNudgeCandidateOpenLabel)};
       const QUEUE_NUDGE_POOL_PREFIX = ${JSON.stringify(queueNudgePoolPrefix)};
@@ -3752,6 +3755,14 @@ const html = `<!doctype html>
               await runCycleAhaQueueAction("previous", focusPrevBtn);
             });
             actionsEl.appendChild(focusPrevBtn);
+            const resetCycleBtn = document.createElement("button");
+            resetCycleBtn.type = "button";
+            resetCycleBtn.className = "secondary";
+            resetCycleBtn.textContent = QUEUE_NUDGE_RESET_CYCLE_LABEL;
+            resetCycleBtn.addEventListener("click", async () => {
+              await runResetAhaCycleAction(resetCycleBtn);
+            });
+            actionsEl.appendChild(resetCycleBtn);
           }
           if (ahaCandidates.length > 1) {
             const focusSecondBtn = document.createElement("button");
@@ -5490,6 +5501,34 @@ const html = `<!doctype html>
         );
       }
 
+      async function runResetAhaCycleAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_reset_aha_cycle",
+            label: "Reset Aha Cycle",
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const pool = visibleItems.length ? visibleItems : allItems;
+              if (!pool.length) {
+                errorEl.textContent = "No items available to reset Aha cycle.";
+                return;
+              }
+              const target = topAhaItem(pool);
+              if (!target) {
+                errorEl.textContent = "No Aha candidate available to reset.";
+                return;
+              }
+              ahaCandidateCycleCursor = 0;
+              await selectItem(target.id);
+              focusQueueItemCard(target.id, { revealCollapsed: true });
+              const meta = ahaIndexMetaForItem(target);
+              errorEl.textContent = "Aha cycle reset to top candidate: #" + target.id + " (" + meta.value + ").";
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
       async function runFocusSecondAhaQueueAction(button = null) {
         await runFocusAhaCandidateByRank(2, button);
       }
@@ -6573,6 +6612,7 @@ const html = `<!doctype html>
         if (event.altKey && key === "n") return "alt+n";
         if (event.shiftKey && key === "p") return "shift+p";
         if (event.shiftKey && key === "n") return "shift+n";
+        if (event.shiftKey && key === "r") return "shift+r";
         if (event.shiftKey && key === "g") return "shift+g";
         if (event.shiftKey && key === "z") return "shift+z";
         if (event.shiftKey && key === "c") return "shift+c";
@@ -6651,6 +6691,9 @@ const html = `<!doctype html>
         },
         "alt+n": () => {
           void runCycleAhaQueueAction("previous");
+        },
+        "shift+r": () => {
+          void runResetAhaCycleAction();
         },
         "shift+z": () => {
           void runFocusSecondAhaQueueAction();
