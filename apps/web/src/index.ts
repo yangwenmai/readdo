@@ -1015,36 +1015,39 @@ const html = `<!doctype html>
       }
 
       async function processItem(id, mode) {
+        const requestId = crypto.randomUUID();
         await request("/items/" + id + "/process", {
           method: "POST",
           body: JSON.stringify({
-            process_request_id: crypto.randomUUID(),
+            process_request_id: requestId,
             mode
           }),
-          headers: { "Idempotency-Key": crypto.randomUUID() }
+          headers: { "Idempotency-Key": requestId }
         });
         await loadItems();
       }
 
       async function exportItem(id) {
         try {
+          const requestId = crypto.randomUUID();
           await request("/items/" + id + "/export", {
             method: "POST",
             body: JSON.stringify({
-              export_key: "web_" + crypto.randomUUID(),
+              export_key: "web_" + requestId,
               formats: ["png", "md", "caption"]
             }),
-            headers: { "Idempotency-Key": crypto.randomUUID() }
+            headers: { "Idempotency-Key": requestId }
           });
         } catch (err) {
           if (err?.code === "EXPORT_RENDER_FAILED") {
+            const fallbackRequestId = crypto.randomUUID();
             await request("/items/" + id + "/export", {
               method: "POST",
               body: JSON.stringify({
-                export_key: "web_fallback_" + crypto.randomUUID(),
+                export_key: "web_fallback_" + fallbackRequestId,
                 formats: ["md", "caption"]
               }),
-              headers: { "Idempotency-Key": crypto.randomUUID() }
+              headers: { "Idempotency-Key": fallbackRequestId }
             });
             errorEl.textContent = "PNG failed; fallback export (md+caption) succeeded.";
           } else {
@@ -1302,13 +1305,14 @@ const html = `<!doctype html>
           const exportItemIds = batchRes.eligible_export_item_ids || [];
           for (const itemId of exportItemIds) {
             try {
+              const requestId = crypto.randomUUID();
               await request("/items/" + itemId + "/export", {
                 method: "POST",
                 body: JSON.stringify({
-                  export_key: "batch_retry_" + crypto.randomUUID(),
+                  export_key: "batch_retry_" + requestId,
                   formats: ["png", "md", "caption"]
                 }),
-                headers: { "Idempotency-Key": crypto.randomUUID() }
+                headers: { "Idempotency-Key": requestId }
               });
               exportSuccess += 1;
             } catch {
