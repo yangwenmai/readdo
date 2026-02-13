@@ -2246,6 +2246,25 @@ test("capture validates url and source_type", async () => {
     const httpCredentialUrlDetail = httpCredentialUrlDetailRes.json() as { item: { url: string } };
     assert.equal(httpCredentialUrlDetail.item.url, "http://example.com/hello?x=1");
 
+    const hashUrlRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://example.com/path?x=1#section-anchor",
+        source_type: "web",
+        intent_text: "strip hash fragment before URL storage",
+      },
+    });
+    assert.equal(hashUrlRes.statusCode, 201);
+    const hashUrlId = (hashUrlRes.json() as { item: { id: string } }).item.id;
+    const hashUrlDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${hashUrlId}`,
+    });
+    assert.equal(hashUrlDetailRes.statusCode, 200);
+    const hashUrlDetail = hashUrlDetailRes.json() as { item: { url: string } };
+    assert.equal(hashUrlDetail.item.url, "https://example.com/path?x=1");
+
     const dataDomainRes = await app.inject({
       method: "POST",
       url: "/api/capture",

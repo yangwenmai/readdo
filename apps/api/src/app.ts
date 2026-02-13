@@ -203,6 +203,7 @@ function normalizeHostname(hostname: string): string {
 function sanitizeUrlForStorage(parsedUrl: URL): string {
   parsedUrl.username = "";
   parsedUrl.password = "";
+  parsedUrl.hash = "";
   if ((parsedUrl.protocol === "https:" && parsedUrl.port === "443") || (parsedUrl.protocol === "http:" && parsedUrl.port === "80")) {
     parsedUrl.port = "";
   }
