@@ -158,6 +158,27 @@ const html = `<!doctype html>
       .panel-subtitle { margin: 6px 0 10px; font-size: 12px; color: #64748b; }
       .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
       .controls .muted { color: #e2e8f0; }
+      .controls #ahaPulseBtn {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1e3a8a;
+        font-weight: 700;
+      }
+      .controls #ahaPulseBtn.heat-up {
+        border-color: #86efac;
+        background: #ecfdf5;
+        color: #166534;
+      }
+      .controls #ahaPulseBtn.heat-down {
+        border-color: #fda4af;
+        background: #fff1f2;
+        color: #be123c;
+      }
+      .controls #ahaPulseBtn.heat-flat {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+        color: #475569;
+      }
       .controls .filter-attention {
         border-color: #60a5fa !important;
         box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.6), 0 6px 16px rgba(37, 99, 235, 0.25);
@@ -1637,6 +1658,7 @@ const html = `<!doctype html>
         <span class="muted">API: ${apiBase}</span>
         <span class="muted" id="workerStats">Queue: -</span>
         <span class="muted" id="selectionHint">Selected: none</span>
+        <button id="ahaPulseBtn" type="button" title="Aha Pulse: waiting for items.">Aha Pulse: —</button>
         <button id="runWorkerBtn" type="button">Run Worker Once</button>
         <button id="previewRetryBtn" type="button">${queuePreviewLabels.retry}</button>
         <button id="previewNextBtn" type="button" style="display:none;">${queuePreviewLabels.next}</button>
@@ -1834,6 +1856,7 @@ const html = `<!doctype html>
       const archiveRetryableFilter = document.getElementById("archiveRetryableFilter");
       const workerStatsEl = document.getElementById("workerStats");
       const selectionHintEl = document.getElementById("selectionHint");
+      const ahaPulseBtn = document.getElementById("ahaPulseBtn");
       const runWorkerBtn = document.getElementById("runWorkerBtn");
       const previewRetryBtn = document.getElementById("previewRetryBtn");
       const previewNextBtn = document.getElementById("previewNextBtn");
@@ -4956,6 +4979,7 @@ const html = `<!doctype html>
         refreshAhaHeatHistory(items);
         refreshAhaSnapshot(items);
         renderQueueHighlights(items);
+        updateAhaPulseHint(items);
         renderStatusLegend(items);
         if (!items.length) {
           inboxEl.innerHTML = '<div class="empty">No items yet. Use the extension to capture links.</div>';
@@ -6394,6 +6418,33 @@ const html = `<!doctype html>
           title;
       }
 
+      function updateAhaPulseHint(items = allItems) {
+        if (!ahaPulseBtn) return;
+        ahaPulseBtn.classList.remove("heat-up", "heat-down", "heat-flat");
+        const ranked = sortedAhaItems(items);
+        if (!ranked.length) {
+          ahaPulseBtn.textContent = "Aha Pulse: —";
+          ahaPulseBtn.title = "Aha Pulse: no active candidates.";
+          ahaPulseBtn.disabled = true;
+          return;
+        }
+        const trend = ahaHeatTrendMeta();
+        const top = ranked[0];
+        const topMeta = ahaIndexMetaForItem(top);
+        const topPrimary = primaryActionForItem(top);
+        const story = ahaStoryText(ranked, ahaHeatBuckets(ranked));
+        ahaPulseBtn.classList.add(trend.tone);
+        ahaPulseBtn.disabled = false;
+        ahaPulseBtn.textContent = "Aha Pulse: " + trend.label + " · #" + top.id + " " + topMeta.value;
+        ahaPulseBtn.title =
+          "Lead #" +
+          top.id +
+          " · " +
+          (topPrimary?.label || "No action") +
+          " · " +
+          (story || "No storyline available.");
+      }
+
       async function runSelectedPrimaryItemAction(button = null) {
         const item = selectedQueueItem();
         if (!item) {
@@ -7304,6 +7355,13 @@ const html = `<!doctype html>
         });
       }
 
+      function bindAhaPulseAction(button) {
+        if (!button) return;
+        button.addEventListener("click", async () => {
+          await runFocusTopAhaQueueAction(button);
+        });
+      }
+
       function bindShortcutPanelDismissActions() {
         shortcutPanelCloseBtn?.addEventListener("click", () => {
           hideShortcutHint({ restoreFocus: true });
@@ -7816,6 +7874,7 @@ const html = `<!doctype html>
         bindConfigList(queueControlChangeConfigs, bindQueueControlChange);
         bindSearchInputActions(queryInput);
         bindShortcutHintAction(shortcutHintBtn);
+        bindAhaPulseAction(ahaPulseBtn);
         bindShortcutPanelDismissActions();
         bindFocusChipActions(focusChipsEl);
         bindDetailModeActions();
