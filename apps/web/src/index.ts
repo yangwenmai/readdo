@@ -58,6 +58,7 @@ const html = `<!doctype html>
         <span class="muted">API: ${apiBase}</span>
         <span class="muted" id="workerStats">Queue: -</span>
         <button id="runWorkerBtn" type="button">Run Worker Once</button>
+        <button id="retryFailedBtn" type="button">Retry Failed</button>
         <label class="muted" style="display:flex;align-items:center;gap:4px;">
           <input id="autoRefreshToggle" type="checkbox" />
           Auto refresh
@@ -97,6 +98,7 @@ const html = `<!doctype html>
       const statusFilter = document.getElementById("statusFilter");
       const workerStatsEl = document.getElementById("workerStats");
       const runWorkerBtn = document.getElementById("runWorkerBtn");
+      const retryFailedBtn = document.getElementById("retryFailedBtn");
       const autoRefreshToggle = document.getElementById("autoRefreshToggle");
 
       let allItems = [];
@@ -165,6 +167,11 @@ const html = `<!doctype html>
         const retryable = failure.retryable !== false;
         const remaining = retryLimit > 0 ? Math.max(retryLimit - retryAttempts, 0) : null;
         return { retryLimit, retryAttempts, retryable, remaining };
+      }
+
+      function isRetryableFailedItem(item) {
+        if (!String(item?.status || "").startsWith("FAILED_")) return false;
+        return retryInfo(item).retryable;
       }
 
       function buttonsFor(item) {
@@ -290,6 +297,8 @@ const html = `<!doctype html>
           const payload = await request("/items?" + params.toString());
           allItems = payload.items || [];
           renderInbox(allItems);
+          const retryableCount = allItems.filter((item) => isRetryableFailedItem(item)).length;
+          retryFailedBtn.textContent = retryableCount > 0 ? "Retry Failed (" + retryableCount + ")" : "Retry Failed";
           await loadWorkerStats();
           if (selectedId) {
             await selectItem(selectedId);
@@ -902,6 +911,50 @@ const html = `<!doctype html>
           await loadItems();
         } catch (err) {
           errorEl.textContent = String(err);
+        }
+      });
+
+      retryFailedBtn.addEventListener("click", async () => {
+        const candidates = allItems.filter((item) => isRetryableFailedItem(item));
+        if (!candidates.length) {
+          errorEl.textContent = "No retryable failed items.";
+          return;
+        }
+        retryFailedBtn.disabled = true;
+        let success = 0;
+        let failed = 0;
+        try {
+          errorEl.textContent = "Retrying " + candidates.length + " failed items...";
+          for (const item of candidates) {
+            try {
+              if (item.status === "FAILED_EXPORT") {
+                await request("/items/" + item.id + "/export", {
+                  method: "POST",
+                  body: JSON.stringify({
+                    export_key: "batch_retry_" + crypto.randomUUID(),
+                    formats: ["png", "md", "caption"]
+                  }),
+                  headers: { "Idempotency-Key": crypto.randomUUID() }
+                });
+              } else {
+                await request("/items/" + item.id + "/process", {
+                  method: "POST",
+                  body: JSON.stringify({
+                    process_request_id: crypto.randomUUID(),
+                    mode: "RETRY"
+                  }),
+                  headers: { "Idempotency-Key": crypto.randomUUID() }
+                });
+              }
+              success += 1;
+            } catch {
+              failed += 1;
+            }
+          }
+          errorEl.textContent = "Batch retry done. success=" + success + ", failed=" + failed + ".";
+        } finally {
+          retryFailedBtn.disabled = false;
+          await loadItems();
         }
       });
 
