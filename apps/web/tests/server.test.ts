@@ -167,6 +167,9 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Aha Momentum · Ready to ship now/u);
     assert.match(text, /Blocked Recovery/u);
     assert.match(text, /status-chip/u);
+    assert.match(text, /status-rail-track/u);
+    assert.match(text, /status-rail-caption/u);
+    assert.match(text, /Flow stage:/u);
     assert.match(text, /Mirrors global action status/u);
     assert.match(text, /Top actions are pinned in the header/u);
     assert.match(text, /Primary shipping action is already pinned in header/u);

@@ -63,6 +63,7 @@ const queueBatchLabels = {
   archive: { trigger: "Archive Failed", action: "Archive Failed Batch" },
   unarchive: { trigger: "Unarchive Archived", action: "Unarchive Batch" },
 };
+const queueFlowRailNodeLabels = ["Catch", "Queue", "Process", "Ready", "Ship"];
 const queueSpotlightBadgeText = "Aha Now";
 const queueNudgeFocusLabel = "Focus Recommended Item";
 const queueRecoveryCopyLabel = "Copy Recovery Summary";
@@ -312,6 +313,33 @@ const html = `<!doctype html>
       .status-captured { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
       .status-archived { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
       .status-default { background: #eef2ff; color: #3730a3; border-color: #e0e7ff; }
+      .status-rail {
+        margin-top: 7px;
+        display: grid;
+        gap: 4px;
+      }
+      .status-rail-track {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 5px;
+      }
+      .rail-node {
+        display: block;
+        height: 5px;
+        border-radius: 999px;
+        background: #e2e8f0;
+        transition: all 120ms ease-in-out;
+      }
+      .rail-node.is-done {
+        background: linear-gradient(90deg, #60a5fa, #34d399);
+      }
+      .rail-node.is-current {
+        background: #1d4ed8;
+        box-shadow: 0 0 0 1px rgba(29, 78, 216, 0.18), 0 0 0 3px rgba(147, 197, 253, 0.35);
+      }
+      .status-rail-caption {
+        font-size: 11px;
+      }
       .actions { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
       .actions button:disabled { cursor: not-allowed; opacity: 0.6; transform: none; box-shadow: none; }
       .quick-action-grid {
@@ -1288,6 +1316,7 @@ const html = `<!doctype html>
       const SHORTCUT_TRIGGER_KEY = ${JSON.stringify(shortcutTriggerKey)};
       const QUEUE_PREVIEW_LABELS = ${JSON.stringify(queuePreviewLabels)};
       const QUEUE_BATCH_LABELS = ${JSON.stringify(queueBatchLabels)};
+      const QUEUE_FLOW_RAIL_NODE_LABELS = ${JSON.stringify(queueFlowRailNodeLabels)};
       const QUEUE_SPOTLIGHT_BADGE_TEXT = ${JSON.stringify(queueSpotlightBadgeText)};
       const QUEUE_NUDGE_FOCUS_LABEL = ${JSON.stringify(queueNudgeFocusLabel)};
       const QUEUE_RECOVERY_COPY_LABEL = ${JSON.stringify(queueRecoveryCopyLabel)};
@@ -1748,6 +1777,44 @@ const html = `<!doctype html>
         if (priority === "WORTH_IT") return "worth-it";
         if (priority === "IF_TIME") return "if-time";
         return "default";
+      }
+
+      function flowStageMetaForItem(item) {
+        const status = String(item?.status || "");
+        if (status === "CAPTURED") return { index: 0, label: "Captured · ready to queue" };
+        if (status === "QUEUED") return { index: 1, label: "Queued · waiting for worker" };
+        if (status === "PROCESSING") return { index: 2, label: "Processing · generating artifacts" };
+        if (status === "READY") return { index: 3, label: "Ready · review and export" };
+        if (status === "SHIPPED") return { index: 4, label: "Shipped · delivered output" };
+        if (status === "ARCHIVED") return { index: 4, label: "Archived · parked after processing" };
+        if (status.startsWith("FAILED_")) {
+          const failedStep = String(item?.failure?.failed_step || "");
+          if (failedStep === "extract") return { index: 1, label: "Failed at extract · source recovery needed" };
+          if (failedStep === "pipeline") return { index: 2, label: "Failed at pipeline · intent/artifact fix needed" };
+          if (failedStep === "export") return { index: 4, label: "Failed at export · shipping recovery needed" };
+          return { index: 2, label: "Failed · manual recovery needed" };
+        }
+        return { index: 2, label: "In progress · keep flow moving" };
+      }
+
+      function queueFlowRailHtml(item) {
+        const stage = flowStageMetaForItem(item);
+        const nodesHtml = QUEUE_FLOW_RAIL_NODE_LABELS
+          .map((label, index) => {
+            const toneClass = index < stage.index ? "is-done" : index === stage.index ? "is-current" : "";
+            const className = toneClass ? "rail-node " + toneClass : "rail-node";
+            return '<span class="' + className + '" title="' + label + '" aria-hidden="true"></span>';
+          })
+          .join("");
+        return (
+          '<div class="status-rail" role="img" aria-label="Flow stage: ' +
+          stage.label +
+          '"><div class="status-rail-track">' +
+          nodesHtml +
+          '</div><div class="status-rail-caption muted">Flow: ' +
+          stage.label +
+          "</div></div>"
+        );
       }
 
       function topReadyItem(items) {
@@ -3445,6 +3512,7 @@ const html = `<!doctype html>
             failureNoteHtml = '<div class="failure-note">retry limit reached (' + retry.retryAttempts + "/" + retry.retryLimit + ")</div>";
           }
         }
+        const flowRailHtml = queueFlowRailHtml(item);
         card.innerHTML = \`
           <div class="item-head">
             <span class="status status-\${statusTone(item.status)}">\${item.status}</span>
@@ -3453,6 +3521,7 @@ const html = `<!doctype html>
           <div class="intent">\${item.intent_text}</div>
           <div>\${title}</div>
           <div class="muted">\${item.domain || ""}</div>
+          \${flowRailHtml}
           \${spotlightNoteHtml}
           \${failureNoteHtml}
           <div class="actions"></div>
