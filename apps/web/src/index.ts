@@ -136,6 +136,16 @@ const html = `<!doctype html>
       .action-feedback.pending { color: #1d4ed8; }
       .action-feedback.done { color: #166534; }
       .action-feedback.error { color: #b91c1c; }
+      .hero-actions {
+        margin-top: 8px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .hero-actions .muted {
+        width: 100%;
+      }
       .group-title {
         margin: 12px 0 6px;
         font-size: 13px;
@@ -1403,6 +1413,41 @@ const html = `<!doctype html>
         appendDetailSection("detail-raw-json", "Raw JSON", "调试与排障专用视图", card, false);
       }
 
+      function renderDetailHeroActions(detail, hostEl) {
+        const actionHost = hostEl.querySelector("#detailHeroActions");
+        if (!actionHost) return;
+        const ops = buttonsFor(detail.item).filter((op) => op.id !== "detail");
+        if (!ops.length) return;
+        actionHost.innerHTML = '<div class="muted">Primary Next Step</div>';
+        const primaryOp = ops.find((op) => op.is_primary) || ops[0];
+        const secondaryOp = ops.find((op) => op.id === "archive" || op.id === "unarchive");
+        const heroOps = [primaryOp];
+        if (secondaryOp && secondaryOp.id !== primaryOp.id) {
+          heroOps.push(secondaryOp);
+        }
+        for (const op of heroOps) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.textContent = op.label;
+          if (op.is_primary) btn.classList.add("primary");
+          btn.disabled = Boolean(op.disabled);
+          btn.addEventListener("click", async () => {
+            if (op.disabled) return;
+            const previous = btn.disabled;
+            btn.disabled = true;
+            try {
+              errorEl.textContent = "";
+              await op.action();
+            } catch (err) {
+              errorEl.textContent = String(err);
+            } finally {
+              btn.disabled = previous;
+            }
+          });
+          actionHost.appendChild(btn);
+        }
+      }
+
       function renderAdvancedHintCard() {
         const card = document.createElement("div");
         card.className = "item-card";
@@ -1437,9 +1482,11 @@ const html = `<!doctype html>
             <div class="intent">\${detail.item.intent_text}</div>
             <div>\${detail.item.title || detail.item.url}</div>
             <div class="muted">\${detail.item.domain || ""}</div>
+            <div id="detailHeroActions" class="hero-actions"></div>
           </div>
         \`;
         detailEl.appendChild(wrap);
+        renderDetailHeroActions(detail, wrap);
         renderDetailAha(detail);
         renderDetailQuickActions(detail);
         renderFailureGuidance(detail);
