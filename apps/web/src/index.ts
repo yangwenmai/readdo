@@ -554,6 +554,34 @@ const html = `<!doctype html>
         background: #ffffff;
         color: #334155;
       }
+      .recovery-radar-trend {
+        margin-top: 8px;
+        border: 1px solid #dbe2ea;
+        border-radius: 10px;
+        background: #ffffff;
+        padding: 8px;
+      }
+      .recovery-radar-trend .trend-head {
+        font-size: 11px;
+        color: #475569;
+      }
+      .recovery-radar-trend .trend-grid {
+        margin-top: 6px;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+      }
+      .recovery-radar-trend .trend-cell {
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: #f8fafc;
+        padding: 5px 7px;
+        font-size: 11px;
+        color: #334155;
+      }
+      .trend-delta.pos { color: #166534; font-weight: 700; }
+      .trend-delta.neg { color: #b91c1c; font-weight: 700; }
+      .trend-delta.zero { color: #475569; font-weight: 700; }
       .recovery-radar-timeline {
         margin-top: 8px;
         display: flex;
@@ -881,6 +909,7 @@ const html = `<!doctype html>
         .quick-action-grid { grid-template-columns: 1fr; }
         .recovery-radar-kpi { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .recovery-step-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .recovery-radar-trend .trend-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
       @media (max-width: 1100px) {
         main { grid-template-columns: 1fr; min-height: auto; }
@@ -889,7 +918,8 @@ const html = `<!doctype html>
         .aha-strip { grid-template-columns: 1fr; }
         .export-kpi-grid { grid-template-columns: 1fr; }
         .recovery-radar-kpi,
-        .recovery-step-grid { grid-template-columns: 1fr; }
+        .recovery-step-grid,
+        .recovery-radar-trend .trend-grid { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -995,6 +1025,7 @@ const html = `<!doctype html>
             <button type="button" class="secondary" disabled>${queueRecoveryDownloadLabel}</button>
             <button type="button" class="secondary" disabled>${queueRecoveryClearLabel}</button>
           </div>
+          <div id="recoveryRadarTrend" class="recovery-radar-trend muted">Trend vs previous: —</div>
           <div id="recoveryRadarTimeline" class="recovery-radar-timeline muted">${queueRecoveryHistoryHint}</div>
         </div>
         <div id="focusChips" class="focus-chips">
@@ -1531,6 +1562,36 @@ const html = `<!doctype html>
         return prefix + " · " + label + (timeText ? " · " + timeText : "");
       }
 
+      function recoveryDeltaClass(value) {
+        if (value > 0) return "pos";
+        if (value < 0) return "neg";
+        return "zero";
+      }
+
+      function recoveryDeltaText(value) {
+        if (value > 0) return "+" + value;
+        return String(value || 0);
+      }
+
+      function recoveryTrendVsPrevious(summary) {
+        if (!summary?.summary_id) return null;
+        const index = recoveryRadarHistory.findIndex((entry) => entry.summary_id === summary.summary_id);
+        if (index < 0) return null;
+        const previous = recoveryRadarHistory[index + 1] || null;
+        if (!previous) return null;
+        const currentTotals = summary.totals || {};
+        const previousTotals = previous.totals || {};
+        return {
+          previous_label: recoveryTimelineLabel(previous, index + 1),
+          deltas: {
+            targeted: Number(currentTotals.targeted ?? 0) - Number(previousTotals.targeted ?? 0),
+            queued: Number(currentTotals.queued ?? 0) - Number(previousTotals.queued ?? 0),
+            replayed: Number(currentTotals.replayed ?? 0) - Number(previousTotals.replayed ?? 0),
+            failed: Number(currentTotals.failed ?? 0) - Number(previousTotals.failed ?? 0),
+          },
+        };
+      }
+
       async function copyRecoverySummary(summary) {
         if (!summary) return false;
         try {
@@ -1578,6 +1639,7 @@ const html = `<!doctype html>
             '</button><button type="button" class="secondary" disabled>' +
             QUEUE_RECOVERY_CLEAR_LABEL +
             "</button></div>" +
+            '<div id="recoveryRadarTrend" class="recovery-radar-trend muted">Trend vs previous: —</div>' +
             '<div id="recoveryRadarTimeline" class="recovery-radar-timeline muted">' +
             QUEUE_RECOVERY_HISTORY_HINT +
             "</div>";
@@ -1585,6 +1647,34 @@ const html = `<!doctype html>
         }
         const totals = activeSummary.totals || {};
         const stepBuckets = activeSummary.step_buckets || emptyRecoveryStepBuckets();
+        const trend = recoveryTrendVsPrevious(activeSummary);
+        const trendHtml = trend
+          ? '<div id="recoveryRadarTrend" class="recovery-radar-trend">' +
+            '<div class="trend-head">Trend vs previous · ' +
+            trend.previous_label +
+            "</div>" +
+            '<div class="trend-grid">' +
+            '<div class="trend-cell">Targeted <span class="trend-delta ' +
+            recoveryDeltaClass(trend.deltas.targeted) +
+            '">' +
+            recoveryDeltaText(trend.deltas.targeted) +
+            '</span></div>' +
+            '<div class="trend-cell">Queued <span class="trend-delta ' +
+            recoveryDeltaClass(trend.deltas.queued) +
+            '">' +
+            recoveryDeltaText(trend.deltas.queued) +
+            '</span></div>' +
+            '<div class="trend-cell">Replayed <span class="trend-delta ' +
+            recoveryDeltaClass(trend.deltas.replayed) +
+            '">' +
+            recoveryDeltaText(trend.deltas.replayed) +
+            '</span></div>' +
+            '<div class="trend-cell">Failed <span class="trend-delta ' +
+            recoveryDeltaClass(trend.deltas.failed) +
+            '">' +
+            recoveryDeltaText(trend.deltas.failed) +
+            "</span></div></div></div>"
+          : '<div id="recoveryRadarTrend" class="recovery-radar-trend muted">Trend vs previous: need at least two runs.</div>';
         recoveryRadarEl.innerHTML =
           '<div class="recovery-radar-head"><h4>Recovery Radar ' +
           historyBadge +
@@ -1611,7 +1701,8 @@ const html = `<!doctype html>
           QUEUE_RECOVERY_DOWNLOAD_LABEL +
           '</button><button type="button" class="secondary" id="clearRecoverySummaryBtn">' +
           QUEUE_RECOVERY_CLEAR_LABEL +
-          "</button></div>";
+          "</button></div>" +
+          trendHtml;
 
         const stepDefs = [
           { key: "extract", label: "extract" },
