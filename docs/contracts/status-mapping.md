@@ -68,6 +68,7 @@ Last Updated: 2026-02-13
   - 执行批量 Retry 时建议使用当前 Preview Offset（保持“所见即所执行”）。
 - `Retry Failed`（批量）：调用 `/items/retry-failed` 批量重试 `FAILED_EXTRACTION/FAILED_AI` 的可重试项；
   `FAILED_EXPORT` 仍应单独走 export 重试。
+  - 建议执行前先发起同参数 `dry_run=true` 预检，并在确认弹窗中回显 pipeline/export 规模与筛选上下文。
   - 若 UI 已选择 `failure_step` 筛选，建议把该值透传给 `/items/retry-failed` 以保持“所见即所重试”。
   - 可透传当前搜索词 `q`，仅对匹配关键词的失败项执行批量重试。
 - `Archive Blocked`（批量）：调用 `/items/archive-failed`，默认归档 `retryable=false` 的失败项（可带 `failure_step`）。
