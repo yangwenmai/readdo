@@ -2052,6 +2052,26 @@ test("capture validates url and source_type", async () => {
     const inferredNewsletterDetail = inferredNewsletterDetailRes.json() as { item: { source_type: string } };
     assert.equal(inferredNewsletterDetail.item.source_type, "newsletter");
 
+    const inferredNewsletterTrailingDotRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://writer.substack.com./p/weekly-brief",
+        intent_text: "infer newsletter source type from trailing-dot hostname",
+      },
+    });
+    assert.equal(inferredNewsletterTrailingDotRes.statusCode, 201);
+    const inferredNewsletterTrailingDotId = (inferredNewsletterTrailingDotRes.json() as { item: { id: string } }).item.id;
+    const inferredNewsletterTrailingDotDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${inferredNewsletterTrailingDotId}`,
+    });
+    assert.equal(inferredNewsletterTrailingDotDetailRes.statusCode, 200);
+    const inferredNewsletterTrailingDotDetail = inferredNewsletterTrailingDotDetailRes.json() as {
+      item: { source_type: string };
+    };
+    assert.equal(inferredNewsletterTrailingDotDetail.item.source_type, "newsletter");
+
     const falsePositiveNewsletterRes = await app.inject({
       method: "POST",
       url: "/api/capture",
