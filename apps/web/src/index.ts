@@ -1692,6 +1692,11 @@ const html = `<!doctype html>
         return failureStepFilter.value === step;
       }
 
+      function trendStepActionTitle(step) {
+        if (isFailedStepFilterActive(step)) return "Click again to clear step filter";
+        return "Filter failed items by " + step + " step";
+      }
+
       function failedStepOfItem(item) {
         const rawStep = String(item?.failure?.failed_step || "").toLowerCase();
         if (rawStep === "extract" || rawStep === "pipeline" || rawStep === "export") return rawStep;
@@ -1844,28 +1849,44 @@ const html = `<!doctype html>
             '<div class="trend-grid">' +
             '<button type="button" class="trend-cell trend-cell-action ' +
             (isFailedStepFilterActive("extract") ? "active" : "") +
-            '" id="trendStepDeltaExtractBtn">extract <span class="trend-delta ' +
+            '" id="trendStepDeltaExtractBtn" title="' +
+            trendStepActionTitle("extract") +
+            '" aria-pressed="' +
+            (isFailedStepFilterActive("extract") ? "true" : "false") +
+            '">extract <span class="trend-delta ' +
             recoveryDeltaClass(stepFailedDelta?.extract ?? 0) +
             '">' +
             recoveryDeltaText(stepFailedDelta?.extract ?? 0) +
             '</span></button>' +
             '<button type="button" class="trend-cell trend-cell-action ' +
             (isFailedStepFilterActive("pipeline") ? "active" : "") +
-            '" id="trendStepDeltaPipelineBtn">pipeline <span class="trend-delta ' +
+            '" id="trendStepDeltaPipelineBtn" title="' +
+            trendStepActionTitle("pipeline") +
+            '" aria-pressed="' +
+            (isFailedStepFilterActive("pipeline") ? "true" : "false") +
+            '">pipeline <span class="trend-delta ' +
             recoveryDeltaClass(stepFailedDelta?.pipeline ?? 0) +
             '">' +
             recoveryDeltaText(stepFailedDelta?.pipeline ?? 0) +
             '</span></button>' +
             '<button type="button" class="trend-cell trend-cell-action ' +
             (isFailedStepFilterActive("export") ? "active" : "") +
-            '" id="trendStepDeltaExportBtn">export <span class="trend-delta ' +
+            '" id="trendStepDeltaExportBtn" title="' +
+            trendStepActionTitle("export") +
+            '" aria-pressed="' +
+            (isFailedStepFilterActive("export") ? "true" : "false") +
+            '">export <span class="trend-delta ' +
             recoveryDeltaClass(stepFailedDelta?.export ?? 0) +
             '">' +
             recoveryDeltaText(stepFailedDelta?.export ?? 0) +
             '</span></button>' +
             '<button type="button" class="trend-cell trend-cell-action ' +
             (isFailedStepFilterActive("unknown") ? "active" : "") +
-            '" id="trendStepDeltaUnknownBtn">unknown <span class="trend-delta ' +
+            '" id="trendStepDeltaUnknownBtn" title="' +
+            trendStepActionTitle("unknown") +
+            '" aria-pressed="' +
+            (isFailedStepFilterActive("unknown") ? "true" : "false") +
+            '">unknown <span class="trend-delta ' +
             recoveryDeltaClass(stepFailedDelta?.unknown ?? 0) +
             '">' +
             recoveryDeltaText(stepFailedDelta?.unknown ?? 0) +
