@@ -2847,6 +2847,23 @@ const html = `<!doctype html>
         config.renderDone(result);
       }
 
+      async function runRetryBatchFlow() {
+        clearPreviewState();
+        const previewRes = await loadBatchPreview("retry");
+        const eligiblePipeline = Number(previewRes.eligible_pipeline ?? 0);
+        const eligibleExport = Number(previewRes.eligible_export ?? 0);
+        if (eligiblePipeline <= 0 && eligibleExport <= 0) {
+          renderRetryNoEligibleOutput(previewRes);
+          return;
+        }
+        const confirmed = confirm(buildRetryBatchConfirmMessage(previewRes, eligiblePipeline, eligibleExport));
+        if (!handleBatchConfirmation(confirmed, "Retry failed action cancelled.")) return;
+        errorEl.textContent = "Retrying failed items...";
+        const batchRes = await executeBatchByKind("retry");
+        const exportSummary = await exportItemsForRetry(batchRes.eligible_export_item_ids);
+        renderRetryBatchDoneOutput(batchRes, exportSummary);
+      }
+
       function bindPreviewAction(config) {
         const button = config.button;
         button.addEventListener("click", async () => {
@@ -2948,22 +2965,7 @@ const html = `<!doctype html>
         id: "queue_retry_failed",
         label: "Retry Failed Batch",
         errorPrefix: "Retry failed batch action failed: ",
-        run: async () => {
-          clearPreviewState();
-          const previewRes = await loadBatchPreview("retry");
-          const eligiblePipeline = Number(previewRes.eligible_pipeline ?? 0);
-          const eligibleExport = Number(previewRes.eligible_export ?? 0);
-          if (eligiblePipeline <= 0 && eligibleExport <= 0) {
-            renderRetryNoEligibleOutput(previewRes);
-            return;
-          }
-          const confirmed = confirm(buildRetryBatchConfirmMessage(previewRes, eligiblePipeline, eligibleExport));
-          if (!handleBatchConfirmation(confirmed, "Retry failed action cancelled.")) return;
-          errorEl.textContent = "Retrying failed items...";
-          const batchRes = await executeBatchByKind("retry");
-          const exportSummary = await exportItemsForRetry(batchRes.eligible_export_item_ids);
-          renderRetryBatchDoneOutput(batchRes, exportSummary);
-        },
+        run: runRetryBatchFlow,
       });
 
       bindQueueBatchAction({
