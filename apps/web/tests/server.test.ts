@@ -115,6 +115,16 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Open Candidate/u);
     assert.match(text, /nudge-candidate-chip/u);
     assert.match(text, /nudge-candidate-chip\.is-top/u);
+    assert.match(text, /nudge-heatmap/u);
+    assert.match(text, /Aha Heatmap/u);
+    assert.match(text, /nudge-heat-chip/u);
+    assert.match(text, /tone-hot/u);
+    assert.match(text, /tone-strong/u);
+    assert.match(text, /tone-warm/u);
+    assert.match(text, /tone-cool/u);
+    assert.match(text, /Focus first /u);
+    assert.match(text, /Aha candidate/u);
+    assert.match(text, /Focus/u);
     assert.match(text, /Aha #/u);
     assert.match(text, /nudge-pool/u);
     assert.match(text, /Aha pool/u);

@@ -84,6 +84,8 @@ const queueNudgeDownloadSnapshotLabel = "Download Aha Snapshot (Shift+U)";
 const queueNudgeResetCycleLabel = "Reset Aha Cycle (Shift+R)";
 const queueNudgeCandidatesLabel = "Top Aha Candidates";
 const queueNudgeCandidateOpenLabel = "Open Candidate";
+const queueNudgeHeatmapLabel = "Aha Heatmap";
+const queueNudgeHeatFocusLabel = "Focus";
 const queueNudgePoolPrefix = "Aha pool";
 const queueNudgeCycleHint = "Cycle with Shift+N";
 const queueRecoveryCopyLabel = "Copy Recovery Summary";
@@ -1178,6 +1180,61 @@ const html = `<!doctype html>
         flex-wrap: wrap;
         align-items: center;
       }
+      .aha-nudge .nudge-heatmap {
+        margin-top: 8px;
+        border-top: 1px dashed rgba(148, 163, 184, 0.45);
+        padding-top: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .aha-nudge .nudge-heatmap .label {
+        font-size: 11px;
+        color: #334155;
+        font-weight: 700;
+      }
+      .aha-nudge .nudge-heat-chip {
+        border: 1px solid #cbd5e1;
+        border-radius: 999px;
+        padding: 4px 8px;
+        font-size: 11px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .aha-nudge .nudge-heat-chip button {
+        border: 1px solid transparent;
+        border-radius: 999px;
+        font-size: 10px;
+        padding: 2px 6px;
+        background: rgba(15, 23, 42, 0.08);
+        color: inherit;
+      }
+      .aha-nudge .nudge-heat-chip button:hover {
+        border-color: currentColor;
+      }
+      .aha-nudge .nudge-heat-chip.tone-hot {
+        border-color: #86efac;
+        background: #ecfdf5;
+        color: #166534;
+      }
+      .aha-nudge .nudge-heat-chip.tone-strong {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .aha-nudge .nudge-heat-chip.tone-warm {
+        border-color: #ddd6fe;
+        background: #f5f3ff;
+        color: #6d28d9;
+      }
+      .aha-nudge .nudge-heat-chip.tone-cool {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+        color: #475569;
+      }
       .aha-nudge .nudge-pool {
         margin-top: 8px;
         border-top: 1px dashed rgba(148, 163, 184, 0.45);
@@ -1613,6 +1670,8 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_RESET_CYCLE_LABEL = ${JSON.stringify(queueNudgeResetCycleLabel)};
       const QUEUE_NUDGE_CANDIDATES_LABEL = ${JSON.stringify(queueNudgeCandidatesLabel)};
       const QUEUE_NUDGE_CANDIDATE_OPEN_LABEL = ${JSON.stringify(queueNudgeCandidateOpenLabel)};
+      const QUEUE_NUDGE_HEATMAP_LABEL = ${JSON.stringify(queueNudgeHeatmapLabel)};
+      const QUEUE_NUDGE_HEAT_FOCUS_LABEL = ${JSON.stringify(queueNudgeHeatFocusLabel)};
       const QUEUE_NUDGE_POOL_PREFIX = ${JSON.stringify(queueNudgePoolPrefix)};
       const QUEUE_NUDGE_CYCLE_HINT = ${JSON.stringify(queueNudgeCycleHint)};
       const QUEUE_RECOVERY_COPY_LABEL = ${JSON.stringify(queueRecoveryCopyLabel)};
@@ -2305,6 +2364,26 @@ const html = `<!doctype html>
 
       function topAhaCandidates(items, limit = 3) {
         return sortedAhaItems(items).slice(0, Math.max(0, Number(limit) || 0));
+      }
+
+      function ahaHeatBuckets(items) {
+        const buckets = [
+          { key: "hot", tone: "tone-hot", label: "Hot", count: 0, firstItem: null },
+          { key: "strong", tone: "tone-strong", label: "Strong", count: 0, firstItem: null },
+          { key: "warm", tone: "tone-warm", label: "Warm", count: 0, firstItem: null },
+          { key: "cool", tone: "tone-cool", label: "Cool", count: 0, firstItem: null },
+        ];
+        const bucketByTone = new Map(buckets.map((bucket) => [bucket.tone, bucket]));
+        for (const item of Array.isArray(items) ? items : []) {
+          const tone = ahaIndexMetaForItem(item).tone;
+          const bucket = bucketByTone.get(tone) || bucketByTone.get("tone-cool");
+          if (!bucket) continue;
+          bucket.count += 1;
+          if (!bucket.firstItem) {
+            bucket.firstItem = item;
+          }
+        }
+        return buckets;
       }
 
       function ahaRankForItem(item, poolItems = null) {
@@ -3934,6 +4013,27 @@ const html = `<!doctype html>
           ahaNudgeEl.appendChild(candidatesEl);
         }
         if (ahaPool.length > 0) {
+          const heatmapEl = document.createElement("div");
+          heatmapEl.className = "nudge-heatmap";
+          heatmapEl.innerHTML = '<span class="label">' + QUEUE_NUDGE_HEATMAP_LABEL + "</span>";
+          const buckets = ahaHeatBuckets(ahaPool);
+          for (const bucket of buckets) {
+            const chip = document.createElement("span");
+            chip.className = "nudge-heat-chip " + bucket.tone;
+            chip.textContent = bucket.label + " " + bucket.count;
+            if (bucket.firstItem) {
+              const focusBtn = document.createElement("button");
+              focusBtn.type = "button";
+              focusBtn.textContent = QUEUE_NUDGE_HEAT_FOCUS_LABEL;
+              focusBtn.title = "Focus first " + bucket.label + " Aha candidate";
+              focusBtn.addEventListener("click", async () => {
+                await runFocusAhaHeatBucket(bucket.key, focusBtn);
+              });
+              chip.appendChild(focusBtn);
+            }
+            heatmapEl.appendChild(chip);
+          }
+          ahaNudgeEl.appendChild(heatmapEl);
           const poolEl = document.createElement("div");
           poolEl.className = "nudge-pool muted";
           poolEl.textContent =
@@ -5765,6 +5865,35 @@ const html = `<!doctype html>
               const meta = ahaIndexMetaForItem(target);
               ahaCandidateCycleCursor = rankIndex;
               errorEl.textContent = "Focused Aha candidate #" + (rankIndex + 1) + ": item #" + target.id + " (" + meta.value + ").";
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
+      async function runFocusAhaHeatBucket(bucketKey = "hot", button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_focus_aha_heat_" + bucketKey,
+            label: "Focus Aha Heat " + bucketKey,
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const pool = visibleItems.length ? visibleItems : allItems;
+              if (!pool.length) {
+                errorEl.textContent = "No items available to focus.";
+                return;
+              }
+              const rankedPool = sortedAhaItems(pool);
+              const bucket = ahaHeatBuckets(rankedPool).find((entry) => entry.key === bucketKey) || null;
+              if (!bucket || !bucket.firstItem) {
+                errorEl.textContent = "No " + bucketKey + " Aha candidates under current filters.";
+                return;
+              }
+              await selectItem(bucket.firstItem.id);
+              focusQueueItemCard(bucket.firstItem.id, { revealCollapsed: true });
+              const meta = ahaIndexMetaForItem(bucket.firstItem);
+              errorEl.textContent =
+                "Focused " + bucket.label + " Aha candidate: #" + bucket.firstItem.id + " (" + meta.value + ").";
             },
           },
           { button, localFeedbackEl: queueActionBannerEl },
