@@ -2786,6 +2786,45 @@ const html = `<!doctype html>
         return preview;
       }
 
+      function handleBatchConfirmation(confirmed, cancelledMessage) {
+        if (confirmed) return true;
+        errorEl.textContent = cancelledMessage;
+        return false;
+      }
+
+      async function executeBatchByKind(kind) {
+        const executeOffset = normalizedPreviewOffset();
+        const result = await requestBatchByKind(kind, false, executeOffset);
+        syncPreviewOffsetFromResponse(result);
+        return result;
+      }
+
+      async function exportItemsForRetry(itemIds) {
+        let success = 0;
+        let failed = 0;
+        let replayed = 0;
+        for (const itemId of itemIds || []) {
+          try {
+            const requestId = crypto.randomUUID();
+            const response = await request("/items/" + itemId + "/export", {
+              method: "POST",
+              body: JSON.stringify({
+                export_key: "batch_retry_" + requestId,
+                formats: ["png", "md", "caption"]
+              }),
+              headers: { "Idempotency-Key": requestId }
+            });
+            success += 1;
+            if (response?.idempotent_replay === true) {
+              replayed += 1;
+            }
+          } catch {
+            failed += 1;
+          }
+        }
+        return { success, failed, replayed };
+      }
+
       function bindPreviewAction(button, config) {
         button.addEventListener("click", async () => {
           await runActionWithFeedback(
@@ -2832,9 +2871,6 @@ const html = `<!doctype html>
             label: "Retry Failed Batch",
             action: async () => {
               clearPreviewState();
-              let exportSuccess = 0;
-              let exportFailed = 0;
-              let exportReplayed = 0;
               try {
                 const previewRes = await loadBatchPreview("retry");
                 const eligiblePipeline = Number(previewRes.eligible_pipeline ?? 0);
@@ -2844,39 +2880,11 @@ const html = `<!doctype html>
                   return;
                 }
                 const confirmed = confirm(buildRetryBatchConfirmMessage(previewRes, eligiblePipeline, eligibleExport));
-                if (!confirmed) {
-                  errorEl.textContent = "Retry failed action cancelled.";
-                  return;
-                }
+                if (!handleBatchConfirmation(confirmed, "Retry failed action cancelled.")) return;
                 errorEl.textContent = "Retrying failed items...";
-                const executeOffset = normalizedPreviewOffset();
-                const batchRes = await requestBatchByKind("retry", false, executeOffset);
-                syncPreviewOffsetFromResponse(batchRes);
-                const exportItemIds = batchRes.eligible_export_item_ids || [];
-                for (const itemId of exportItemIds) {
-                  try {
-                    const requestId = crypto.randomUUID();
-                    const response = await request("/items/" + itemId + "/export", {
-                      method: "POST",
-                      body: JSON.stringify({
-                        export_key: "batch_retry_" + requestId,
-                        formats: ["png", "md", "caption"]
-                      }),
-                      headers: { "Idempotency-Key": requestId }
-                    });
-                    exportSuccess += 1;
-                    if (response?.idempotent_replay === true) {
-                      exportReplayed += 1;
-                    }
-                  } catch {
-                    exportFailed += 1;
-                  }
-                }
-                renderRetryBatchDoneOutput(batchRes, {
-                  success: exportSuccess,
-                  replayed: exportReplayed,
-                  failed: exportFailed,
-                });
+                const batchRes = await executeBatchByKind("retry");
+                const exportSummary = await exportItemsForRetry(batchRes.eligible_export_item_ids);
+                renderRetryBatchDoneOutput(batchRes, exportSummary);
               } catch (err) {
                 throw new Error("Retry failed batch action failed: " + String(err));
               }
@@ -2909,13 +2917,8 @@ const html = `<!doctype html>
                 }
                 renderArchivePreviewOutput(preview);
                 const confirmed = confirm(buildArchiveBatchConfirmMessage(preview, eligible));
-                if (!confirmed) {
-                  errorEl.textContent = "Archive blocked action cancelled.";
-                  return;
-                }
-                const executeOffset = normalizedPreviewOffset();
-                const result = await requestBatchByKind("archive", false, executeOffset);
-                syncPreviewOffsetFromResponse(result);
+                if (!handleBatchConfirmation(confirmed, "Archive blocked action cancelled.")) return;
+                const result = await executeBatchByKind("archive");
                 renderArchiveBatchDoneOutput(result);
               } catch (err) {
                 throw new Error("Archive blocked failed: " + String(err));
@@ -2973,13 +2976,8 @@ const html = `<!doctype html>
                   return;
                 }
                 const confirmed = confirm(buildUnarchiveBatchConfirmMessage(preview, eligible));
-                if (!confirmed) {
-                  errorEl.textContent = "Unarchive action cancelled.";
-                  return;
-                }
-                const executeOffset = normalizedPreviewOffset();
-                const result = await requestBatchByKind("unarchive", false, executeOffset);
-                syncPreviewOffsetFromResponse(result);
+                if (!handleBatchConfirmation(confirmed, "Unarchive action cancelled.")) return;
+                const result = await executeBatchByKind("unarchive");
                 renderUnarchiveBatchDoneOutput(result);
               } catch (err) {
                 throw new Error("Unarchive batch failed: " + String(err));
