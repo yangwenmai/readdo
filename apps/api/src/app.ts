@@ -167,6 +167,19 @@ function rowToItem(row: DbItemRow): Record<string, unknown> {
   };
 }
 
+function normalizeQueryList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((entry) => String(entry).split(",")).map((x) => x.trim()).filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
 function artifactToSchema(artifactType: string):
   | "extraction"
   | "summary"
@@ -363,12 +376,32 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
   app.get("/api/items", async (request) => {
     const query = request.query as Record<string, unknown>;
-    const status = typeof query.status === "string" ? query.status : undefined;
+    const statuses = normalizeQueryList(query.status);
+    const priorities = normalizeQueryList(query.priority);
+    const sourceTypes = normalizeQueryList(query.source_type);
+    const q = typeof query.q === "string" ? query.q.trim() : "";
     const sort = typeof query.sort === "string" ? query.sort : "priority_score_desc";
     const limit = Math.min(Number(query.limit ?? 20), 100);
-
-    const whereClause = status ? "WHERE status = ?" : "";
-    const params = status ? [status] : [];
+    const whereParts: string[] = [];
+    const params: Array<string | number | null> = [];
+    if (statuses.length) {
+      whereParts.push(`status IN (${statuses.map(() => "?").join(",")})`);
+      params.push(...statuses);
+    }
+    if (priorities.length) {
+      whereParts.push(`priority IN (${priorities.map(() => "?").join(",")})`);
+      params.push(...priorities);
+    }
+    if (sourceTypes.length) {
+      whereParts.push(`source_type IN (${sourceTypes.map(() => "?").join(",")})`);
+      params.push(...sourceTypes);
+    }
+    if (q) {
+      whereParts.push("(title LIKE ? OR domain LIKE ? OR intent_text LIKE ? OR url LIKE ?)");
+      const token = `%${q}%`;
+      params.push(token, token, token, token);
+    }
+    const whereClause = whereParts.length ? `WHERE ${whereParts.join(" AND ")}` : "";
 
     const orderBy =
       sort === "created_desc"
@@ -412,6 +445,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
     return {
       items: rows.map((row) => rowToItem(row)),
+      next_cursor: null,
     };
   });
 

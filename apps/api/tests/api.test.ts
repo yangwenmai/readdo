@@ -110,3 +110,61 @@ test("process mode must match current status", async () => {
     await app.close();
   }
 });
+
+test("items endpoint supports status and query filtering", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-list-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const firstCapture = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20is%20a%20high-signal%20engineering%20checklist%20with%20concrete%20steps%20for%20AI%20pipeline%20delivery.",
+        title: "Engineering Checklist",
+        domain: "example.one",
+        source_type: "web",
+        intent_text: "Build an execution checklist",
+      },
+    });
+    assert.equal(firstCapture.statusCode, 201);
+
+    const secondCapture = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20article%20covers%20creator%20storytelling%20angles%20for%20short%20social%20content.",
+        title: "Creator Angles",
+        domain: "example.two",
+        source_type: "web",
+        intent_text: "Collect creator hooks",
+      },
+    });
+    assert.equal(secondCapture.statusCode, 201);
+
+    await app.runWorkerOnce();
+
+    const readyItemsRes = await app.inject({
+      method: "GET",
+      url: "/api/items?status=READY",
+    });
+    assert.equal(readyItemsRes.statusCode, 200);
+    const readyItems = (readyItemsRes.json() as { items: Array<{ status: string }> }).items;
+    assert.ok(readyItems.length >= 1);
+    assert.ok(readyItems.every((x) => x.status === "READY"));
+
+    const searchRes = await app.inject({
+      method: "GET",
+      url: "/api/items?q=creator",
+    });
+    assert.equal(searchRes.statusCode, 200);
+    const searchItems = (searchRes.json() as { items: Array<{ title?: string }> }).items;
+    assert.ok(searchItems.some((x) => (x.title ?? "").toLowerCase().includes("creator")));
+  } finally {
+    await app.close();
+  }
+});
