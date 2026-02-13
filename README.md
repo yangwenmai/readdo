@@ -64,6 +64,7 @@ Web Inbox 还支持 `Failure Step` 下拉筛选（extract/pipeline/export），�
 当 `truncated=yes` 时，可根据返回的 `next_offset` 继续翻页预览下一批候选。
 UI 提供 `Preview Next` 按钮，可直接基于 `next_offset` 连续翻页预览。
 也可通过 `Preview Offset` 输入框从任意 offset 起始预览（例如跳到第 200 条后再看）。
+批量执行（Retry/Archive/Unarchive）会使用当前 `Preview Offset`，保证“预览页即执行页”。
 筛选条件与 Batch Limit、Auto refresh 会在浏览器本地持久化，刷新页面后自动恢复。
 
 ### 4) Load Chrome Extension

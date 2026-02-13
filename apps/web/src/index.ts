@@ -172,8 +172,6 @@ const html = `<!doctype html>
         previewContinuation = { kind, next_offset: Number(nextOffset) };
         previewNextBtn.style.display = "inline-block";
         previewNextBtn.textContent = "Preview Next (" + nextOffset + ")";
-        previewOffsetInput.value = String(nextOffset);
-        persistControls();
       }
 
       function persistControls() {
@@ -1102,6 +1100,12 @@ const html = `<!doctype html>
         return Math.max(raw, 0);
       }
 
+      function syncPreviewOffsetFromResponse(preview) {
+        const requestedOffset = Number(preview?.requested_offset ?? 0);
+        previewOffsetInput.value = String(Number.isInteger(requestedOffset) ? Math.max(requestedOffset, 0) : 0);
+        persistControls();
+      }
+
       previewArchiveBtn.addEventListener("click", async () => {
         previewArchiveBtn.disabled = true;
         try {
@@ -1111,6 +1115,7 @@ const html = `<!doctype html>
             method: "POST",
             body: JSON.stringify(archiveBlockedPayload(true, previewOffset))
           });
+          syncPreviewOffsetFromResponse(preview);
           errorEl.textContent =
             "Archive preview: scanned=" +
             (preview.scanned ?? 0) +
@@ -1178,9 +1183,10 @@ const html = `<!doctype html>
         let exportFailed = 0;
         try {
           errorEl.textContent = "Retrying " + candidates.length + " failed items...";
+          const executionOffset = normalizedPreviewOffset();
           const batchRes = await request("/items/retry-failed", {
             method: "POST",
-            body: JSON.stringify(retryFailedPayload(false))
+            body: JSON.stringify(retryFailedPayload(false, executionOffset))
           });
           const exportItemIds = batchRes.eligible_export_item_ids || [];
           for (const itemId of exportItemIds) {
@@ -1239,6 +1245,7 @@ const html = `<!doctype html>
             method: "POST",
             body: JSON.stringify(retryFailedPayload(true, previewOffset))
           });
+          syncPreviewOffsetFromResponse(preview);
           errorEl.textContent =
             "Retry preview: scanned=" +
             (preview.scanned ?? 0) +
@@ -1300,6 +1307,7 @@ const html = `<!doctype html>
             method: "POST",
             body: JSON.stringify(archiveBlockedPayload(true, previewOffset))
           });
+          syncPreviewOffsetFromResponse(preview);
           const eligible = Number(preview.eligible ?? 0);
           if (!eligible) {
             errorEl.textContent = "No failed items matching archive filter.";
@@ -1341,7 +1349,7 @@ const html = `<!doctype html>
           }
           const result = await request("/items/archive-failed", {
             method: "POST",
-            body: JSON.stringify(archiveBlockedPayload(false, 0))
+            body: JSON.stringify(archiveBlockedPayload(false, previewOffset))
           });
           errorEl.textContent =
             "Archive blocked done. archived=" +
@@ -1366,6 +1374,7 @@ const html = `<!doctype html>
             method: "POST",
             body: JSON.stringify(unarchiveBatchPayload(true, previewOffset))
           });
+          syncPreviewOffsetFromResponse(preview);
           errorEl.textContent =
             "Unarchive preview: scanned=" +
             (preview.scanned ?? 0) +
@@ -1426,6 +1435,7 @@ const html = `<!doctype html>
               method: "POST",
               body: JSON.stringify(retryFailedPayload(true, nextOffset))
             });
+            syncPreviewOffsetFromResponse(preview);
             errorEl.textContent =
               "Retry preview: scanned=" +
               (preview.scanned ?? 0) +
@@ -1475,6 +1485,7 @@ const html = `<!doctype html>
               method: "POST",
               body: JSON.stringify(archiveBlockedPayload(true, nextOffset))
             });
+            syncPreviewOffsetFromResponse(preview);
             errorEl.textContent =
               "Archive preview: scanned=" +
               (preview.scanned ?? 0) +
@@ -1525,6 +1536,7 @@ const html = `<!doctype html>
               method: "POST",
               body: JSON.stringify(unarchiveBatchPayload(true, nextOffset))
             });
+            syncPreviewOffsetFromResponse(preview);
             errorEl.textContent =
               "Unarchive preview: scanned=" +
               (preview.scanned ?? 0) +
@@ -1585,6 +1597,7 @@ const html = `<!doctype html>
             method: "POST",
             body: JSON.stringify(unarchiveBatchPayload(true, previewOffset))
           });
+          syncPreviewOffsetFromResponse(preview);
           const eligible = Number(preview.eligible ?? 0);
           if (!eligible) {
             errorEl.textContent = "No archived items to unarchive.";
@@ -1607,7 +1620,7 @@ const html = `<!doctype html>
           }
           const result = await request("/items/unarchive-batch", {
             method: "POST",
-            body: JSON.stringify(unarchiveBatchPayload(false, 0))
+            body: JSON.stringify(unarchiveBatchPayload(false, previewOffset))
           });
           errorEl.textContent =
             "Unarchive done. unarchived=" +
