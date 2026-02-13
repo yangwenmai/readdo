@@ -92,6 +92,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Step First/u);
     assert.match(text, /Step focus inactive/u);
     assert.match(text, /Choose a step delta to enable context jump/u);
+    assert.match(text, /Auto-pick Search\/Retryable when active/u);
     assert.match(text, /filter-attention/u);
     assert.match(text, /Clear Step Focus/u);
     assert.match(text, /Clear Failed Filter/u);

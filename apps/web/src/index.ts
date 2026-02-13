@@ -653,6 +653,11 @@ const html = `<!doctype html>
         width: 100%;
         color: #64748b;
       }
+      .recovery-radar-trend .trend-focus-hint .trend-focus-note {
+        width: 100%;
+        color: #475569;
+        font-size: 11px;
+      }
       .recovery-radar-trend .trend-focus-hint button {
         padding: 3px 8px;
         border-radius: 8px;
@@ -1811,6 +1816,12 @@ const html = `<!doctype html>
         return "Smart";
       }
 
+      function recoveryContextFocusModeNote(mode) {
+        if (mode === "query_first") return "Always jump to Search first, then tune other filters.";
+        if (mode === "step_first") return "Always jump to failed-step/status controls first.";
+        return "Auto-pick Search/Retryable when active, otherwise jump by failed step.";
+      }
+
       function clearFocusedFilterControl() {
         if (focusedFilterControl && focusedFilterControl.classList) {
           focusedFilterControl.classList.remove("filter-attention");
@@ -1857,24 +1868,9 @@ const html = `<!doctype html>
       function recoveryContextTarget(step) {
         const baseTarget = baseRecoveryContextTarget(step);
         if (recoveryContextFocusMode === "query_first") {
-          if (queryInput.value.trim()) {
-            return { control: queryInput, label: "Search" };
-          }
-          if (retryableFilter.value) {
-            return { control: retryableFilter, label: "Retryable Filter" };
-          }
-          return baseTarget;
+          return { control: queryInput, label: "Search" };
         }
         if (recoveryContextFocusMode === "step_first") {
-          if (baseTarget?.control) {
-            return baseTarget;
-          }
-          if (retryableFilter.value) {
-            return { control: retryableFilter, label: "Retryable Filter" };
-          }
-          if (queryInput.value.trim()) {
-            return { control: queryInput, label: "Search" };
-          }
           return baseTarget;
         }
         if (queryInput.value.trim()) {
@@ -2079,6 +2075,7 @@ const html = `<!doctype html>
         const focusMetaText = hasActiveStepFocus
           ? QUEUE_RECOVERY_CONTEXT_LABEL + ": " + focusContext
           : "Choose a step delta to enable context jump.";
+        const focusModeNote = recoveryContextFocusModeNote(recoveryContextFocusMode);
         const editFocusLabel = recoveryContextActionLabel(activeStep);
         const clearFocusLabel = hasActiveStepFocus
           ? activeStep === "unknown"
@@ -2090,6 +2087,8 @@ const html = `<!doctype html>
           (hasActiveStepFocus ? "Step focus active: " + activeStep : "Step focus inactive") +
           '</span><span class="trend-focus-meta">' +
           focusMetaText +
+          '</span><span class="trend-focus-note">' +
+          focusModeNote +
           '</span><div class="trend-focus-mode-group"><span class="mode-prefix">' +
           QUEUE_RECOVERY_FOCUS_MODE_PREFIX +
           ":</span>" +
