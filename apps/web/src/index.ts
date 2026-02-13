@@ -474,6 +474,16 @@ const html = `<!doctype html>
         font-size: 13px;
         color: #0f172a;
       }
+      .recovery-radar-head .history-badge {
+        margin-left: 8px;
+        border: 1px solid #bfdbfe;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        padding: 2px 8px;
+        font-size: 10px;
+        font-weight: 700;
+      }
       .recovery-radar-kpi {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -977,7 +987,7 @@ const html = `<!doctype html>
         <div id="queueActionBanner" class="muted action-feedback">Ready.</div>
         <div id="recoveryRadar" class="recovery-radar">
           <div class="recovery-radar-head">
-            <h4>Recovery Radar</h4>
+            <h4>Recovery Radar <span class="history-badge">0/5</span></h4>
             <span class="muted">No recovery runs yet.</span>
           </div>
           <div class="recovery-radar-actions">
@@ -1555,9 +1565,11 @@ const html = `<!doctype html>
       function renderRecoveryRadar(summary = null) {
         if (!recoveryRadarEl) return;
         const activeSummary = summary || activeRecoverySummary();
+        const historyCount = recoveryRadarHistory.length;
+        const historyBadge = '<span class="history-badge">' + historyCount + "/" + RECOVERY_HISTORY_LIMIT + "</span>";
         if (!activeSummary) {
           recoveryRadarEl.innerHTML =
-            '<div class="recovery-radar-head"><h4>Recovery Radar</h4><span class="muted">No recovery runs yet.</span></div>' +
+            '<div class="recovery-radar-head"><h4>Recovery Radar ' + historyBadge + '</h4><span class="muted">No recovery runs yet.</span></div>' +
             '<div class="recovery-radar-actions">' +
             '<button type="button" disabled>' +
             QUEUE_RECOVERY_COPY_LABEL +
@@ -1574,7 +1586,9 @@ const html = `<!doctype html>
         const totals = activeSummary.totals || {};
         const stepBuckets = activeSummary.step_buckets || emptyRecoveryStepBuckets();
         recoveryRadarEl.innerHTML =
-          '<div class="recovery-radar-head"><h4>Recovery Radar</h4><span class="muted">' +
+          '<div class="recovery-radar-head"><h4>Recovery Radar ' +
+          historyBadge +
+          '</h4><span class="muted">' +
           (activeSummary.label || "Latest recovery run") +
           "</span></div>" +
           '<div class="recovery-radar-kpi">' +
