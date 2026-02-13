@@ -59,6 +59,7 @@ const html = `<!doctype html>
         <span class="muted" id="workerStats">Queue: -</span>
         <button id="runWorkerBtn" type="button">Run Worker Once</button>
         <button id="previewRetryBtn" type="button">Preview Retry</button>
+        <button id="previewNextBtn" type="button" style="display:none;">Preview Next</button>
         <button id="retryFailedBtn" type="button">Retry Failed</button>
         <button id="previewArchiveBtn" type="button">Preview Archive</button>
         <button id="archiveBlockedBtn" type="button">Archive Failed</button>
@@ -133,6 +134,7 @@ const html = `<!doctype html>
       const workerStatsEl = document.getElementById("workerStats");
       const runWorkerBtn = document.getElementById("runWorkerBtn");
       const previewRetryBtn = document.getElementById("previewRetryBtn");
+      const previewNextBtn = document.getElementById("previewNextBtn");
       const retryFailedBtn = document.getElementById("retryFailedBtn");
       const previewArchiveBtn = document.getElementById("previewArchiveBtn");
       const archiveBlockedBtn = document.getElementById("archiveBlockedBtn");
@@ -147,7 +149,25 @@ const html = `<!doctype html>
       let selectedDetail = null;
       let isLoadingItems = false;
       let autoRefreshTimer = null;
+      let previewContinuation = null;
       const controlsStorageKey = "readdo.web.controls.v1";
+
+      function clearPreviewContinuation() {
+        previewContinuation = null;
+        previewNextBtn.style.display = "none";
+        previewNextBtn.textContent = "Preview Next";
+        previewNextBtn.disabled = false;
+      }
+
+      function setPreviewContinuation(kind, nextOffset) {
+        if (nextOffset == null) {
+          clearPreviewContinuation();
+          return;
+        }
+        previewContinuation = { kind, next_offset: Number(nextOffset) };
+        previewNextBtn.style.display = "inline-block";
+        previewNextBtn.textContent = "Preview Next (" + nextOffset + ")";
+      }
 
       function persistControls() {
         try {
@@ -1006,6 +1026,7 @@ const html = `<!doctype html>
       refreshBtn.addEventListener("click", async () => {
         try {
           errorEl.textContent = "";
+          clearPreviewContinuation();
           await loadItems();
         } catch (err) {
           errorEl.textContent = String(err);
@@ -1022,8 +1043,8 @@ const html = `<!doctype html>
         }
       });
 
-      function retryFailedPayload(dryRun) {
-        const payload = { limit: normalizedBatchLimit(), dry_run: dryRun };
+      function retryFailedPayload(dryRun, offset = 0) {
+        const payload = { limit: normalizedBatchLimit(), offset, dry_run: dryRun };
         const q = queryInput.value.trim();
         if (q) {
           Object.assign(payload, { q });
@@ -1034,10 +1055,10 @@ const html = `<!doctype html>
         return payload;
       }
 
-      function archiveBlockedPayload(dryRun) {
+      function archiveBlockedPayload(dryRun, offset = 0) {
         const retryableValue = archiveRetryableFilter.value;
         const retryableFilter = retryableValue === "true" ? true : retryableValue === "false" ? false : null;
-        const payload = { limit: normalizedBatchLimit(), dry_run: dryRun, retryable: retryableFilter };
+        const payload = { limit: normalizedBatchLimit(), offset, dry_run: dryRun, retryable: retryableFilter };
         const q = queryInput.value.trim();
         if (q) {
           Object.assign(payload, { q });
@@ -1048,9 +1069,9 @@ const html = `<!doctype html>
         return payload;
       }
 
-      function unarchiveBatchPayload(dryRun) {
+      function unarchiveBatchPayload(dryRun, offset = 0) {
         const regenerate = unarchiveModeFilter.value === "regenerate";
-        const payload = { limit: normalizedBatchLimit(), dry_run: dryRun, regenerate };
+        const payload = { limit: normalizedBatchLimit(), offset, dry_run: dryRun, regenerate };
         const q = queryInput.value.trim();
         if (q) {
           return { ...payload, q };
@@ -1067,9 +1088,10 @@ const html = `<!doctype html>
       previewArchiveBtn.addEventListener("click", async () => {
         previewArchiveBtn.disabled = true;
         try {
+          clearPreviewContinuation();
           const preview = await request("/items/archive-failed", {
             method: "POST",
-            body: JSON.stringify(archiveBlockedPayload(true))
+            body: JSON.stringify(archiveBlockedPayload(true, 0))
           });
           errorEl.textContent =
             "Archive preview: scanned=" +
@@ -1113,10 +1135,12 @@ const html = `<!doctype html>
             null,
             2,
           );
+          setPreviewContinuation("archive", preview.next_offset);
         } catch (err) {
           errorEl.textContent = "Archive preview failed: " + String(err);
           retryPreviewOutputEl.style.display = "none";
           retryPreviewOutputEl.textContent = "";
+          clearPreviewContinuation();
         } finally {
           previewArchiveBtn.disabled = false;
         }
@@ -1128,6 +1152,7 @@ const html = `<!doctype html>
           errorEl.textContent = "No retryable failed items.";
           return;
         }
+        clearPreviewContinuation();
         retryPreviewOutputEl.style.display = "none";
         retryPreviewOutputEl.textContent = "";
         retryFailedBtn.disabled = true;
@@ -1190,9 +1215,10 @@ const html = `<!doctype html>
       previewRetryBtn.addEventListener("click", async () => {
         previewRetryBtn.disabled = true;
         try {
+          clearPreviewContinuation();
           const preview = await request("/items/retry-failed", {
             method: "POST",
-            body: JSON.stringify(retryFailedPayload(true))
+            body: JSON.stringify(retryFailedPayload(true, 0))
           });
           errorEl.textContent =
             "Retry preview: scanned=" +
@@ -1235,10 +1261,12 @@ const html = `<!doctype html>
             null,
             2,
           );
+          setPreviewContinuation("retry", preview.next_offset);
         } catch (err) {
           errorEl.textContent = "Retry preview failed: " + String(err);
           retryPreviewOutputEl.style.display = "none";
           retryPreviewOutputEl.textContent = "";
+          clearPreviewContinuation();
         } finally {
           previewRetryBtn.disabled = false;
         }
@@ -1247,9 +1275,10 @@ const html = `<!doctype html>
       archiveBlockedBtn.addEventListener("click", async () => {
         archiveBlockedBtn.disabled = true;
         try {
+          clearPreviewContinuation();
           const preview = await request("/items/archive-failed", {
             method: "POST",
-            body: JSON.stringify(archiveBlockedPayload(true))
+            body: JSON.stringify(archiveBlockedPayload(true, 0))
           });
           const eligible = Number(preview.eligible ?? 0);
           if (!eligible) {
@@ -1292,7 +1321,7 @@ const html = `<!doctype html>
           }
           const result = await request("/items/archive-failed", {
             method: "POST",
-            body: JSON.stringify(archiveBlockedPayload(false))
+            body: JSON.stringify(archiveBlockedPayload(false, 0))
           });
           errorEl.textContent =
             "Archive blocked done. archived=" +
@@ -1311,9 +1340,10 @@ const html = `<!doctype html>
       previewUnarchiveBtn.addEventListener("click", async () => {
         previewUnarchiveBtn.disabled = true;
         try {
+          clearPreviewContinuation();
           const preview = await request("/items/unarchive-batch", {
             method: "POST",
-            body: JSON.stringify(unarchiveBatchPayload(true))
+            body: JSON.stringify(unarchiveBatchPayload(true, 0))
           });
           errorEl.textContent =
             "Unarchive preview: scanned=" +
@@ -1354,21 +1384,184 @@ const html = `<!doctype html>
             null,
             2,
           );
+          setPreviewContinuation("unarchive", preview.next_offset);
         } catch (err) {
           errorEl.textContent = "Unarchive preview failed: " + String(err);
           retryPreviewOutputEl.style.display = "none";
           retryPreviewOutputEl.textContent = "";
+          clearPreviewContinuation();
         } finally {
           previewUnarchiveBtn.disabled = false;
+        }
+      });
+
+      previewNextBtn.addEventListener("click", async () => {
+        if (!previewContinuation || previewContinuation.next_offset == null) return;
+        previewNextBtn.disabled = true;
+        try {
+          const nextOffset = Number(previewContinuation.next_offset);
+          if (previewContinuation.kind === "retry") {
+            const preview = await request("/items/retry-failed", {
+              method: "POST",
+              body: JSON.stringify(retryFailedPayload(true, nextOffset))
+            });
+            errorEl.textContent =
+              "Retry preview: scanned=" +
+              (preview.scanned ?? 0) +
+              "/" +
+              (preview.scanned_total ?? preview.scanned ?? 0) +
+              ", limit=" +
+              (preview.requested_limit ?? normalizedBatchLimit()) +
+              ", offset=" +
+              (preview.requested_offset ?? 0) +
+              ", q=" +
+              (preview.q_filter || "all") +
+              ", filter=" +
+              (preview.failure_step_filter || "all") +
+              ", truncated=" +
+              (preview.scan_truncated ? "yes" : "no") +
+              ", next_offset=" +
+              (preview.next_offset == null ? "null" : String(preview.next_offset)) +
+              ", eligible_pipeline=" +
+              (preview.eligible_pipeline ?? 0) +
+              ", eligible_export=" +
+              (preview.eligible_export ?? 0) +
+              ", skipped_non_retryable=" +
+              (preview.skipped_non_retryable ?? 0) +
+              ".";
+            retryPreviewOutputEl.style.display = "block";
+            retryPreviewOutputEl.textContent = JSON.stringify(
+              {
+                q_filter: preview.q_filter || null,
+                filter: preview.failure_step_filter || "all",
+                scanned: preview.scanned ?? 0,
+                scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
+                scan_truncated: Boolean(preview.scan_truncated),
+                requested_offset: preview.requested_offset ?? 0,
+                next_offset: preview.next_offset ?? null,
+                eligible_pipeline_item_ids: preview.eligible_pipeline_item_ids || [],
+                eligible_export_item_ids: preview.eligible_export_item_ids || [],
+                skipped_non_retryable: preview.skipped_non_retryable || 0,
+              },
+              null,
+              2,
+            );
+            setPreviewContinuation("retry", preview.next_offset);
+            return;
+          }
+          if (previewContinuation.kind === "archive") {
+            const preview = await request("/items/archive-failed", {
+              method: "POST",
+              body: JSON.stringify(archiveBlockedPayload(true, nextOffset))
+            });
+            errorEl.textContent =
+              "Archive preview: scanned=" +
+              (preview.scanned ?? 0) +
+              "/" +
+              (preview.scanned_total ?? preview.scanned ?? 0) +
+              ", limit=" +
+              (preview.requested_limit ?? normalizedBatchLimit()) +
+              ", offset=" +
+              (preview.requested_offset ?? 0) +
+              ", retryable=" +
+              (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
+              ", q=" +
+              (preview.q_filter || "all") +
+              ", filter=" +
+              (preview.failure_step_filter || "all") +
+              ", truncated=" +
+              (preview.scan_truncated ? "yes" : "no") +
+              ", next_offset=" +
+              (preview.next_offset == null ? "null" : String(preview.next_offset)) +
+              ", eligible=" +
+              (preview.eligible ?? 0) +
+              ", skipped_retryable_mismatch=" +
+              (preview.skipped_retryable_mismatch ?? 0) +
+              ".";
+            retryPreviewOutputEl.style.display = "block";
+            retryPreviewOutputEl.textContent = JSON.stringify(
+              {
+                preview_type: "archive_blocked",
+                retryable_filter: preview.retryable_filter == null ? "all" : preview.retryable_filter,
+                q_filter: preview.q_filter || null,
+                filter: preview.failure_step_filter || "all",
+                scanned: preview.scanned ?? 0,
+                scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
+                scan_truncated: Boolean(preview.scan_truncated),
+                requested_offset: preview.requested_offset ?? 0,
+                next_offset: preview.next_offset ?? null,
+                eligible_item_ids: preview.eligible_item_ids || [],
+                skipped_retryable_mismatch: preview.skipped_retryable_mismatch || 0,
+              },
+              null,
+              2,
+            );
+            setPreviewContinuation("archive", preview.next_offset);
+            return;
+          }
+          if (previewContinuation.kind === "unarchive") {
+            const preview = await request("/items/unarchive-batch", {
+              method: "POST",
+              body: JSON.stringify(unarchiveBatchPayload(true, nextOffset))
+            });
+            errorEl.textContent =
+              "Unarchive preview: scanned=" +
+              (preview.scanned ?? 0) +
+              "/" +
+              (preview.scanned_total ?? preview.scanned ?? 0) +
+              ", limit=" +
+              (preview.requested_limit ?? normalizedBatchLimit()) +
+              ", offset=" +
+              (preview.requested_offset ?? 0) +
+              ", mode=" +
+              (preview.regenerate ? "regenerate" : "smart") +
+              ", q=" +
+              (preview.q_filter || "all") +
+              ", truncated=" +
+              (preview.scan_truncated ? "yes" : "no") +
+              ", next_offset=" +
+              (preview.next_offset == null ? "null" : String(preview.next_offset)) +
+              ", eligible_ready=" +
+              (preview.eligible_ready ?? 0) +
+              ", eligible_queued=" +
+              (preview.eligible_queued ?? 0) +
+              ".";
+            retryPreviewOutputEl.style.display = "block";
+            retryPreviewOutputEl.textContent = JSON.stringify(
+              {
+                preview_type: "unarchive_batch",
+                mode: preview.regenerate ? "regenerate" : "smart",
+                q_filter: preview.q_filter || null,
+                scanned: preview.scanned ?? 0,
+                scanned_total: preview.scanned_total ?? preview.scanned ?? 0,
+                scan_truncated: Boolean(preview.scan_truncated),
+                requested_offset: preview.requested_offset ?? 0,
+                next_offset: preview.next_offset ?? null,
+                eligible_ready_item_ids: preview.eligible_ready_item_ids || [],
+                eligible_queued_item_ids: preview.eligible_queued_item_ids || [],
+              },
+              null,
+              2,
+            );
+            setPreviewContinuation("unarchive", preview.next_offset);
+            return;
+          }
+          clearPreviewContinuation();
+        } catch (err) {
+          errorEl.textContent = "Preview next failed: " + String(err);
+          clearPreviewContinuation();
+        } finally {
+          previewNextBtn.disabled = false;
         }
       });
 
       unarchiveBatchBtn.addEventListener("click", async () => {
         unarchiveBatchBtn.disabled = true;
         try {
+          clearPreviewContinuation();
           const preview = await request("/items/unarchive-batch", {
             method: "POST",
-            body: JSON.stringify(unarchiveBatchPayload(true))
+            body: JSON.stringify(unarchiveBatchPayload(true, 0))
           });
           const eligible = Number(preview.eligible ?? 0);
           if (!eligible) {
@@ -1392,7 +1585,7 @@ const html = `<!doctype html>
           }
           const result = await request("/items/unarchive-batch", {
             method: "POST",
-            body: JSON.stringify(unarchiveBatchPayload(false))
+            body: JSON.stringify(unarchiveBatchPayload(false, 0))
           });
           errorEl.textContent =
             "Unarchive done. unarchived=" +
@@ -1410,16 +1603,19 @@ const html = `<!doctype html>
 
       archiveRetryableFilter.addEventListener("change", async () => {
         persistControls();
+        clearPreviewContinuation();
         await loadWorkerStats();
       });
 
       unarchiveModeFilter.addEventListener("change", () => {
         persistControls();
+        clearPreviewContinuation();
       });
 
       batchLimitInput.addEventListener("change", () => {
         batchLimitInput.value = String(normalizedBatchLimit());
         persistControls();
+        clearPreviewContinuation();
       });
 
       queryInput.addEventListener("keydown", async (event) => {
@@ -1427,6 +1623,7 @@ const html = `<!doctype html>
         try {
           errorEl.textContent = "";
           persistControls();
+          clearPreviewContinuation();
           await loadItems();
         } catch (err) {
           errorEl.textContent = String(err);
@@ -1437,6 +1634,7 @@ const html = `<!doctype html>
         try {
           errorEl.textContent = "";
           persistControls();
+          clearPreviewContinuation();
           await loadItems();
         } catch (err) {
           errorEl.textContent = String(err);
@@ -1447,6 +1645,7 @@ const html = `<!doctype html>
         try {
           errorEl.textContent = "";
           persistControls();
+          clearPreviewContinuation();
           await loadItems();
         } catch (err) {
           errorEl.textContent = String(err);
@@ -1457,6 +1656,7 @@ const html = `<!doctype html>
         try {
           errorEl.textContent = "";
           persistControls();
+          clearPreviewContinuation();
           await loadItems();
         } catch (err) {
           errorEl.textContent = String(err);
