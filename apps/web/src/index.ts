@@ -1784,6 +1784,13 @@ const html = `<!doctype html>
         }
       });
 
+      queryInput.addEventListener("input", () => {
+        persistControls();
+        resetPreviewOffset();
+        clearPreviewContinuation();
+        clearPreviewOutput();
+      });
+
       statusFilter.addEventListener("change", async () => {
         try {
           errorEl.textContent = "";
