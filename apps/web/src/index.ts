@@ -3298,34 +3298,53 @@ const html = `<!doctype html>
         });
       }
 
-      const previewActionConfigs = [
-        createPreviewActionConfig(previewArchiveBtn, "archive"),
-        createPreviewActionConfig(previewRetryBtn, "retry"),
-        createPreviewActionConfig(previewUnarchiveBtn, "unarchive"),
-      ];
+      function expandQueueActionConfigs(seeds, buildConfig) {
+        return seeds.map((seed) => buildConfig(seed));
+      }
 
-      const batchActionConfigs = [
-        createBatchActionConfig(retryFailedBtn, "retry", runRetryBatchFlow),
-        createSimpleBatchActionConfig(
-          archiveBlockedBtn,
-          "archive",
+      function createBatchActionFromSeed(seed) {
+        if (seed.mode === "simple") {
+          return createSimpleBatchActionConfig(seed.button, seed.kind, seed.flowConfig || {});
+        }
+        return createBatchActionConfig(seed.button, seed.kind, seed.run);
+      }
+
+      const previewActionConfigs = expandQueueActionConfigs(
+        [
+          { button: previewArchiveBtn, kind: "archive" },
+          { button: previewRetryBtn, kind: "retry" },
+          { button: previewUnarchiveBtn, kind: "unarchive" },
+        ],
+        (seed) => createPreviewActionConfig(seed.button, seed.kind),
+      );
+
+      const batchActionConfigs = expandQueueActionConfigs(
+        [
+          { button: retryFailedBtn, kind: "retry", run: runRetryBatchFlow },
           {
-            renderNoEligible: renderArchiveNoEligibleOutput,
-            renderPreview: renderArchivePreviewOutput,
-            buildConfirm: buildArchiveBatchConfirmMessage,
-            renderDone: renderArchiveBatchDoneOutput,
+            button: archiveBlockedBtn,
+            kind: "archive",
+            mode: "simple",
+            flowConfig: {
+              renderNoEligible: renderArchiveNoEligibleOutput,
+              renderPreview: renderArchivePreviewOutput,
+              buildConfirm: buildArchiveBatchConfirmMessage,
+              renderDone: renderArchiveBatchDoneOutput,
+            },
           },
-        ),
-        createSimpleBatchActionConfig(
-          unarchiveBatchBtn,
-          "unarchive",
           {
-            renderNoEligible: renderUnarchiveNoEligibleOutput,
-            buildConfirm: buildUnarchiveBatchConfirmMessage,
-            renderDone: renderUnarchiveBatchDoneOutput,
+            button: unarchiveBatchBtn,
+            kind: "unarchive",
+            mode: "simple",
+            flowConfig: {
+              renderNoEligible: renderUnarchiveNoEligibleOutput,
+              buildConfirm: buildUnarchiveBatchConfirmMessage,
+              renderDone: renderUnarchiveBatchDoneOutput,
+            },
           },
-        ),
-      ];
+        ],
+        createBatchActionFromSeed,
+      );
 
       const queueControlChangeConfigs = expandQueueFilterConfigs("controls", [
         {
