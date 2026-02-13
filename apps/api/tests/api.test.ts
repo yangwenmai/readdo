@@ -3806,6 +3806,90 @@ test("item artifact reads skip malformed artifact payload rows", async () => {
   }
 });
 
+test("item artifact reads degrade malformed artifact meta_json to empty object", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-legacy-artifact-meta-json-"));
+  const dbPath = join(dbDir, "readdo.db");
+  const app = await createApp({
+    dbPath,
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20content%20is%20used%20to%20verify%20malformed%20artifact%20meta%20compatibility.",
+        title: "Legacy Artifact Meta",
+        domain: "example.legacy.artifact.meta",
+        source_type: "web",
+        intent_text: "verify malformed artifact meta does not hide valid payload",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const beforeRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}?include_history=true`,
+    });
+    assert.equal(beforeRes.statusCode, 200);
+    const beforePayload = beforeRes.json() as {
+      artifacts: {
+        summary: {
+          payload: Record<string, unknown>;
+        };
+      };
+    };
+
+    const duplicateSummaryRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/artifacts/summary`,
+      payload: { payload: beforePayload.artifacts.summary.payload },
+    });
+    assert.equal(duplicateSummaryRes.statusCode, 201);
+
+    const db = new DatabaseSync(dbPath);
+    try {
+      db.prepare("UPDATE artifacts SET meta_json = ? WHERE item_id = ? AND artifact_type = 'summary' AND version = 2").run(
+        "{bad-json",
+        itemId,
+      );
+    } finally {
+      db.close();
+    }
+
+    const detailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}?include_history=true`,
+    });
+    assert.equal(detailRes.statusCode, 200);
+    const detailPayload = detailRes.json() as {
+      artifacts: {
+        summary: {
+          version: number;
+          meta: Record<string, unknown>;
+        };
+      };
+      artifact_history: {
+        summary: Array<{ version: number; meta: Record<string, unknown> }>;
+      };
+    };
+    assert.equal(detailPayload.artifacts.summary.version, 2);
+    assert.deepEqual(detailPayload.artifacts.summary.meta, {});
+    assert.deepEqual(
+      detailPayload.artifact_history.summary.map((x) => x.version),
+      [2, 1],
+    );
+    assert.deepEqual(detailPayload.artifact_history.summary[0]?.meta, {});
+  } finally {
+    await app.close();
+  }
+});
+
 test("items endpoints tolerate malformed legacy failure_json payloads", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-legacy-failure-json-"));
   const dbPath = join(dbDir, "readdo.db");

@@ -486,14 +486,15 @@ function parseArtifactRow(row: ArtifactDbRow): {
   version: number;
   created_by: string;
   created_at: string;
-  meta: unknown;
+  meta: Record<string, unknown>;
   payload: unknown;
 } | null {
-  const meta = safeParseJson(row.meta_json);
+  const parsedMeta = safeParseJson(row.meta_json);
   const payload = safeParseJson(row.payload_json);
-  if (meta === undefined || payload === undefined) {
+  if (payload === undefined) {
     return null;
   }
+  const meta = parsedMeta && typeof parsedMeta === "object" && !Array.isArray(parsedMeta) ? (parsedMeta as Record<string, unknown>) : {};
   return {
     artifact_type: row.artifact_type,
     version: row.version,
