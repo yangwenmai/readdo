@@ -1382,6 +1382,24 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     if (!mode) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "mode must be PROCESS | RETRY | REGENERATE"));
     }
+    const processKeySource = request.headers["idempotency-key"] ?? body.process_request_id;
+    const explicitProcessKey = typeof processKeySource === "string" ? processKeySource.trim() : "";
+    const processKey = explicitProcessKey || `manual_${nanoid(8)}`;
+    const requestKey = `process:${id}:${mode}:${processKey}`;
+    if (explicitProcessKey) {
+      const existingJob = db.prepare("SELECT id FROM jobs WHERE request_key = ?").get(requestKey) as { id: string } | undefined;
+      if (existingJob) {
+        return reply.status(202).send({
+          item: {
+            id,
+            status: item.status,
+            updated_at: item.updated_at,
+          },
+          mode,
+          idempotent_replay: true,
+        });
+      }
+    }
 
     const allowedStatuses: Record<ProcessMode, string[]> = {
       PROCESS: ["CAPTURED", "FAILED_EXTRACTION", "FAILED_AI", "FAILED_EXPORT"],
@@ -1433,8 +1451,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
         }),
       );
     }
-    const processKey = String(request.headers["idempotency-key"] ?? body.process_request_id ?? `manual_${nanoid(8)}`);
-    createProcessJob(db, id, `process:${id}:${mode}:${processKey}`);
+    createProcessJob(db, id, requestKey);
 
     return reply.status(202).send({
       item: {

@@ -111,6 +111,59 @@ test("process mode must match current status", async () => {
   }
 });
 
+test("process endpoint replays idempotent request with same key", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-idempotent-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20content%20is%20used%20to%20verify%20idempotent%20process%20replay%20behavior.",
+        title: "Process Idempotency",
+        domain: "example.process.idempotent",
+        source_type: "web",
+        intent_text: "validate process idempotency replay",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const firstProcessRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      headers: { "Idempotency-Key": "process-idempotent-key-1" },
+      payload: { mode: "REGENERATE" },
+    });
+    assert.equal(firstProcessRes.statusCode, 202);
+    const firstProcessPayload = firstProcessRes.json() as { mode: string; idempotent_replay?: boolean; item: { status: string } };
+    assert.equal(firstProcessPayload.mode, "REGENERATE");
+    assert.equal(Boolean(firstProcessPayload.idempotent_replay), false);
+    assert.equal(firstProcessPayload.item.status, "QUEUED");
+
+    const replayProcessRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      headers: { "Idempotency-Key": "process-idempotent-key-1" },
+      payload: { mode: "REGENERATE" },
+    });
+    assert.equal(replayProcessRes.statusCode, 202);
+    const replayPayload = replayProcessRes.json() as { mode: string; idempotent_replay?: boolean; item: { status: string } };
+    assert.equal(replayPayload.mode, "REGENERATE");
+    assert.equal(replayPayload.idempotent_replay, true);
+    assert.equal(replayPayload.item.status, "QUEUED");
+  } finally {
+    await app.close();
+  }
+});
+
 test("items endpoint supports status and query filtering", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-list-"));
   const app = await createApp({

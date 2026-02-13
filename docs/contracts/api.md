@@ -716,9 +716,12 @@ options（MVP 可选）：
     "id": "itm_...",
     "status": "QUEUED",
     "updated_at": "..."
-  }
+  },
+  "idempotent_replay": false
 }
 ```
+
+> 当使用相同 `Idempotency-Key`（或 `process_request_id`）重复提交同一 item+mode 请求时，服务端可返回 `202` 且 `idempotent_replay=true`，表示命中幂等重放而不是新建任务。
 
 ### 7.5 错误
 
