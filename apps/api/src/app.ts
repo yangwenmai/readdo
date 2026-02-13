@@ -665,6 +665,67 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     };
   });
 
+  app.post("/api/items/retry-failed", async (request) => {
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const limitRaw = Number(body.limit ?? 20);
+    const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 100) : 20;
+    const failedItems = db
+      .prepare(
+        `
+        SELECT * FROM items
+        WHERE status IN ('FAILED_EXTRACTION', 'FAILED_AI', 'FAILED_EXPORT')
+        ORDER BY updated_at ASC
+        LIMIT ?
+      `,
+      )
+      .all(limit) as DbItemRow[];
+
+    let queued = 0;
+    let skippedNonRetryable = 0;
+    let skippedUnsupported = 0;
+    const queuedItemIds: string[] = [];
+    const ts = nowIso();
+
+    for (const item of failedItems) {
+      let retryable = true;
+      if (item.failure_json) {
+        try {
+          const payload = JSON.parse(item.failure_json) as { retryable?: boolean };
+          retryable = payload.retryable !== false;
+        } catch {
+          retryable = true;
+        }
+      }
+      if (!retryable) {
+        skippedNonRetryable += 1;
+        continue;
+      }
+      if (!["FAILED_EXTRACTION", "FAILED_AI"].includes(item.status)) {
+        skippedUnsupported += 1;
+        continue;
+      }
+
+      createProcessJob(db, item.id, `batch-retry:${item.id}:${nanoid(8)}`);
+      const updateRes = db
+        .prepare("UPDATE items SET status = 'QUEUED', updated_at = ?, failure_json = NULL WHERE id = ? AND status = ?")
+        .run(ts, item.id, item.status);
+      if (updateRes.changes > 0) {
+        queued += 1;
+        queuedItemIds.push(item.id);
+      }
+    }
+
+    return {
+      requested_limit: limit,
+      scanned: failedItems.length,
+      queued,
+      queued_item_ids: queuedItemIds,
+      skipped_non_retryable: skippedNonRetryable,
+      skipped_unsupported_status: skippedUnsupported,
+      timestamp: nowIso(),
+    };
+  });
+
   app.post("/api/capture", async (request, reply) => {
     const body = request.body as Record<string, unknown>;
     const idempotencyKey = String(request.headers["idempotency-key"] ?? body.capture_id ?? "");

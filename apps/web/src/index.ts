@@ -920,38 +920,41 @@ const html = `<!doctype html>
           errorEl.textContent = "No retryable failed items.";
           return;
         }
+        const exportCandidates = candidates.filter((item) => item.status === "FAILED_EXPORT");
         retryFailedBtn.disabled = true;
-        let success = 0;
-        let failed = 0;
+        let exportSuccess = 0;
+        let exportFailed = 0;
         try {
           errorEl.textContent = "Retrying " + candidates.length + " failed items...";
-          for (const item of candidates) {
+          const batchRes = await request("/items/retry-failed", {
+            method: "POST",
+            body: JSON.stringify({ limit: 100 })
+          });
+          for (const item of exportCandidates) {
             try {
-              if (item.status === "FAILED_EXPORT") {
-                await request("/items/" + item.id + "/export", {
-                  method: "POST",
-                  body: JSON.stringify({
-                    export_key: "batch_retry_" + crypto.randomUUID(),
-                    formats: ["png", "md", "caption"]
-                  }),
-                  headers: { "Idempotency-Key": crypto.randomUUID() }
-                });
-              } else {
-                await request("/items/" + item.id + "/process", {
-                  method: "POST",
-                  body: JSON.stringify({
-                    process_request_id: crypto.randomUUID(),
-                    mode: "RETRY"
-                  }),
-                  headers: { "Idempotency-Key": crypto.randomUUID() }
-                });
-              }
-              success += 1;
+              await request("/items/" + item.id + "/export", {
+                method: "POST",
+                body: JSON.stringify({
+                  export_key: "batch_retry_" + crypto.randomUUID(),
+                  formats: ["png", "md", "caption"]
+                }),
+                headers: { "Idempotency-Key": crypto.randomUUID() }
+              });
+              exportSuccess += 1;
             } catch {
-              failed += 1;
+              exportFailed += 1;
             }
           }
-          errorEl.textContent = "Batch retry done. success=" + success + ", failed=" + failed + ".";
+          errorEl.textContent =
+            "Batch retry done. queued=" +
+            (batchRes.queued ?? 0) +
+            ", skipped_non_retryable=" +
+            (batchRes.skipped_non_retryable ?? 0) +
+            ", export_success=" +
+            exportSuccess +
+            ", export_failed=" +
+            exportFailed +
+            ".";
         } finally {
           retryFailedBtn.disabled = false;
           await loadItems();

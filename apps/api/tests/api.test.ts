@@ -370,6 +370,100 @@ test("worker status endpoint returns queue and item counters", async () => {
   }
 });
 
+test("retry-failed endpoint queues retryable pipeline failures only", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-retry-failed-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+    disablePngRender: true,
+  });
+
+  try {
+    const failOne = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,short",
+        title: "Fail One",
+        domain: "example.fail.one",
+        source_type: "web",
+        intent_text: "force extraction failure one",
+      },
+    });
+    assert.equal(failOne.statusCode, 201);
+    const failOneId = (failOne.json() as { item: { id: string } }).item.id;
+
+    const failTwo = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,tiny",
+        title: "Fail Two",
+        domain: "example.fail.two",
+        source_type: "web",
+        intent_text: "force extraction failure two",
+      },
+    });
+    assert.equal(failTwo.statusCode, 201);
+    const failTwoId = (failTwo.json() as { item: { id: string } }).item.id;
+
+    const exportFail = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20content%20is%20long%20enough%20to%20allow%20pipeline%20to%20reach%20ready%20before%20png%20export%20fails%20deterministically.",
+        title: "Export Fail",
+        domain: "example.export.failed",
+        source_type: "web",
+        intent_text: "create export failure item",
+      },
+    });
+    assert.equal(exportFail.statusCode, 201);
+    const exportFailId = (exportFail.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+    await app.runWorkerOnce();
+    await app.runWorkerOnce();
+
+    const exportRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${exportFailId}/export`,
+      payload: { export_key: "retry-failed-export-case", formats: ["png"] },
+    });
+    assert.equal(exportRes.statusCode, 500);
+
+    const retryFailedRes = await app.inject({
+      method: "POST",
+      url: "/api/items/retry-failed",
+      payload: { limit: 10 },
+    });
+    assert.equal(retryFailedRes.statusCode, 200);
+    const retryPayload = retryFailedRes.json() as {
+      scanned: number;
+      queued: number;
+      queued_item_ids: string[];
+      skipped_non_retryable: number;
+      skipped_unsupported_status: number;
+    };
+    assert.equal(retryPayload.queued, 2);
+    assert.ok(retryPayload.scanned >= 3);
+    assert.ok(retryPayload.queued_item_ids.includes(failOneId));
+    assert.ok(retryPayload.queued_item_ids.includes(failTwoId));
+    assert.equal(retryPayload.skipped_non_retryable, 0);
+    assert.ok(retryPayload.skipped_unsupported_status >= 1);
+
+    const failOneDetail = await app.inject({ method: "GET", url: `/api/items/${failOneId}` });
+    const failTwoDetail = await app.inject({ method: "GET", url: `/api/items/${failTwoId}` });
+    const exportFailDetail = await app.inject({ method: "GET", url: `/api/items/${exportFailId}` });
+    assert.equal((failOneDetail.json() as { item: { status: string } }).item.status, "QUEUED");
+    assert.equal((failTwoDetail.json() as { item: { status: string } }).item.status, "QUEUED");
+    assert.equal((exportFailDetail.json() as { item: { status: string } }).item.status, "FAILED_EXPORT");
+  } finally {
+    await app.close();
+  }
+});
+
 test("png-only export failure moves item to FAILED_EXPORT", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-fail-"));
   const app = await createApp({

@@ -41,6 +41,10 @@ Last Updated: 2026-02-13
 - READY 内按 priority_score_desc（见 api.md）
 - 失败项默认折叠在 “Needs attention”（但必须可见）
 
+可选全局动作：
+- `Retry Failed`（批量）：调用 `/items/retry-failed` 批量重试 `FAILED_EXTRACTION/FAILED_AI` 的可重试项；
+  `FAILED_EXPORT` 仍应单独走 export 重试。
+
 ### 1.2 Shipped
 包含状态：
 - SHIPPED

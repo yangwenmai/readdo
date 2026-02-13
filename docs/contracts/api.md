@@ -116,6 +116,7 @@ Artifacts payload 必须满足 `docs/contracts/schemas/*.schema.json`。
 * POST `/capture`
 * GET  `/system/worker`（队列与状态统计）
 * POST `/system/worker/run-once`（手动执行一次 worker）
+* POST `/items/retry-failed`（批量重试 FAILED_EXTRACTION/FAILED_AI）
 * GET  `/items`
 * GET  `/items/{id}`
 * POST `/items/{id}/intent`（intent 编辑）
@@ -231,6 +232,41 @@ Headers:
     "QUEUED": 0,
     "DONE": 12
   },
+  "timestamp": "2026-02-13T12:00:00Z"
+}
+```
+
+---
+
+## 4.8 POST /items/retry-failed（批量重试失败项）
+
+### 4.8.1 目的
+
+批量扫描失败项并将 `FAILED_EXTRACTION/FAILED_AI` 中可重试（`failure.retryable !== false`）的条目重新入队为 `QUEUED`。
+
+### 4.8.2 Request
+
+```json
+{
+  "limit": 20
+}
+```
+
+约束：
+
+* `limit` 可选，范围建议 `1..100`，默认 20
+* `FAILED_EXPORT` 当前不会被该接口处理（计入 `skipped_unsupported_status`）
+
+### 4.8.3 Response 200
+
+```json
+{
+  "requested_limit": 20,
+  "scanned": 5,
+  "queued": 3,
+  "queued_item_ids": ["itm_a", "itm_b", "itm_c"],
+  "skipped_non_retryable": 1,
+  "skipped_unsupported_status": 1,
   "timestamp": "2026-02-13T12:00:00Z"
 }
 ```
