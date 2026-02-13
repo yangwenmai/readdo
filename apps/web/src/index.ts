@@ -2936,6 +2936,31 @@ const html = `<!doctype html>
         });
       }
 
+      function bindSearchInputActions(inputEl) {
+        inputEl.addEventListener("keydown", async (event) => {
+          if (event.key !== "Enter") return;
+          await applyListContextAndReload("Search");
+        });
+        inputEl.addEventListener("input", () => {
+          syncControlsWithPreviewState();
+        });
+      }
+
+      function bindFocusChipActions(containerEl) {
+        if (!containerEl) return;
+        containerEl.querySelectorAll("[data-focus]").forEach((button) => {
+          button.addEventListener("click", async () => {
+            const focus = button.getAttribute("data-focus") || "all";
+            await applyListContextAndReload("Focus: " + focus, {
+              button,
+              mutate: () => {
+                statusFilter.value = statusByFocusChip(focus);
+              },
+            });
+          });
+        });
+      }
+
       async function withActionError(errorPrefix, action, onError = null) {
         try {
           return await action();
@@ -3101,28 +3126,8 @@ const html = `<!doctype html>
         syncOptions: { resetOffset: false },
       });
 
-      queryInput.addEventListener("keydown", async (event) => {
-        if (event.key !== "Enter") return;
-        await applyListContextAndReload("Search");
-      });
-
-      queryInput.addEventListener("input", () => {
-        syncControlsWithPreviewState();
-      });
-
-      if (focusChipsEl) {
-        focusChipsEl.querySelectorAll("[data-focus]").forEach((button) => {
-          button.addEventListener("click", async () => {
-            const focus = button.getAttribute("data-focus") || "all";
-            await applyListContextAndReload("Focus: " + focus, {
-              button,
-              mutate: () => {
-                statusFilter.value = statusByFocusChip(focus);
-              },
-            });
-          });
-        });
-      }
+      bindSearchInputActions(queryInput);
+      bindFocusChipActions(focusChipsEl);
 
       detailFocusModeBtn?.addEventListener("click", () => {
         setDetailAdvancedEnabled(false);
