@@ -1455,6 +1455,79 @@ test("process mode must match current status", async () => {
   }
 });
 
+test("process endpoint validates options payload shapes", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-options-validation-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20item%20is%20used%20to%20validate%20process%20options%20input%20validation.",
+        title: "Process Options Validation",
+        domain: "example.process.options.validation",
+        source_type: "web",
+        intent_text: "validate process options payload validation behavior",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    const invalidOptionsShapeRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      payload: { mode: "PROCESS", options: [] },
+    });
+    assert.equal(invalidOptionsShapeRes.statusCode, 400);
+    assert.equal((invalidOptionsShapeRes.json() as { error: { code: string } }).error.code, "VALIDATION_ERROR");
+
+    const invalidTemplateProfileTypeRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      payload: { mode: "PROCESS", options: { template_profile: 123 } },
+    });
+    assert.equal(invalidTemplateProfileTypeRes.statusCode, 400);
+    assert.equal((invalidTemplateProfileTypeRes.json() as { error: { code: string } }).error.code, "VALIDATION_ERROR");
+
+    const invalidTemplateProfileValueRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      payload: { mode: "PROCESS", options: { template_profile: "unknown-profile" } },
+    });
+    assert.equal(invalidTemplateProfileValueRes.statusCode, 400);
+    assert.equal((invalidTemplateProfileValueRes.json() as { error: { code: string } }).error.code, "VALIDATION_ERROR");
+
+    const invalidForceRegenerateTypeRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      payload: { mode: "PROCESS", options: { force_regenerate: "true" } },
+    });
+    assert.equal(invalidForceRegenerateTypeRes.statusCode, 400);
+    assert.equal((invalidForceRegenerateTypeRes.json() as { error: { code: string } }).error.code, "VALIDATION_ERROR");
+
+    const validOptionsRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      payload: {
+        mode: "PROCESS",
+        options: { template_profile: " Creator ", force_regenerate: false },
+      },
+    });
+    assert.equal(validOptionsRes.statusCode, 202);
+    const validOptionsPayload = validOptionsRes.json() as { mode: string; idempotent_replay: boolean; item: { status: string } };
+    assert.equal(validOptionsPayload.mode, "PROCESS");
+    assert.equal(validOptionsPayload.idempotent_replay, false);
+    assert.equal(validOptionsPayload.item.status, "QUEUED");
+  } finally {
+    await app.close();
+  }
+});
+
 test("process endpoint replays idempotent request with same key", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-idempotent-"));
   const app = await createApp({

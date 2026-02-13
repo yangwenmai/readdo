@@ -1682,6 +1682,21 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     if (body.mode !== undefined && typeof body.mode !== "string") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "mode must be PROCESS | RETRY | REGENERATE"));
     }
+    if (body.options !== undefined && !isObjectRecord(body.options)) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "options must be an object when provided"));
+    }
+    const optionsPayload = isObjectRecord(body.options) ? body.options : undefined;
+    if (optionsPayload?.template_profile !== undefined && typeof optionsPayload.template_profile !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "options.template_profile must be engineer|creator|manager"));
+    }
+    const templateProfileRaw =
+      typeof optionsPayload?.template_profile === "string" ? optionsPayload.template_profile.trim().toLowerCase() : undefined;
+    if (templateProfileRaw && !["engineer", "creator", "manager"].includes(templateProfileRaw)) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "options.template_profile must be engineer|creator|manager"));
+    }
+    if (optionsPayload?.force_regenerate !== undefined && typeof optionsPayload.force_regenerate !== "boolean") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "options.force_regenerate must be a boolean when provided"));
+    }
     const modeRaw = (typeof body.mode === "string" ? body.mode : "PROCESS").trim().toUpperCase();
     const allowedModes = ["PROCESS", "RETRY", "REGENERATE"] as const;
     const mode = allowedModes.includes(modeRaw as ProcessMode) ? (modeRaw as ProcessMode) : null;

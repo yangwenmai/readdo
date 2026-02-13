@@ -744,6 +744,9 @@ options（MVP 可选）：
 
 * template_profile：engineer/creator/manager
 * force_regenerate：true/false（若 true 可忽略缓存）
+* `options` 若提供，必须是对象；否则返回 `400 VALIDATION_ERROR`。
+* `options.template_profile` 若提供，必须为字符串，服务端按 `trim + lower-case` 后校验 `engineer|creator|manager`。
+* `options.force_regenerate` 若提供，必须为布尔值。
 
 ### 7.4 Response 202
 
