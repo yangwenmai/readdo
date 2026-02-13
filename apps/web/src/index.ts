@@ -2649,6 +2649,46 @@ const html = `<!doctype html>
           ".";
       }
 
+      function buildRetryBatchConfirmMessage(preview, eligiblePipeline, eligibleExport) {
+        return (
+          "Retry failed items [" +
+          failureFilterSummary(preview) +
+          "]? pipeline=" +
+          eligiblePipeline +
+          ", export=" +
+          eligibleExport +
+          ", scanned=" +
+          scanCountSummary(preview)
+        );
+      }
+
+      function buildArchiveBatchConfirmMessage(preview, eligible) {
+        return (
+          "Archive " +
+          eligible +
+          " failed items" +
+          " [retryable=" +
+          (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
+          ", " +
+          qFilterSummary(preview) +
+          "]" +
+          (preview.failure_step_filter ? " (failure_step=" + preview.failure_step_filter + ")" : "") +
+          "?"
+        );
+      }
+
+      function buildUnarchiveBatchConfirmMessage(preview, eligible) {
+        return (
+          "Unarchive " +
+          eligible +
+          " archived items [mode=" +
+          (preview.regenerate ? "regenerate" : "smart") +
+          ", " +
+          qFilterSummary(preview) +
+          "]?"
+        );
+      }
+
       function isPreviewKind(kind) {
         return kind === "retry" || kind === "archive" || kind === "unarchive";
       }
@@ -2739,18 +2779,7 @@ const html = `<!doctype html>
                   renderRetryNoEligibleOutput(previewRes);
                   return;
                 }
-                const confirmed = confirm(
-                  "Retry failed items [q=" +
-                    (previewRes.q_filter || "all") +
-                    ", filter=" +
-                    (previewRes.failure_step_filter || "all") +
-                    "]? pipeline=" +
-                    eligiblePipeline +
-                    ", export=" +
-                    eligibleExport +
-                    ", scanned=" +
-                    scanCountSummary(previewRes),
-                );
+                const confirmed = confirm(buildRetryBatchConfirmMessage(previewRes, eligiblePipeline, eligibleExport));
                 if (!confirmed) {
                   errorEl.textContent = "Retry failed action cancelled.";
                   return;
@@ -2839,18 +2868,7 @@ const html = `<!doctype html>
                   return;
                 }
                 renderArchivePreviewOutput(preview);
-                const confirmed = confirm(
-                  "Archive " +
-                    eligible +
-                    " failed items" +
-                    " [retryable=" +
-                    (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
-                    ", q=" +
-                    (preview.q_filter || "all") +
-                    "]" +
-                    (preview.failure_step_filter ? " (failure_step=" + preview.failure_step_filter + ")" : "") +
-                    "?",
-                );
+                const confirmed = confirm(buildArchiveBatchConfirmMessage(preview, eligible));
                 if (!confirmed) {
                   errorEl.textContent = "Archive blocked action cancelled.";
                   return;
@@ -2938,17 +2956,7 @@ const html = `<!doctype html>
                   errorEl.textContent = "No archived items to unarchive.";
                   return;
                 }
-                const modeLabel = preview.regenerate ? "regenerate" : "smart";
-                const confirmed = confirm(
-                  "Unarchive " +
-                    eligible +
-                    " archived items" +
-                    " [mode=" +
-                    modeLabel +
-                    ", q=" +
-                    (preview.q_filter || "all") +
-                    "]?",
-                );
+                const confirmed = confirm(buildUnarchiveBatchConfirmMessage(preview, eligible));
                 if (!confirmed) {
                   errorEl.textContent = "Unarchive action cancelled.";
                   return;
