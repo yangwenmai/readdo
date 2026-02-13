@@ -169,6 +169,7 @@ Headers:
 * source_type 枚举：`web | youtube | newsletter | other`（大小写不敏感，服务端会归一化为小写）；若缺省则服务端会基于 URL `hostname` 推断（hostname 会先做小写归一化并移除尾随 `.`；`youtube.com|youtu.be` 域名命中 -> youtube；`substack.com` 或 newsletter 形态子域命中 -> newsletter；其余 http(s) -> web）
 * url 协议白名单：`http | https | data`（如 `ftp://`、`chrome://`、`file://` 应返回 `400 VALIDATION_ERROR`）
 * 若同时提供 `Idempotency-Key` 与 `capture_id`，两者必须一致；不一致返回 `400 VALIDATION_ERROR`
+* `extcap_` 形态的 capture 幂等键会做大小写归一化（视为大小写不敏感），再参与一致性校验与重放匹配
 * 若未提供 `Idempotency-Key/capture_id`，服务端会基于“规范化后的 url + 规范化 intent_text（合并空白）”推导稳定 capture key（格式与 extension `stableCaptureKey` 对齐：`extcap_` + 32 位十六进制），用于避免重复创建
 
 ### 4.4 Response 201

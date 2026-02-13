@@ -353,6 +353,55 @@ test("capture rejects mismatched header idempotency key and capture_id", async (
   }
 });
 
+test("capture normalizes extcap idempotency keys case-insensitively", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-capture-extcap-case-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const canonicalUrl = "https://example.com/path?a=1&b=2";
+    const normalizedIntent = "keep this focused";
+    const lowerExtcapKey = `extcap_${createHash("sha256").update(`${canonicalUrl}\n${normalizedIntent}`).digest("hex").slice(0, 32)}`;
+    const upperExtcapKey = lowerExtcapKey.toUpperCase();
+
+    const firstCaptureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      headers: { "Idempotency-Key": upperExtcapKey },
+      payload: {
+        capture_id: lowerExtcapKey,
+        url: canonicalUrl,
+        source_type: "web",
+        intent_text: normalizedIntent,
+      },
+    });
+    assert.equal(firstCaptureRes.statusCode, 201);
+    const firstPayload = firstCaptureRes.json() as { item: { id: string }; idempotent_replay: boolean };
+    assert.equal(firstPayload.idempotent_replay, false);
+
+    const replayCaptureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      headers: { "Idempotency-Key": lowerExtcapKey },
+      payload: {
+        capture_id: upperExtcapKey,
+        url: canonicalUrl,
+        source_type: "web",
+        intent_text: normalizedIntent,
+      },
+    });
+    assert.equal(replayCaptureRes.statusCode, 201);
+    const replayPayload = replayCaptureRes.json() as { item: { id: string }; idempotent_replay: boolean };
+    assert.equal(replayPayload.idempotent_replay, true);
+    assert.equal(replayPayload.item.id, firstPayload.item.id);
+  } finally {
+    await app.close();
+  }
+});
+
 test("export idempotency replays old export_key beyond recent window", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-idempotent-"));
   const app = await createApp({

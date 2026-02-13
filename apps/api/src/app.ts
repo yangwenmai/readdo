@@ -247,6 +247,16 @@ function deriveCaptureKey(url: string, intentText: string): string {
   return `extcap_${digest}`;
 }
 
+function normalizeCaptureIdempotencyKey(rawValue: unknown): string {
+  const key = rawValue == null ? "" : String(rawValue).trim();
+  if (!key) return "";
+  const extcapMatch = /^extcap_([0-9a-f]{32})$/iu.exec(key);
+  if (!extcapMatch) return key;
+  const digest = extcapMatch.at(1);
+  if (!digest) return key;
+  return `extcap_${digest.toLowerCase()}`;
+}
+
 function hostMatchesDomain(host: string, domain: string): boolean {
   const normalizedHost = normalizeHostname(host);
   const normalizedDomain = normalizeHostname(domain);
@@ -1124,9 +1134,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
   app.post("/api/capture", async (request, reply) => {
     const body = request.body as Record<string, unknown>;
-    const headerKeyRaw = request.headers["idempotency-key"];
-    const headerKey = typeof headerKeyRaw === "string" ? headerKeyRaw.trim() : "";
-    const captureId = String(body.capture_id ?? "").trim();
+    const headerKey = normalizeCaptureIdempotencyKey(request.headers["idempotency-key"]);
+    const captureId = normalizeCaptureIdempotencyKey(body.capture_id);
     if (headerKey && captureId && headerKey !== captureId) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "Idempotency-Key and capture_id must match when both are provided"));
     }
