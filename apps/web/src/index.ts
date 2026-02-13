@@ -1095,6 +1095,11 @@ const html = `<!doctype html>
           <option value="pipeline">pipeline</option>
           <option value="export">export</option>
         </select>
+        <select id="recoveryFocusModeFilter">
+          <option value="smart">Focus Priority: Smart</option>
+          <option value="query_first">Focus Priority: Query First</option>
+          <option value="step_first">Focus Priority: Step First</option>
+        </select>
         <select id="archiveRetryableFilter">
           <option value="false">Archive Scope: blocked</option>
           <option value="true">Archive Scope: retryable</option>
@@ -1224,6 +1229,7 @@ const html = `<!doctype html>
       const statusFilter = document.getElementById("statusFilter");
       const retryableFilter = document.getElementById("retryableFilter");
       const failureStepFilter = document.getElementById("failureStepFilter");
+      const recoveryFocusModeFilter = document.getElementById("recoveryFocusModeFilter");
       const archiveRetryableFilter = document.getElementById("archiveRetryableFilter");
       const workerStatsEl = document.getElementById("workerStats");
       const runWorkerBtn = document.getElementById("runWorkerBtn");
@@ -1315,6 +1321,7 @@ const html = `<!doctype html>
       };
       const queueFilterMeta = {
         controls: {
+          focus_priority: "Focus Priority",
           archive_scope: "Archive Scope",
           unarchive_mode: "Unarchive Mode",
           batch_limit: "Batch Limit",
@@ -1795,10 +1802,24 @@ const html = `<!doctype html>
         return mode === "smart" || mode === "query_first" || mode === "step_first";
       }
 
+      function syncRecoveryFocusModeFilterControl() {
+        if (!recoveryFocusModeFilter) return;
+        if (recoveryFocusModeFilter.value !== recoveryContextFocusMode) {
+          recoveryFocusModeFilter.value = recoveryContextFocusMode;
+        }
+      }
+
       function setRecoveryContextFocusMode(mode) {
-        if (!isRecoveryContextFocusMode(mode)) return false;
-        if (recoveryContextFocusMode === mode) return false;
+        if (!isRecoveryContextFocusMode(mode)) {
+          syncRecoveryFocusModeFilterControl();
+          return false;
+        }
+        if (recoveryContextFocusMode === mode) {
+          syncRecoveryFocusModeFilterControl();
+          return false;
+        }
         recoveryContextFocusMode = mode;
+        syncRecoveryFocusModeFilterControl();
         return true;
       }
 
@@ -4432,6 +4453,22 @@ const html = `<!doctype html>
         previewOffsetInput.value = String(normalizedPreviewOffset());
       }
 
+      function normalizeRecoveryFocusModeFilterValue() {
+        if (!isRecoveryContextFocusMode(recoveryFocusModeFilter.value)) {
+          syncRecoveryFocusModeFilterControl();
+          return;
+        }
+        const changed = setRecoveryContextFocusMode(recoveryFocusModeFilter.value);
+        if (!changed) {
+          errorEl.textContent = "Context focus mode already: " + recoveryContextFocusModeLabel(recoveryContextFocusMode) + ".";
+          return;
+        }
+        if (activeRecoverySummary()) {
+          renderRecoveryRadar(activeRecoverySummary());
+        }
+        errorEl.textContent = "Context focus mode: " + recoveryContextFocusModeLabel(recoveryContextFocusMode) + ".";
+      }
+
       function resetPreviewOffset() {
         previewOffsetInput.value = String(controlDefaults.preview_offset);
         persistControls();
@@ -5332,6 +5369,10 @@ const html = `<!doctype html>
       );
 
       const queueControlChangeConfigs = expandSeedConfigs([
+        createQueueFilterSeed("focus_priority", recoveryFocusModeFilter, {
+          beforeSync: normalizeRecoveryFocusModeFilterValue,
+          syncOptions: { resetOffset: false },
+        }),
         createQueueFilterSeed("archive_scope", archiveRetryableFilter, {
           options: { refresh_worker_stats: true },
         }),

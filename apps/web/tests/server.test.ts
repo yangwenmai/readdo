@@ -105,6 +105,10 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /recovery-step-grid/u);
     assert.match(text, /id="focusChips"/u);
     assert.match(text, /id="statusLegend"/u);
+    assert.match(text, /id="recoveryFocusModeFilter"/u);
+    assert.match(text, /Focus Priority: Smart/u);
+    assert.match(text, /Focus Priority: Query First/u);
+    assert.match(text, /Focus Priority: Step First/u);
     assert.match(text, /id="detailModeChips"/u);
     assert.match(text, /id="detailSectionNav"/u);
     assert.match(text, /data-focus="ready"/u);
