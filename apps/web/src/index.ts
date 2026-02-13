@@ -21,6 +21,7 @@ const shortcutGuideItems = [
   { key: "G", label: "Edit Context Filters" },
   { key: "N", label: "Focus Recommended Item" },
   { key: "Z", label: "Focus Top Aha Item" },
+  { key: "Shift+Z", label: "Focus 2nd Aha Candidate" },
   { key: "M", label: "Run Primary Item Action" },
   { key: "O", label: "Open Selected Source" },
   { key: "Y", label: "Copy Selected Source" },
@@ -68,6 +69,7 @@ const queueFlowRailNodeLabels = ["Catch", "Queue", "Process", "Ready", "Ship"];
 const queueSpotlightBadgeText = "Aha Now";
 const queueNudgeFocusLabel = "Focus Recommended Item";
 const queueNudgeFocusTopLabel = "Focus Top Aha (Z)";
+const queueNudgeFocusSecondLabel = "Focus 2nd Aha (Shift+Z)";
 const queueNudgeCandidatesLabel = "Top Aha Candidates";
 const queueNudgeCandidateOpenLabel = "Open Candidate";
 const queueRecoveryCopyLabel = "Copy Recovery Summary";
@@ -1539,6 +1541,7 @@ const html = `<!doctype html>
       const QUEUE_SPOTLIGHT_BADGE_TEXT = ${JSON.stringify(queueSpotlightBadgeText)};
       const QUEUE_NUDGE_FOCUS_LABEL = ${JSON.stringify(queueNudgeFocusLabel)};
       const QUEUE_NUDGE_FOCUS_TOP_LABEL = ${JSON.stringify(queueNudgeFocusTopLabel)};
+      const QUEUE_NUDGE_FOCUS_SECOND_LABEL = ${JSON.stringify(queueNudgeFocusSecondLabel)};
       const QUEUE_NUDGE_CANDIDATES_LABEL = ${JSON.stringify(queueNudgeCandidatesLabel)};
       const QUEUE_NUDGE_CANDIDATE_OPEN_LABEL = ${JSON.stringify(queueNudgeCandidateOpenLabel)};
       const QUEUE_RECOVERY_COPY_LABEL = ${JSON.stringify(queueRecoveryCopyLabel)};
@@ -3612,6 +3615,16 @@ const html = `<!doctype html>
             await runFocusTopAhaQueueAction(focusTopBtn);
           });
           actionsEl.appendChild(focusTopBtn);
+          if (ahaCandidates.length > 1) {
+            const focusSecondBtn = document.createElement("button");
+            focusSecondBtn.type = "button";
+            focusSecondBtn.className = "secondary";
+            focusSecondBtn.textContent = QUEUE_NUDGE_FOCUS_SECOND_LABEL;
+            focusSecondBtn.addEventListener("click", async () => {
+              await runFocusSecondAhaQueueAction(focusSecondBtn);
+            });
+            actionsEl.appendChild(focusSecondBtn);
+          }
           ahaNudgeEl.appendChild(actionsEl);
         } else {
           setActionFeedback(queueActionBannerEl, "", "No immediate CTA. Capture or process new items.");
@@ -5243,26 +5256,41 @@ const html = `<!doctype html>
       }
 
       async function runFocusTopAhaQueueAction(button = null) {
+        await runFocusAhaCandidateByRank(1, button);
+      }
+
+      async function runFocusSecondAhaQueueAction(button = null) {
+        await runFocusAhaCandidateByRank(2, button);
+      }
+
+      async function runFocusAhaCandidateByRank(rank = 1, button = null) {
+        const rankIndex = Math.max(Number(rank) - 1, 0);
+        const label = rankIndex === 0 ? "Focus Top Aha Item" : "Focus Aha Candidate #" + (rankIndex + 1);
         await runActionWithFeedback(
           {
-            id: "queue_focus_top_aha_item",
-            label: "Focus Top Aha Item",
+            id: "queue_focus_aha_rank_" + (rankIndex + 1),
+            label,
             action: async () => {
               const visibleItems = visibleQueueItems();
-              const candidates = visibleItems.length ? visibleItems : allItems;
-              if (!candidates.length) {
+              const pool = visibleItems.length ? visibleItems : allItems;
+              if (!pool.length) {
                 errorEl.textContent = "No items available to focus.";
                 return;
               }
-              const target = topAhaItem(candidates);
+              const candidates = topAhaCandidates(pool, rankIndex + 1);
+              const target = candidates[rankIndex] || null;
               if (!target) {
-                errorEl.textContent = "No Aha candidate available right now.";
+                if (rankIndex === 0) {
+                  errorEl.textContent = "No Aha candidate available right now.";
+                } else {
+                  errorEl.textContent = "Aha candidate #" + (rankIndex + 1) + " not available under current filters.";
+                }
                 return;
               }
               await selectItem(target.id);
               focusQueueItemCard(target.id, { revealCollapsed: true });
               const meta = ahaIndexMetaForItem(target);
-              errorEl.textContent = "Focused top Aha item #" + target.id + " (" + meta.value + ").";
+              errorEl.textContent = "Focused Aha candidate #" + (rankIndex + 1) + ": item #" + target.id + " (" + meta.value + ").";
             },
           },
           { button, localFeedbackEl: queueActionBannerEl },
@@ -6306,6 +6334,7 @@ const html = `<!doctype html>
         }
         if (event.shiftKey && key === "p") return "shift+p";
         if (event.shiftKey && key === "g") return "shift+g";
+        if (event.shiftKey && key === "z") return "shift+z";
         if (event.shiftKey && key === "c") return "shift+c";
         return key;
       }
@@ -6376,6 +6405,9 @@ const html = `<!doctype html>
         },
         z: () => {
           void runFocusTopAhaQueueAction();
+        },
+        "shift+z": () => {
+          void runFocusSecondAhaQueueAction();
         },
         m: () => {
           void runSelectedPrimaryItemAction();
