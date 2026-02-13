@@ -13,6 +13,7 @@ const shortcutGuideItems = [
   { key: "F", label: "Focus Mode" },
   { key: "A", label: "Advanced Panels" },
   { key: "P", label: "Focus Priority" },
+  { key: "Shift+P", label: "Focus Priority (reverse)" },
   { key: "R", label: "Refresh" },
   { key: shortcutTriggerKey, label: "Show shortcuts" },
 ];
@@ -1850,8 +1851,17 @@ const html = `<!doctype html>
         return "smart";
       }
 
-      function cycleRecoveryContextFocusMode() {
-        const nextMode = nextRecoveryContextFocusMode(recoveryContextFocusMode);
+      function previousRecoveryContextFocusMode(mode) {
+        if (mode === "smart") return "step_first";
+        if (mode === "query_first") return "smart";
+        return "query_first";
+      }
+
+      function cycleRecoveryContextFocusMode(direction = "next") {
+        const nextMode =
+          direction === "previous"
+            ? previousRecoveryContextFocusMode(recoveryContextFocusMode)
+            : nextRecoveryContextFocusMode(recoveryContextFocusMode);
         const changed = setRecoveryContextFocusMode(nextMode);
         if (!changed) {
           setActionFeedbackPair("done", "Focus Priority: " + recoveryContextFocusModeLabel(recoveryContextFocusMode), queueActionBannerEl);
@@ -5167,6 +5177,11 @@ const html = `<!doctype html>
             event.preventDefault();
             hideShortcutHint();
           }
+          return;
+        }
+        if (key === "p" && event.shiftKey) {
+          event.preventDefault();
+          cycleRecoveryContextFocusMode("previous");
           return;
         }
         const action = shortcutActionByKey(key);
