@@ -2649,6 +2649,56 @@ const html = `<!doctype html>
           ".";
       }
 
+      function isPreviewKind(kind) {
+        return kind === "retry" || kind === "archive" || kind === "unarchive";
+      }
+
+      async function requestPreviewByKind(kind, offset) {
+        if (kind === "retry") {
+          return request("/items/retry-failed", {
+            method: "POST",
+            body: JSON.stringify(retryFailedPayload(true, offset))
+          });
+        }
+        if (kind === "archive") {
+          return request("/items/archive-failed", {
+            method: "POST",
+            body: JSON.stringify(archiveBlockedPayload(true, offset))
+          });
+        }
+        if (kind === "unarchive") {
+          return request("/items/unarchive-batch", {
+            method: "POST",
+            body: JSON.stringify(unarchiveBatchPayload(true, offset))
+          });
+        }
+        throw new Error("Unsupported preview kind: " + String(kind));
+      }
+
+      function renderPreviewByKind(kind, preview) {
+        if (kind === "retry") {
+          renderRetryPreviewOutput(preview);
+          return;
+        }
+        if (kind === "archive") {
+          renderArchivePreviewOutput(preview);
+          return;
+        }
+        if (kind === "unarchive") {
+          renderUnarchivePreviewOutput(preview);
+          return;
+        }
+        throw new Error("Unsupported preview renderer kind: " + String(kind));
+      }
+
+      async function loadAndRenderPreview(kind, offset) {
+        const preview = await requestPreviewByKind(kind, offset);
+        syncPreviewOffsetFromResponse(preview);
+        renderPreviewByKind(kind, preview);
+        setPreviewContinuation(kind, preview.next_offset);
+        return preview;
+      }
+
       previewArchiveBtn.addEventListener("click", async () => {
         await runActionWithFeedback(
           {
@@ -2658,13 +2708,7 @@ const html = `<!doctype html>
               try {
                 clearPreviewContinuation();
                 const previewOffset = normalizedPreviewOffset();
-                const preview = await request("/items/archive-failed", {
-                  method: "POST",
-                  body: JSON.stringify(archiveBlockedPayload(true, previewOffset))
-                });
-                syncPreviewOffsetFromResponse(preview);
-                renderArchivePreviewOutput(preview);
-                setPreviewContinuation("archive", preview.next_offset);
+                await loadAndRenderPreview("archive", previewOffset);
               } catch (err) {
                 clearPreviewState();
                 throw new Error("Archive preview failed: " + String(err));
@@ -2687,10 +2731,7 @@ const html = `<!doctype html>
               let exportReplayed = 0;
               try {
                 const executionOffset = normalizedPreviewOffset();
-                const previewRes = await request("/items/retry-failed", {
-                  method: "POST",
-                  body: JSON.stringify(retryFailedPayload(true, executionOffset))
-                });
+                const previewRes = await requestPreviewByKind("retry", executionOffset);
                 syncPreviewOffsetFromResponse(previewRes);
                 const eligiblePipeline = Number(previewRes.eligible_pipeline ?? 0);
                 const eligibleExport = Number(previewRes.eligible_export ?? 0);
@@ -2770,13 +2811,7 @@ const html = `<!doctype html>
               try {
                 clearPreviewContinuation();
                 const previewOffset = normalizedPreviewOffset();
-                const preview = await request("/items/retry-failed", {
-                  method: "POST",
-                  body: JSON.stringify(retryFailedPayload(true, previewOffset))
-                });
-                syncPreviewOffsetFromResponse(preview);
-                renderRetryPreviewOutput(preview);
-                setPreviewContinuation("retry", preview.next_offset);
+                await loadAndRenderPreview("retry", previewOffset);
               } catch (err) {
                 clearPreviewState();
                 throw new Error("Retry preview failed: " + String(err));
@@ -2796,10 +2831,7 @@ const html = `<!doctype html>
               try {
                 clearPreviewState();
                 const previewOffset = normalizedPreviewOffset();
-                const preview = await request("/items/archive-failed", {
-                  method: "POST",
-                  body: JSON.stringify(archiveBlockedPayload(true, previewOffset))
-                });
+                const preview = await requestPreviewByKind("archive", previewOffset);
                 syncPreviewOffsetFromResponse(preview);
                 const eligible = Number(preview.eligible ?? 0);
                 if (!eligible) {
@@ -2854,13 +2886,7 @@ const html = `<!doctype html>
               try {
                 clearPreviewContinuation();
                 const previewOffset = normalizedPreviewOffset();
-                const preview = await request("/items/unarchive-batch", {
-                  method: "POST",
-                  body: JSON.stringify(unarchiveBatchPayload(true, previewOffset))
-                });
-                syncPreviewOffsetFromResponse(preview);
-                renderUnarchivePreviewOutput(preview);
-                setPreviewContinuation("unarchive", preview.next_offset);
+                await loadAndRenderPreview("unarchive", previewOffset);
               } catch (err) {
                 clearPreviewState();
                 throw new Error("Unarchive preview failed: " + String(err));
@@ -2880,37 +2906,12 @@ const html = `<!doctype html>
             action: async () => {
               try {
                 const nextOffset = Number(previewContinuation.next_offset);
-                if (previewContinuation.kind === "retry") {
-                  const preview = await request("/items/retry-failed", {
-                    method: "POST",
-                    body: JSON.stringify(retryFailedPayload(true, nextOffset))
-                  });
-                  syncPreviewOffsetFromResponse(preview);
-                  renderRetryPreviewOutput(preview);
-                  setPreviewContinuation("retry", preview.next_offset);
+                const continuationKind = previewContinuation.kind;
+                if (!isPreviewKind(continuationKind)) {
+                  clearPreviewContinuation();
                   return;
                 }
-                if (previewContinuation.kind === "archive") {
-                  const preview = await request("/items/archive-failed", {
-                    method: "POST",
-                    body: JSON.stringify(archiveBlockedPayload(true, nextOffset))
-                  });
-                  syncPreviewOffsetFromResponse(preview);
-                  renderArchivePreviewOutput(preview);
-                  setPreviewContinuation("archive", preview.next_offset);
-                  return;
-                }
-                if (previewContinuation.kind === "unarchive") {
-                  const preview = await request("/items/unarchive-batch", {
-                    method: "POST",
-                    body: JSON.stringify(unarchiveBatchPayload(true, nextOffset))
-                  });
-                  syncPreviewOffsetFromResponse(preview);
-                  renderUnarchivePreviewOutput(preview);
-                  setPreviewContinuation("unarchive", preview.next_offset);
-                  return;
-                }
-                clearPreviewContinuation();
+                await loadAndRenderPreview(continuationKind, nextOffset);
               } catch (err) {
                 clearPreviewContinuation();
                 throw new Error("Preview next failed: " + String(err));
@@ -2930,10 +2931,7 @@ const html = `<!doctype html>
               try {
                 clearPreviewState();
                 const previewOffset = normalizedPreviewOffset();
-                const preview = await request("/items/unarchive-batch", {
-                  method: "POST",
-                  body: JSON.stringify(unarchiveBatchPayload(true, previewOffset))
-                });
+                const preview = await requestPreviewByKind("unarchive", previewOffset);
                 syncPreviewOffsetFromResponse(preview);
                 const eligible = Number(preview.eligible ?? 0);
                 if (!eligible) {
