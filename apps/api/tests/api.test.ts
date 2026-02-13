@@ -688,6 +688,15 @@ test("items endpoint supports status and query filtering", async () => {
     const negativeOffsetPayload = negativeOffsetRes.json() as { requested_offset: number; items: Array<{ id: string }> };
     assert.equal(negativeOffsetPayload.requested_offset, 0);
     assert.equal(negativeOffsetPayload.items.length, 1);
+
+    const invalidOffsetRes = await app.inject({
+      method: "GET",
+      url: "/api/items?limit=1&offset=not-a-number",
+    });
+    assert.equal(invalidOffsetRes.statusCode, 200);
+    const invalidOffsetPayload = invalidOffsetRes.json() as { requested_offset: number; items: Array<{ id: string }> };
+    assert.equal(invalidOffsetPayload.requested_offset, 0);
+    assert.equal(invalidOffsetPayload.items.length, 1);
   } finally {
     await app.close();
   }
@@ -720,25 +729,42 @@ test("items endpoint applies retryable filter before limit truncation", async ()
       url: "/api/capture",
       payload: {
         url: "data:text/plain,short",
-        title: "Failed Item",
-        domain: "example.items.failed",
+        title: "Failed Item A",
+        domain: "example.items.failed.a",
         source_type: "web",
-        intent_text: "create failed item second",
+        intent_text: "create failed item second a",
       },
     });
     assert.equal(failedCaptureRes.statusCode, 201);
+    const failedItemAId = (failedCaptureRes.json() as { item: { id: string } }).item.id;
 
+    const failedCaptureBRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,tiny",
+        title: "Failed Item B",
+        domain: "example.items.failed.b",
+        source_type: "web",
+        intent_text: "create failed item third b",
+      },
+    });
+    assert.equal(failedCaptureBRes.statusCode, 201);
+    const failedItemBId = (failedCaptureBRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
     await app.runWorkerOnce();
     await app.runWorkerOnce();
 
     const retryableRes = await app.inject({
       method: "GET",
-      url: "/api/items?retryable=true&limit=1",
+      url: "/api/items?retryable=true&sort=created_desc&limit=1",
     });
     assert.equal(retryableRes.statusCode, 200);
-    const retryableItems = (retryableRes.json() as { items: Array<{ status: string }> }).items;
+    const retryableItems = (retryableRes.json() as { items: Array<{ id: string; status: string }> }).items;
     assert.equal(retryableItems.length, 1);
     assert.ok(retryableItems[0].status.startsWith("FAILED_"));
+    assert.equal(retryableItems[0].id, failedItemBId);
 
     const failureStepRes = await app.inject({
       method: "GET",
@@ -752,11 +778,17 @@ test("items endpoint applies retryable filter before limit truncation", async ()
 
     const retryableOffsetRes = await app.inject({
       method: "GET",
-      url: "/api/items?retryable=true&limit=1&offset=1",
+      url: "/api/items?retryable=true&sort=created_desc&limit=1&offset=1",
     });
     assert.equal(retryableOffsetRes.statusCode, 200);
-    const retryableOffsetItems = (retryableOffsetRes.json() as { items: Array<{ id: string }>; requested_offset: number }).items;
-    assert.equal(retryableOffsetItems.length, 0);
+    const retryableOffsetPayload = retryableOffsetRes.json() as {
+      items: Array<{ id: string; status: string }>;
+      requested_offset: number;
+    };
+    assert.equal(retryableOffsetPayload.requested_offset, 1);
+    assert.equal(retryableOffsetPayload.items.length, 1);
+    assert.equal(retryableOffsetPayload.items[0].id, failedItemAId);
+    assert.ok(retryableOffsetPayload.items[0].status.startsWith("FAILED_"));
   } finally {
     await app.close();
   }
