@@ -634,6 +634,11 @@ const html = `<!doctype html>
         retryPreviewOutputEl.textContent = "";
       }
 
+      function clearPreviewState() {
+        clearPreviewContinuation();
+        clearPreviewOutput();
+      }
+
       function setPreviewContinuation(kind, nextOffset) {
         if (nextOffset == null) {
           clearPreviewContinuation();
@@ -985,8 +990,7 @@ const html = `<!doctype html>
                 syncFocusChips();
                 persistControls();
                 resetPreviewOffset();
-                clearPreviewContinuation();
-                clearPreviewOutput();
+                clearPreviewState();
                 await loadItems();
               },
             };
@@ -1150,8 +1154,7 @@ const html = `<!doctype html>
             syncFocusChips();
             persistControls();
             resetPreviewOffset();
-            clearPreviewContinuation();
-            clearPreviewOutput();
+            clearPreviewState();
             await loadItems();
           },
         };
@@ -2328,8 +2331,7 @@ const html = `<!doctype html>
             id: "queue_refresh",
             label: "Refresh Queue",
             action: async () => {
-              clearPreviewContinuation();
-              clearPreviewOutput();
+              clearPreviewState();
               await loadItems();
             },
           },
@@ -2343,8 +2345,7 @@ const html = `<!doctype html>
             id: "queue_reset_controls",
             label: "Reset Controls",
             action: async () => {
-              clearPreviewContinuation();
-              clearPreviewOutput();
+              clearPreviewState();
               applyControlDefaults();
               localStorage.removeItem(controlsStorageKey);
               setAutoRefresh(false);
@@ -2363,8 +2364,7 @@ const html = `<!doctype html>
             action: async () => {
               clearListFilters();
               resetPreviewOffset();
-              clearPreviewContinuation();
-              clearPreviewOutput();
+              clearPreviewState();
               persistControls();
               await loadItems();
             },
@@ -2611,8 +2611,7 @@ const html = `<!doctype html>
             id: "queue_retry_failed",
             label: "Retry Failed Batch",
             action: async () => {
-              clearPreviewContinuation();
-              clearPreviewOutput();
+              clearPreviewState();
               let exportSuccess = 0;
               let exportFailed = 0;
               let exportReplayed = 0;
@@ -2767,8 +2766,7 @@ const html = `<!doctype html>
             label: "Archive Failed Batch",
             action: async () => {
               try {
-                clearPreviewContinuation();
-                clearPreviewOutput();
+                clearPreviewState();
                 const previewOffset = normalizedPreviewOffset();
                 const preview = await request("/items/archive-failed", {
                   method: "POST",
@@ -2944,8 +2942,7 @@ const html = `<!doctype html>
             label: "Unarchive Batch",
             action: async () => {
               try {
-                clearPreviewContinuation();
-                clearPreviewOutput();
+                clearPreviewState();
                 const previewOffset = normalizedPreviewOffset();
                 const preview = await request("/items/unarchive-batch", {
                   method: "POST",
@@ -3021,8 +3018,7 @@ const html = `<!doctype html>
           () => {
             persistControls();
             resetPreviewOffset();
-            clearPreviewContinuation();
-            clearPreviewOutput();
+            clearPreviewState();
           },
           { refresh_worker_stats: true },
         );
@@ -3032,8 +3028,7 @@ const html = `<!doctype html>
         void applyQueueControlMutation("Unarchive Mode", () => {
           persistControls();
           resetPreviewOffset();
-          clearPreviewContinuation();
-          clearPreviewOutput();
+          clearPreviewState();
         });
       });
 
@@ -3042,8 +3037,7 @@ const html = `<!doctype html>
           batchLimitInput.value = String(normalizedBatchLimit());
           persistControls();
           resetPreviewOffset();
-          clearPreviewContinuation();
-          clearPreviewOutput();
+          clearPreviewState();
         });
       });
 
@@ -3051,8 +3045,7 @@ const html = `<!doctype html>
         void applyQueueControlMutation("Preview Offset", () => {
           previewOffsetInput.value = String(normalizedPreviewOffset());
           persistControls();
-          clearPreviewContinuation();
-          clearPreviewOutput();
+          clearPreviewState();
         });
       });
 
@@ -3064,8 +3057,7 @@ const html = `<!doctype html>
       queryInput.addEventListener("input", () => {
         persistControls();
         resetPreviewOffset();
-        clearPreviewContinuation();
-        clearPreviewOutput();
+        clearPreviewState();
       });
 
       if (focusChipsEl) {
