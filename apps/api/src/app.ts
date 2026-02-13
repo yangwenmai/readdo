@@ -52,6 +52,15 @@ type JobRow = {
   request_key: string | null;
 };
 
+type ArtifactDbRow = {
+  artifact_type: string;
+  version: number;
+  created_by: string;
+  created_at: string;
+  meta_json: string;
+  payload_json: string;
+};
+
 function repoRoot(): string {
   const current = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
   return current;
@@ -309,31 +318,30 @@ async function tryRenderPngFromCard(
   }
 }
 
-function latestArtifacts(db: DatabaseSync, itemId: string): Record<string, unknown> {
-  const rows = db
+function artifactRowsByItem(db: DatabaseSync, itemId: string): ArtifactDbRow[] {
+  return db
     .prepare(
       `
-      SELECT a.artifact_type, a.version, a.created_by, a.created_at, a.meta_json, a.payload_json
-      FROM artifacts a
-      INNER JOIN (
-        SELECT artifact_type, MAX(version) AS version
-        FROM artifacts
-        WHERE item_id = ?
-        GROUP BY artifact_type
-      ) latest ON latest.artifact_type = a.artifact_type AND latest.version = a.version
-      WHERE a.item_id = ?
+      SELECT artifact_type, version, created_by, created_at, meta_json, payload_json
+      FROM artifacts
+      WHERE item_id = ?
+      ORDER BY artifact_type ASC, version DESC
       `,
     )
-    .all(itemId, itemId) as Array<{
-    artifact_type: string;
-    version: number;
-    created_by: string;
-    created_at: string;
-    meta_json: string;
-    payload_json: string;
-  }>;
+    .all(itemId) as ArtifactDbRow[];
+}
 
-  return rows.reduce<Record<string, unknown>>((acc, row) => {
+function latestArtifacts(db: DatabaseSync, itemId: string): Record<string, unknown> {
+  const rows = artifactRowsByItem(db, itemId);
+  const seen = new Set<string>();
+  const latestRows: ArtifactDbRow[] = [];
+  for (const row of rows) {
+    if (seen.has(row.artifact_type)) continue;
+    seen.add(row.artifact_type);
+    latestRows.push(row);
+  }
+
+  return latestRows.reduce<Record<string, unknown>>((acc, row) => {
     acc[row.artifact_type] = {
       artifact_type: row.artifact_type,
       version: row.version,
@@ -347,23 +355,7 @@ function latestArtifacts(db: DatabaseSync, itemId: string): Record<string, unkno
 }
 
 function allArtifactsHistory(db: DatabaseSync, itemId: string): Record<string, unknown[]> {
-  const rows = db
-    .prepare(
-      `
-      SELECT artifact_type, version, created_by, created_at, meta_json, payload_json
-      FROM artifacts
-      WHERE item_id = ?
-      ORDER BY artifact_type ASC, version DESC
-      `,
-    )
-    .all(itemId) as Array<{
-    artifact_type: string;
-    version: number;
-    created_by: string;
-    created_at: string;
-    meta_json: string;
-    payload_json: string;
-  }>;
+  const rows = artifactRowsByItem(db, itemId);
 
   return rows.reduce<Record<string, unknown[]>>((acc, row) => {
     const current = acc[row.artifact_type] ?? [];
@@ -376,6 +368,55 @@ function allArtifactsHistory(db: DatabaseSync, itemId: string): Record<string, u
       payload: JSON.parse(row.payload_json),
     });
     acc[row.artifact_type] = current;
+    return acc;
+  }, {});
+}
+
+function parseArtifactVersions(value: unknown): Record<string, number> {
+  if (typeof value !== "string" || !value.trim()) {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>;
+    const output: Record<string, number> = {};
+    for (const [k, v] of Object.entries(parsed)) {
+      const n = Number(v);
+      if (Number.isInteger(n) && n >= 1) {
+        output[k] = n;
+      }
+    }
+    return output;
+  } catch {
+    return {};
+  }
+}
+
+function selectedArtifacts(db: DatabaseSync, itemId: string, versionOverrides: Record<string, number>): Record<string, unknown> {
+  const rows = artifactRowsByItem(db, itemId);
+  const selected: Record<string, ArtifactDbRow> = {};
+  for (const row of rows) {
+    const targetVersion = versionOverrides[row.artifact_type];
+    if (selected[row.artifact_type]) {
+      continue;
+    }
+    if (targetVersion) {
+      if (row.version === targetVersion) {
+        selected[row.artifact_type] = row;
+      }
+      continue;
+    }
+    selected[row.artifact_type] = row;
+  }
+
+  return Object.values(selected).reduce<Record<string, unknown>>((acc, row) => {
+    acc[row.artifact_type] = {
+      artifact_type: row.artifact_type,
+      version: row.version,
+      created_by: row.created_by,
+      created_at: row.created_at,
+      meta: JSON.parse(row.meta_json),
+      payload: JSON.parse(row.payload_json),
+    };
     return acc;
   }, {});
 }
@@ -581,7 +622,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
   app.get("/api/items/:id", async (request, reply) => {
     const id = (request.params as { id: string }).id;
-    const includeHistory = String((request.query as Record<string, unknown>)?.include_history ?? "false") === "true";
+    const query = request.query as Record<string, unknown>;
+    const includeHistory = String(query?.include_history ?? "false") === "true";
+    const versionOverrides = parseArtifactVersions(query?.artifact_versions);
     const item = db.prepare("SELECT * FROM items WHERE id = ?").get(id) as DbItemRow | undefined;
     if (!item) {
       return reply.status(404).send(failure("NOT_FOUND", "Item not found", { item_id: id }));
@@ -589,8 +632,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
     const response = {
       item: rowToItem(item),
-      artifacts: latestArtifacts(db, id),
+      artifacts: selectedArtifacts(db, id, versionOverrides),
       failure: item.failure_json ? JSON.parse(item.failure_json) : undefined,
+      artifact_versions_selected: versionOverrides,
     };
     if (includeHistory) {
       return {
