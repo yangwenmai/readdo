@@ -43,6 +43,11 @@ const html = `<!doctype html>
       .failure-note { font-size: 12px; color: #991b1b; margin-top: 6px; }
       .file-row { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
       .file-path { flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #374151; }
+      .diff-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+      .diff-column { border: 1px solid #e5e7eb; border-radius: 6px; padding: 6px; background: #fafafa; }
+      .diff-column h4 { margin: 0 0 6px; font-size: 12px; color: #374151; }
+      .diff-column ul { margin: 0; padding-left: 16px; max-height: 160px; overflow: auto; }
+      .diff-column li { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
       @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
     </style>
   </head>
@@ -473,19 +478,49 @@ const html = `<!doctype html>
           <div class="editor-row">
             <label for="versionTypeSelect">Artifact:</label>
             <select id="versionTypeSelect"></select>
-            <label for="versionSelect">Version:</label>
-            <select id="versionSelect"></select>
-            <button id="loadVersionBtn" type="button">Load Selected Version</button>
+            <label for="baseVersionSelect">Base:</label>
+            <select id="baseVersionSelect"></select>
+            <label for="targetVersionSelect">Target:</label>
+            <select id="targetVersionSelect"></select>
+            <button id="loadVersionBtn" type="button">Compare Versions</button>
           </div>
-          <div class="diff" id="versionDiffSummary">Select a version to compare with latest.</div>
-          <pre id="versionArtifactPreview"></pre>
+          <div class="diff" id="versionDiffSummary">Select base/target versions to compare.</div>
+          <div class="diff-grid">
+            <div class="diff-column">
+              <h4>Changed Paths</h4>
+              <ul id="changedPathsList"><li>—</li></ul>
+            </div>
+            <div class="diff-column">
+              <h4>Added Paths</h4>
+              <ul id="addedPathsList"><li>—</li></ul>
+            </div>
+            <div class="diff-column">
+              <h4>Removed Paths</h4>
+              <ul id="removedPathsList"><li>—</li></ul>
+            </div>
+          </div>
+          <div class="editor-row">
+            <div style="flex:1;">
+              <div class="muted">Base payload</div>
+              <pre id="baseArtifactPreview"></pre>
+            </div>
+            <div style="flex:1;">
+              <div class="muted">Target payload</div>
+              <pre id="targetArtifactPreview"></pre>
+            </div>
+          </div>
         \`;
 
         const typeSelect = card.querySelector("#versionTypeSelect");
-        const versionSelect = card.querySelector("#versionSelect");
+        const baseVersionSelect = card.querySelector("#baseVersionSelect");
+        const targetVersionSelect = card.querySelector("#targetVersionSelect");
         const loadBtn = card.querySelector("#loadVersionBtn");
-        const previewEl = card.querySelector("#versionArtifactPreview");
+        const basePreviewEl = card.querySelector("#baseArtifactPreview");
+        const targetPreviewEl = card.querySelector("#targetArtifactPreview");
         const diffEl = card.querySelector("#versionDiffSummary");
+        const changedListEl = card.querySelector("#changedPathsList");
+        const addedListEl = card.querySelector("#addedPathsList");
+        const removedListEl = card.querySelector("#removedPathsList");
 
         for (const type of artifactTypes) {
           const opt = document.createElement("option");
@@ -494,20 +529,47 @@ const html = `<!doctype html>
           typeSelect.appendChild(opt);
         }
 
+        function renderPathList(targetEl, paths) {
+          targetEl.innerHTML = "";
+          if (!paths.length) {
+            targetEl.innerHTML = "<li>—</li>";
+            return;
+          }
+          for (const path of paths.slice(0, 20)) {
+            const li = document.createElement("li");
+            li.textContent = path;
+            targetEl.appendChild(li);
+          }
+          if (paths.length > 20) {
+            const li = document.createElement("li");
+            li.textContent = "... +" + (paths.length - 20) + " more";
+            targetEl.appendChild(li);
+          }
+        }
+
         function fillVersionOptions() {
           const selectedType = typeSelect.value;
-          versionSelect.innerHTML = "";
+          baseVersionSelect.innerHTML = "";
+          targetVersionSelect.innerHTML = "";
           const versions = historyMap[selectedType] || [];
           for (const row of versions) {
             const opt = document.createElement("option");
             opt.value = String(row.version);
             opt.textContent = "v" + row.version + " · " + row.created_by;
-            versionSelect.appendChild(opt);
+            baseVersionSelect.appendChild(opt.cloneNode(true));
+            targetVersionSelect.appendChild(opt);
           }
           if (versions.length > 0) {
-            previewEl.textContent = JSON.stringify(versions[0], null, 2);
+            targetVersionSelect.value = String(versions[0].version);
+            baseVersionSelect.value = String(versions[Math.min(1, versions.length - 1)].version);
+            basePreviewEl.textContent = "{}";
+            targetPreviewEl.textContent = "{}";
+            renderPathList(changedListEl, []);
+            renderPathList(addedListEl, []);
+            renderPathList(removedListEl, []);
           } else {
-            previewEl.textContent = "{}";
+            basePreviewEl.textContent = "{}";
+            targetPreviewEl.textContent = "{}";
           }
         }
 
@@ -516,23 +578,26 @@ const html = `<!doctype html>
 
         loadBtn.addEventListener("click", async () => {
           const type = typeSelect.value;
-          const version = Number(versionSelect.value);
-          if (!type || !version) return;
-          const query = encodeURIComponent(JSON.stringify({ [type]: version }));
+          const baseVersion = Number(baseVersionSelect.value);
+          const targetVersion = Number(targetVersionSelect.value);
+          if (!type || !baseVersion || !targetVersion) return;
           try {
-            const pinned = await request("/items/" + detail.item.id + "?artifact_versions=" + query);
-            const selectedArtifact = pinned.artifacts?.[type] ?? null;
-            previewEl.textContent = JSON.stringify(selectedArtifact, null, 2);
+            const baseQuery = encodeURIComponent(JSON.stringify({ [type]: baseVersion }));
+            const targetQuery = encodeURIComponent(JSON.stringify({ [type]: targetVersion }));
+            const [baseDetail, targetDetail] = await Promise.all([
+              request("/items/" + detail.item.id + "?artifact_versions=" + baseQuery),
+              request("/items/" + detail.item.id + "?artifact_versions=" + targetQuery),
+            ]);
+            const baseArtifact = baseDetail.artifacts?.[type] ?? null;
+            const targetArtifact = targetDetail.artifacts?.[type] ?? null;
+            basePreviewEl.textContent = JSON.stringify(baseArtifact, null, 2);
+            targetPreviewEl.textContent = JSON.stringify(targetArtifact, null, 2);
 
-            const latestArtifact = detail.artifacts?.[type] ?? null;
-            const latestVersion = Number(latestArtifact?.version ?? 0);
-            const selectedVersion = Number(selectedArtifact?.version ?? 0);
-            if (!latestVersion || !selectedVersion) {
-              diffEl.textContent = "Diff unavailable: invalid version metadata.";
-              return;
-            }
-            if (latestVersion === selectedVersion) {
-              diffEl.textContent = "No payload difference between selected and latest version.";
+            if (baseVersion === targetVersion) {
+              diffEl.textContent = "No payload difference: base and target versions are identical.";
+              renderPathList(changedListEl, []);
+              renderPathList(addedListEl, []);
+              renderPathList(removedListEl, []);
             } else {
               const compare = await request(
                 "/items/" +
@@ -540,23 +605,30 @@ const html = `<!doctype html>
                   "/artifacts/" +
                   type +
                   "/compare?base_version=" +
-                  selectedVersion +
+                  baseVersion +
                   "&target_version=" +
-                  latestVersion,
+                  targetVersion,
               );
               const changedPaths = compare?.summary?.changed_paths ?? [];
               const addedPaths = compare?.summary?.added_paths ?? [];
               const removedPaths = compare?.summary?.removed_paths ?? [];
-              const pathPreview = changedPaths.concat(addedPaths, removedPaths).slice(0, 8);
+              renderPathList(changedListEl, changedPaths);
+              renderPathList(addedListEl, addedPaths);
+              renderPathList(removedListEl, removedPaths);
               diffEl.textContent =
-                "Payload differs from latest.\\n" +
+                "Diff summary for v" + baseVersion + " -> v" + targetVersion + "\\n" +
                 "changed_lines=" + (compare?.summary?.changed_line_count ?? "N/A") +
                 " / compared_lines=" + (compare?.summary?.compared_line_count ?? "N/A") + "\\n" +
-                "latest_version=v" + latestVersion + ", selected_version=v" + selectedVersion + "\\n" +
-                "changed_paths_preview=" + JSON.stringify(pathPreview);
+                "changed_paths=" + changedPaths.length +
+                ", added_paths=" + addedPaths.length +
+                ", removed_paths=" + removedPaths.length;
             }
           } catch (err) {
-            previewEl.textContent = "Load failed: " + String(err);
+            basePreviewEl.textContent = "Load failed: " + String(err);
+            targetPreviewEl.textContent = "Load failed: " + String(err);
+            renderPathList(changedListEl, []);
+            renderPathList(addedListEl, []);
+            renderPathList(removedListEl, []);
             diffEl.textContent = "Diff unavailable due to load failure.";
           }
         });
