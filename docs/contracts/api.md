@@ -822,6 +822,7 @@ Headers:
     "artifact_type": "export",
     "version": 1,
     "payload": {
+      "card_version": 1,
       "files": [
         { "type": "png", "path": "exports/itm_.../card_v1.png" },
         { "type": "md", "path": "exports/itm_.../card_v1.md" },

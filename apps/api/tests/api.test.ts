@@ -1300,6 +1300,10 @@ test("export supports explicit card_version and validates version availability",
       payload: { export_key: "exp-card-version-fallback", formats: ["md"] },
     });
     assert.equal(fallbackExportRes.statusCode, 200);
+    const fallbackExportPayload = fallbackExportRes.json() as {
+      export: { payload: { card_version?: number } };
+    };
+    assert.equal(fallbackExportPayload.export.payload.card_version, cardV1Version);
 
     const explicitCorruptedVersionRes = await app.inject({
       method: "POST",
@@ -1317,6 +1321,10 @@ test("export supports explicit card_version and validates version availability",
       payload: { export_key: "exp-card-version-v1", formats: ["md"], card_version: cardV1Version },
     });
     assert.equal(explicitValidVersionRes.statusCode, 200);
+    const explicitValidVersionPayload = explicitValidVersionRes.json() as {
+      export: { payload: { card_version?: number } };
+    };
+    assert.equal(explicitValidVersionPayload.export.payload.card_version, cardV1Version);
 
     const missingVersionRes = await app.inject({
       method: "POST",

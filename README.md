@@ -160,6 +160,8 @@ MVP export targets:
 See `docs/contracts/schemas/card.schema.json` for `render_spec`.
 
 > Export supports `formats: ["png","md","caption"]`.  
+> 非法 `formats`（如 `pdf`）会直接返回 `400 VALIDATION_ERROR`，且不会把 item 写成 `FAILED_EXPORT`。  
+> 可选 `card_version`（整数 >=1）可指定使用某一版本 card 导出；不存在返回 404，损坏版本返回 `DATA_CORRUPTION`。
 > If png rendering fails and only png is requested, item will enter `FAILED_EXPORT`.
 > Web Detail 的 Export Records 支持 `Copy Path` 与 `Open`（通过 `/exports/...` 直接预览文件）。
 > 失败重试遵循上限策略（默认 3 次），达到上限后会返回 `RETRY_LIMIT_REACHED`。

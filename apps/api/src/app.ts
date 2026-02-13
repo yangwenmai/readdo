@@ -1843,6 +1843,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     }
 
     let cardPayload: Record<string, unknown> | undefined;
+    let usedCardVersion: number | undefined;
     if (requestedCardVersion) {
       const requestedCardRow = artifactVersionRow(db, id, "card", requestedCardVersion);
       if (!requestedCardRow) {
@@ -1865,13 +1866,15 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
         );
       }
       cardPayload = parsedRequestedCard.payload;
+      usedCardVersion = parsedRequestedCard.version;
     } else {
       const artifacts = latestArtifacts(db, id);
-      const cardArtifact = artifacts.card as { payload?: Record<string, unknown> } | undefined;
+      const cardArtifact = artifacts.card as { payload?: Record<string, unknown>; version?: number } | undefined;
       if (!cardArtifact?.payload) {
         return reply.status(409).send(failure("STATE_CONFLICT", "Card artifact is missing"));
       }
       cardPayload = cardArtifact.payload;
+      usedCardVersion = Number.isInteger(cardArtifact.version) ? cardArtifact.version : undefined;
     }
 
     const exportDir = resolve(root, "exports", id);
@@ -1972,6 +1975,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const exportPayload = {
       files,
       export_key: exportKey,
+      ...(usedCardVersion ? { card_version: usedCardVersion } : {}),
       renderer: {
         name: files.some((x) => x.type === "png") ? "playwright-html-v1" : "markdown-caption-fallback",
         version: "0.1.0",

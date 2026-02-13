@@ -32,6 +32,11 @@
         "minLength": 0,
         "maxLength": 128
       },
+      "card_version": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Selected card artifact version used for this export."
+      },
       "renderer": {
         "type": "object",
         "additionalProperties": false,
