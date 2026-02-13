@@ -669,6 +669,17 @@ test("items endpoint supports status and query filtering", async () => {
     assert.ok(sourceTypeItems.length >= 1);
     assert.ok(sourceTypeItems.every((x) => x.source_type === "youtube"));
 
+    const multiSourceTypeRes = await app.inject({
+      method: "GET",
+      url: "/api/items?source_type= YouTube , WEB ",
+    });
+    assert.equal(multiSourceTypeRes.statusCode, 200);
+    const multiSourceTypeItems = (multiSourceTypeRes.json() as { items: Array<{ source_type: string }> }).items;
+    assert.ok(multiSourceTypeItems.length >= 3);
+    assert.ok(multiSourceTypeItems.some((x) => x.source_type === "youtube"));
+    assert.ok(multiSourceTypeItems.some((x) => x.source_type === "web"));
+    assert.ok(multiSourceTypeItems.every((x) => ["youtube", "web"].includes(x.source_type)));
+
     const limitOneRes = await app.inject({
       method: "GET",
       url: "/api/items?limit=1",
