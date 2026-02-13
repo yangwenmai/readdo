@@ -157,6 +157,58 @@ test("capture endpoint replays idempotent request with same key", async () => {
   }
 });
 
+test("capture endpoint supports idempotency via capture_id body field", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-capture-body-idempotent-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const firstCaptureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        capture_id: "cap-body-idempotent-1",
+        url: "data:text/plain,This%20capture%20uses%20capture_id%20body%20for%20idempotency%20validation.",
+        title: "Capture Body Idempotency",
+        domain: "example.capture.body.idempotent",
+        source_type: "web",
+        intent_text: "validate capture_id idempotency",
+      },
+    });
+    assert.equal(firstCaptureRes.statusCode, 201);
+    const firstPayload = firstCaptureRes.json() as {
+      item: { id: string };
+      idempotent_replay: boolean;
+    };
+    assert.equal(firstPayload.idempotent_replay, false);
+
+    const replayCaptureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        capture_id: "cap-body-idempotent-1",
+        url: "data:text/plain,This%20second%20capture%20should%20replay%20the%20same%20item.",
+        title: "Capture Body Replay",
+        domain: "example.capture.body.idempotent.replay",
+        source_type: "web",
+        intent_text: "replay by capture_id",
+      },
+    });
+    assert.equal(replayCaptureRes.statusCode, 201);
+    const replayPayload = replayCaptureRes.json() as {
+      item: { id: string };
+      idempotent_replay: boolean;
+    };
+    assert.equal(replayPayload.idempotent_replay, true);
+    assert.equal(replayPayload.item.id, firstPayload.item.id);
+  } finally {
+    await app.close();
+  }
+});
+
 test("export idempotency replays old export_key beyond recent window", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-idempotent-"));
   const app = await createApp({
