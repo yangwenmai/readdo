@@ -501,6 +501,57 @@ test("items endpoint supports status and query filtering", async () => {
   }
 });
 
+test("items endpoint applies retryable filter before limit truncation", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-list-retryable-limit-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const readyCaptureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20is%20a%20long%20content%20that%20will%20become%20READY%20after%20worker%20processing%20for%20retryable%20limit%20test.",
+        title: "Ready Item",
+        domain: "example.items.ready",
+        source_type: "web",
+        intent_text: "create ready item first",
+      },
+    });
+    assert.equal(readyCaptureRes.statusCode, 201);
+
+    const failedCaptureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,short",
+        title: "Failed Item",
+        domain: "example.items.failed",
+        source_type: "web",
+        intent_text: "create failed item second",
+      },
+    });
+    assert.equal(failedCaptureRes.statusCode, 201);
+
+    await app.runWorkerOnce();
+    await app.runWorkerOnce();
+
+    const retryableRes = await app.inject({
+      method: "GET",
+      url: "/api/items?retryable=true&limit=1",
+    });
+    assert.equal(retryableRes.statusCode, 200);
+    const retryableItems = (retryableRes.json() as { items: Array<{ status: string }> }).items;
+    assert.equal(retryableItems.length, 1);
+    assert.ok(retryableItems[0].status.startsWith("FAILED_"));
+  } finally {
+    await app.close();
+  }
+});
+
 test("user edit creates new artifact version and exposes history", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-edit-"));
   const app = await createApp({

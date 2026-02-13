@@ -1143,6 +1143,15 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       const token = `%${q}%`;
       params.push(token, token, token, token);
     }
+    if (failureStepFilter === "extract") {
+      whereParts.push("status = 'FAILED_EXTRACTION'");
+    } else if (failureStepFilter === "pipeline") {
+      whereParts.push("status = 'FAILED_AI'");
+    } else if (failureStepFilter === "export") {
+      whereParts.push("status = 'FAILED_EXPORT'");
+    } else if (retryableFilter !== null) {
+      whereParts.push("status IN ('FAILED_EXTRACTION', 'FAILED_AI', 'FAILED_EXPORT')");
+    }
     const whereClause = whereParts.length ? `WHERE ${whereParts.join(" AND ")}` : "";
 
     const orderBy =
@@ -1173,41 +1182,54 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
             created_at DESC
           `;
 
-    const rows = db
-      .prepare(
-        `
-          SELECT id, url, title, domain, source_type, intent_text, status, priority, match_score, failure_json, created_at, updated_at
-          FROM items
-          ${whereClause}
-          ORDER BY ${orderBy}
-          LIMIT ?
-        `,
-      )
-      .all(...params, limit) as DbItemRow[];
+    const selectSql = `
+      SELECT id, url, title, domain, source_type, intent_text, status, priority, match_score, failure_json, created_at, updated_at
+      FROM items
+      ${whereClause}
+      ORDER BY ${orderBy}
+      LIMIT ?
+      OFFSET ?
+    `;
+
+    const rowMatchesRetryable = (row: DbItemRow): boolean => {
+      if (retryableFilter === null) return true;
+      if (!String(row.status || "").startsWith("FAILED_")) return false;
+      if (!row.failure_json) return retryableFilter;
+      try {
+        const payload = JSON.parse(row.failure_json) as { retryable?: boolean };
+        const isRetryable = payload.retryable !== false;
+        return retryableFilter ? isRetryable : !isRetryable;
+      } catch {
+        return retryableFilter;
+      }
+    };
+
+    const rows: DbItemRow[] = [];
+    if (retryableFilter === null) {
+      const selected = db.prepare(selectSql).all(...params, limit, 0) as DbItemRow[];
+      rows.push(...selected);
+    } else {
+      const batchSize = Math.max(limit, 100);
+      let offset = 0;
+      while (rows.length < limit) {
+        const chunk = db.prepare(selectSql).all(...params, batchSize, offset) as DbItemRow[];
+        if (!chunk.length) break;
+        for (const row of chunk) {
+          if (rowMatchesRetryable(row)) {
+            rows.push(row);
+            if (rows.length >= limit) break;
+          }
+        }
+        if (chunk.length < batchSize) break;
+        offset += chunk.length;
+        if (offset >= 5000) break;
+      }
+    }
 
     const mappedItems = rows.map((row) => rowToItem(row));
-    const filteredItems =
-      retryableFilter === null
-        ? mappedItems
-        : mappedItems.filter((item) => {
-            const status = String((item as { status?: unknown }).status ?? "");
-            if (!status.startsWith("FAILED_")) return false;
-            const failure = (item as { failure?: unknown }).failure as { retryable?: boolean } | undefined;
-            const isRetryable = failure?.retryable !== false;
-            return retryableFilter ? isRetryable : !isRetryable;
-          });
-    const filteredByFailureStep =
-      failureStepFilter === null
-        ? filteredItems
-        : filteredItems.filter((item) => {
-            const status = String((item as { status?: unknown }).status ?? "");
-            if (!status.startsWith("FAILED_")) return false;
-            const failure = (item as { failure?: unknown }).failure as { failed_step?: string } | undefined;
-            return String(failure?.failed_step ?? "").toLowerCase() === failureStepFilter;
-          });
 
     return {
-      items: filteredByFailureStep,
+      items: mappedItems,
       next_cursor: null,
     };
   });
