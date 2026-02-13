@@ -2224,18 +2224,7 @@ const html = `<!doctype html>
           .sort((a, b) => Number(b.match_score ?? -1) - Number(a.match_score ?? -1))[0];
       }
 
-      function topAhaItem(items) {
-        if (!Array.isArray(items) || !items.length) return null;
-        return (
-          [...items].sort((a, b) => {
-            const ahaDelta = ahaIndexMetaForItem(b).value - ahaIndexMetaForItem(a).value;
-            if (ahaDelta !== 0) return ahaDelta;
-            return Number(b.match_score ?? -1) - Number(a.match_score ?? -1);
-          })[0] || null
-        );
-      }
-
-      function topAhaCandidates(items, limit = 3) {
+      function sortedAhaItems(items) {
         if (!Array.isArray(items) || !items.length) return [];
         return [...items]
           .filter((item) => item.status !== "ARCHIVED")
@@ -2243,8 +2232,36 @@ const html = `<!doctype html>
             const ahaDelta = ahaIndexMetaForItem(b).value - ahaIndexMetaForItem(a).value;
             if (ahaDelta !== 0) return ahaDelta;
             return Number(b.match_score ?? -1) - Number(a.match_score ?? -1);
-          })
-          .slice(0, Math.max(0, Number(limit) || 0));
+          });
+      }
+
+      function topAhaItem(items) {
+        return sortedAhaItems(items)[0] || null;
+      }
+
+      function topAhaCandidates(items, limit = 3) {
+        return sortedAhaItems(items).slice(0, Math.max(0, Number(limit) || 0));
+      }
+
+      function ahaRankForItem(item, poolItems = null) {
+        if (!item) return null;
+        const source =
+          Array.isArray(poolItems) && poolItems.length
+            ? poolItems
+            : (() => {
+                const visibleItems = visibleQueueItems();
+                return visibleItems.length ? visibleItems : allItems;
+              })();
+        const ranked = sortedAhaItems(source);
+        if (!ranked.length) return null;
+        const index = ranked.findIndex((candidate) => String(candidate?.id) === String(item?.id));
+        if (index < 0) return null;
+        const meta = ahaIndexMetaForItem(item);
+        return {
+          rank: index + 1,
+          total: ranked.length,
+          value: meta.value,
+        };
       }
 
       function ahaCandidateChipLabel(item, rank) {
@@ -5402,13 +5419,17 @@ const html = `<!doctype html>
           return;
         }
         const primary = primaryActionForItem(item);
+        const ahaRank = ahaRankForItem(item);
         const title = truncateSelectionLabel(item.title || item.url || "Untitled");
         const actionLabel = primary?.label || "No action";
+        const ahaLabel = ahaRank ? "Aha #" + ahaRank.rank + "/" + ahaRank.total + " (" + ahaRank.value + ")" : "Aha —";
         selectionHintEl.textContent =
           "Selected: #" +
           String(item.id ?? "—") +
           " " +
           String(item.status || "UNKNOWN") +
+          " · " +
+          ahaLabel +
           " · " +
           actionLabel +
           " · " +
