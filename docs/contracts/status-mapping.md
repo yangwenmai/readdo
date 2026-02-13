@@ -61,6 +61,7 @@ Last Updated: 2026-02-13
 - `Archive Blocked`（批量）：调用 `/items/archive-failed`，默认归档 `retryable=false` 的失败项（可带 `failure_step`）。
   - 建议先 `dry_run=true` 预览，再执行真实归档，避免误操作。
 - `Preview Archive`（dry-run）：调用 `/items/archive-failed` 且 `dry_run=true`，建议展示 `eligible_item_ids` 供用户核对。
+  - 可选增加 `Archive Scope`（`blocked/retryable/all`）下拉，对应 `retryable=false/true/null`。
 
 ### 1.2 Shipped
 包含状态：

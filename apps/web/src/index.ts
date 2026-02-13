@@ -88,6 +88,11 @@ const html = `<!doctype html>
           <option value="pipeline">pipeline</option>
           <option value="export">export</option>
         </select>
+        <select id="archiveRetryableFilter">
+          <option value="false">Archive Scope: blocked</option>
+          <option value="true">Archive Scope: retryable</option>
+          <option value="all">Archive Scope: all failed</option>
+        </select>
         <button class="primary" id="refreshBtn">Refresh</button>
       </div>
     </header>
@@ -114,6 +119,7 @@ const html = `<!doctype html>
       const statusFilter = document.getElementById("statusFilter");
       const retryableFilter = document.getElementById("retryableFilter");
       const failureStepFilter = document.getElementById("failureStepFilter");
+      const archiveRetryableFilter = document.getElementById("archiveRetryableFilter");
       const workerStatsEl = document.getElementById("workerStats");
       const runWorkerBtn = document.getElementById("runWorkerBtn");
       const previewRetryBtn = document.getElementById("previewRetryBtn");
@@ -361,10 +367,14 @@ const html = `<!doctype html>
             retryable +
             " | Retry blocked: " +
             blocked;
-          archiveBlockedBtn.textContent = blocked > 0 ? "Archive Blocked (" + blocked + ")" : "Archive Blocked";
+          if (archiveRetryableFilter.value === "false") {
+            archiveBlockedBtn.textContent = blocked > 0 ? "Archive Failed (blocked " + blocked + ")" : "Archive Failed";
+          } else {
+            archiveBlockedBtn.textContent = "Archive Failed";
+          }
         } catch {
           workerStatsEl.textContent = "Queue: unavailable";
-          archiveBlockedBtn.textContent = "Archive Blocked";
+          archiveBlockedBtn.textContent = "Archive Failed";
         }
       }
 
@@ -962,7 +972,9 @@ const html = `<!doctype html>
       }
 
       function archiveBlockedPayload(dryRun) {
-        const payload = { limit: 100, dry_run: dryRun, retryable: false };
+        const retryableValue = archiveRetryableFilter.value;
+        const retryableFilter = retryableValue === "true" ? true : retryableValue === "false" ? false : null;
+        const payload = { limit: 100, dry_run: dryRun, retryable: retryableFilter };
         if (failureStepFilter.value) {
           return { ...payload, failure_step: failureStepFilter.value };
         }
@@ -979,6 +991,8 @@ const html = `<!doctype html>
           errorEl.textContent =
             "Archive preview: scanned=" +
             (preview.scanned ?? 0) +
+            ", retryable=" +
+            (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
             ", filter=" +
             (preview.failure_step_filter || "all") +
             ", eligible=" +
@@ -990,6 +1004,7 @@ const html = `<!doctype html>
           retryPreviewOutputEl.textContent = JSON.stringify(
             {
               preview_type: "archive_blocked",
+              retryable_filter: preview.retryable_filter == null ? "all" : preview.retryable_filter,
               filter: preview.failure_step_filter || "all",
               eligible_item_ids: preview.eligible_item_ids || [],
               skipped_retryable_mismatch: preview.skipped_retryable_mismatch || 0,
@@ -1105,13 +1120,14 @@ const html = `<!doctype html>
           });
           const eligible = Number(preview.eligible ?? 0);
           if (!eligible) {
-            errorEl.textContent = "No blocked failed items to archive.";
+            errorEl.textContent = "No failed items matching archive filter.";
             return;
           }
           retryPreviewOutputEl.style.display = "block";
           retryPreviewOutputEl.textContent = JSON.stringify(
             {
               preview_type: "archive_blocked",
+              retryable_filter: preview.retryable_filter == null ? "all" : preview.retryable_filter,
               filter: preview.failure_step_filter || "all",
               eligible_item_ids: preview.eligible_item_ids || [],
               skipped_retryable_mismatch: preview.skipped_retryable_mismatch || 0,
@@ -1122,7 +1138,10 @@ const html = `<!doctype html>
           const confirmed = confirm(
             "Archive " +
               eligible +
-              " blocked failed items" +
+              " failed items" +
+              " [retryable=" +
+              (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
+              "]" +
               (preview.failure_step_filter ? " (failure_step=" + preview.failure_step_filter + ")" : "") +
               "?",
           );
@@ -1146,6 +1165,10 @@ const html = `<!doctype html>
           archiveBlockedBtn.disabled = false;
           await loadItems();
         }
+      });
+
+      archiveRetryableFilter.addEventListener("change", async () => {
+        await loadWorkerStats();
       });
 
       queryInput.addEventListener("keydown", async (event) => {

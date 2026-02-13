@@ -53,7 +53,8 @@ Web Inbox 支持 `Retryable` 下拉筛选，可快速查看可重试失败项与
 Web Inbox 还支持 `Failure Step` 下拉筛选（extract/pipeline/export），用于聚焦不同失败阶段。
 点击 `Preview Retry` / `Retry Failed` 时会带上当前 Failure Step 过滤条件。
 点击 `Preview Archive` 可预览将被批量归档的 blocked 失败项 ID 列表。
-点击 `Archive Blocked` 可批量归档已达上限的失败项（先预览再确认执行）。
+`Archive Scope` 支持 blocked / retryable / all failed 三种归档范围。
+点击 `Archive Failed` 可批量归档匹配范围的失败项（先预览再确认执行）。
 
 ### 4) Load Chrome Extension
 
