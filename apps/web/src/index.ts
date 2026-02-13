@@ -2581,6 +2581,74 @@ const html = `<!doctype html>
         );
       }
 
+      function renderRetryNoEligibleOutput(preview) {
+        errorEl.textContent =
+          "No retryable failed items matching current filters. " +
+          scanWindowSummary(preview) +
+          ", " +
+          failureFilterSummary(preview) +
+          ".";
+      }
+
+      function renderRetryBatchDoneOutput(batchRes, exportSummary) {
+        errorEl.textContent =
+          "Batch retry done. queued=" +
+          (batchRes.queued ?? 0) +
+          ", " +
+          scanWindowSummary(batchRes) +
+          ", " +
+          failureFilterSummary(batchRes) +
+          ", " +
+          scanContinuationSummary(batchRes) +
+          ", skipped_non_retryable=" +
+          (batchRes.skipped_non_retryable ?? 0) +
+          ", eligible_export=" +
+          (batchRes.eligible_export ?? 0) +
+          ", export_success=" +
+          (exportSummary.success ?? 0) +
+          ", export_replayed=" +
+          (exportSummary.replayed ?? 0) +
+          ", export_failed=" +
+          (exportSummary.failed ?? 0) +
+          ".";
+      }
+
+      function renderArchiveBatchDoneOutput(result) {
+        errorEl.textContent =
+          "Archive blocked done. archived=" +
+          (result.archived ?? 0) +
+          ", " +
+          scanWindowSummary(result) +
+          ", " +
+          qFilterSummary(result) +
+          ", retryable=" +
+          (result.retryable_filter == null ? "all" : String(result.retryable_filter)) +
+          ", filter=" +
+          (result.failure_step_filter || "all") +
+          ", " +
+          scanContinuationSummary(result) +
+          ", skipped_retryable_mismatch=" +
+          (result.skipped_retryable_mismatch ?? 0) +
+          ".";
+      }
+
+      function renderUnarchiveBatchDoneOutput(result) {
+        errorEl.textContent =
+          "Unarchive done. unarchived=" +
+          (result.unarchived ?? 0) +
+          ", " +
+          scanWindowSummary(result) +
+          ", mode=" +
+          (result.regenerate ? "regenerate" : "smart") +
+          ", " +
+          qFilterSummary(result) +
+          ", " +
+          scanContinuationSummary(result) +
+          ", queued_jobs_created=" +
+          (result.queued_jobs_created ?? 0) +
+          ".";
+      }
+
       previewArchiveBtn.addEventListener("click", async () => {
         await runActionWithFeedback(
           {
@@ -2627,12 +2695,7 @@ const html = `<!doctype html>
                 const eligiblePipeline = Number(previewRes.eligible_pipeline ?? 0);
                 const eligibleExport = Number(previewRes.eligible_export ?? 0);
                 if (eligiblePipeline <= 0 && eligibleExport <= 0) {
-                  errorEl.textContent =
-                    "No retryable failed items matching current filters. " +
-                    scanWindowSummary(previewRes) +
-                    ", " +
-                    failureFilterSummary(previewRes) +
-                    ".";
+                  renderRetryNoEligibleOutput(previewRes);
                   return;
                 }
                 const confirmed = confirm(
@@ -2678,26 +2741,11 @@ const html = `<!doctype html>
                     exportFailed += 1;
                   }
                 }
-                errorEl.textContent =
-                  "Batch retry done. queued=" +
-                  (batchRes.queued ?? 0) +
-                  ", " +
-                  scanWindowSummary(batchRes) +
-                  ", " +
-                  failureFilterSummary(batchRes) +
-                  ", " +
-                  scanContinuationSummary(batchRes) +
-                  ", skipped_non_retryable=" +
-                  (batchRes.skipped_non_retryable ?? 0) +
-                  ", eligible_export=" +
-                  (batchRes.eligible_export ?? 0) +
-                  ", export_success=" +
-                  exportSuccess +
-                  ", export_replayed=" +
-                  exportReplayed +
-                  ", export_failed=" +
-                  exportFailed +
-                  ".";
+                renderRetryBatchDoneOutput(batchRes, {
+                  success: exportSuccess,
+                  replayed: exportReplayed,
+                  failed: exportFailed,
+                });
               } catch (err) {
                 throw new Error("Retry failed batch action failed: " + String(err));
               }
@@ -2781,22 +2829,7 @@ const html = `<!doctype html>
                   body: JSON.stringify(archiveBlockedPayload(false, executeOffset))
                 });
                 syncPreviewOffsetFromResponse(result);
-                errorEl.textContent =
-                  "Archive blocked done. archived=" +
-                  (result.archived ?? 0) +
-                  ", " +
-                  scanWindowSummary(result) +
-                  ", " +
-                  qFilterSummary(result) +
-                  ", retryable=" +
-                  (result.retryable_filter == null ? "all" : String(result.retryable_filter)) +
-                  ", filter=" +
-                  (result.failure_step_filter || "all") +
-                  ", " +
-                  scanContinuationSummary(result) +
-                  ", skipped_retryable_mismatch=" +
-                  (result.skipped_retryable_mismatch ?? 0) +
-                  ".";
+                renderArchiveBatchDoneOutput(result);
               } catch (err) {
                 throw new Error("Archive blocked failed: " + String(err));
               }
@@ -2928,20 +2961,7 @@ const html = `<!doctype html>
                   body: JSON.stringify(unarchiveBatchPayload(false, executeOffset))
                 });
                 syncPreviewOffsetFromResponse(result);
-                errorEl.textContent =
-                  "Unarchive done. unarchived=" +
-                  (result.unarchived ?? 0) +
-                  ", " +
-                  scanWindowSummary(result) +
-                  ", mode=" +
-                  (result.regenerate ? "regenerate" : "smart") +
-                  ", " +
-                  qFilterSummary(result) +
-                  ", " +
-                  scanContinuationSummary(result) +
-                  ", queued_jobs_created=" +
-                  (result.queued_jobs_created ?? 0) +
-                  ".";
+                renderUnarchiveBatchDoneOutput(result);
               } catch (err) {
                 throw new Error("Unarchive batch failed: " + String(err));
               }
