@@ -67,6 +67,11 @@ type ProcessJobOptions = {
   force_regenerate?: boolean;
 };
 
+type ExtractionArtifactPayload = {
+  normalized_text: string;
+  content_meta: Record<string, unknown>;
+};
+
 type ArtifactDbRow = {
   artifact_type: string;
   version: number;
@@ -155,6 +160,31 @@ function plainTextFromHtml(html: string): string {
 
 function isReadyFromArtifacts(artifacts: Record<string, unknown>): boolean {
   return Boolean(artifacts.summary && artifacts.score && artifacts.todos && artifacts.card);
+}
+
+function parseReusableExtractionPayload(payload: unknown): ExtractionArtifactPayload | undefined {
+  if (!isObjectRecord(payload)) {
+    return undefined;
+  }
+  const normalizedTextRaw = typeof payload.normalized_text === "string" ? normalizeText(payload.normalized_text) : "";
+  if (!normalizedTextRaw) {
+    return undefined;
+  }
+  const normalizedText = normalizedTextRaw.slice(0, 20000);
+  const contentMeta = isObjectRecord(payload.content_meta) ? payload.content_meta : extractContentMeta(normalizedText);
+  return {
+    normalized_text: normalizedText,
+    content_meta: contentMeta,
+  };
+}
+
+function latestReusableExtractionPayload(db: DatabaseSync, itemId: string): ExtractionArtifactPayload | undefined {
+  const artifacts = latestArtifacts(db, itemId);
+  const extractionArtifact = artifacts.extraction;
+  if (!isObjectRecord(extractionArtifact)) {
+    return undefined;
+  }
+  return parseReusableExtractionPayload(extractionArtifact.payload);
 }
 
 function openDatabase(dbPath: string): DatabaseSync {
@@ -2309,7 +2339,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const profile = jobOptions?.template_profile ?? defaultProfile;
 
     try {
-      const extraction = await extractFromUrl(item.url);
+      const cachedExtraction = jobOptions?.force_regenerate === true ? undefined : latestReusableExtractionPayload(db, item.id);
+      const extraction = cachedExtraction ?? (await extractFromUrl(item.url));
       const extractionPayload = {
         normalized_text: extraction.normalized_text,
         extraction_hash: createHash("sha256").update(`${item.url}|${extraction.normalized_text}`).digest("hex").slice(0, 32),

@@ -773,6 +773,7 @@ options（MVP 可选）：
 * `options.template_profile` 若提供，必须为字符串，服务端按 `trim + lower-case` 后校验 `engineer|creator|manager`。
 * `options.force_regenerate` 若提供，必须为布尔值。
 * 当 `template_profile` 提供且合法时，worker 将按该 profile 驱动本次处理任务（影响 summary 模板版本选择）。
+* 当 `force_regenerate !== true` 时，worker 会优先复用该 item 最近一条有效 extraction artifact；仅在不可复用时重新抓取 URL。
 
 ### 7.4 Response 202
 

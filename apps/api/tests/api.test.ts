@@ -1894,6 +1894,117 @@ test("process options template_profile overrides engine profile for regeneration
   }
 });
 
+test("process retry reuses cached extraction unless force_regenerate is true", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-force-regenerate-"));
+  const dbPath = join(dbDir, "readdo.db");
+  const app = await createApp({
+    dbPath,
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20item%20contains%20enough%20text%20to%20produce%20a%20stable%20extraction%20artifact%20for%20retry%20cache%20verification%20in%20the%20worker%20pipeline.",
+        title: "Process Force Regenerate",
+        domain: "example.process.force.regenerate",
+        source_type: "web",
+        intent_text: "verify retry can reuse cached extraction unless force regenerate is requested",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const db = new DatabaseSync(dbPath);
+    try {
+      db.prepare("UPDATE items SET url = ?, status = 'FAILED_AI', failure_json = ? WHERE id = ?").run(
+        "http://127.0.0.1:9/unreachable",
+        JSON.stringify({
+          failed_step: "pipeline",
+          error_code: "AI_PROVIDER_ERROR",
+          message: "simulated pipeline failure for retry",
+          retryable: true,
+          retry_attempts: 1,
+          retry_limit: 3,
+        }),
+        itemId,
+      );
+    } finally {
+      db.close();
+    }
+
+    const retryWithCacheRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      payload: {
+        mode: "RETRY",
+        options: {
+          force_regenerate: false,
+        },
+      },
+    });
+    assert.equal(retryWithCacheRes.statusCode, 202);
+    await app.runWorkerOnce();
+
+    const detailAfterCacheRetryRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}`,
+    });
+    assert.equal(detailAfterCacheRetryRes.statusCode, 200);
+    const detailAfterCacheRetry = detailAfterCacheRetryRes.json() as { item: { status: string } };
+    assert.equal(detailAfterCacheRetry.item.status, "READY");
+
+    const db2 = new DatabaseSync(dbPath);
+    try {
+      db2.prepare("UPDATE items SET status = 'FAILED_AI', failure_json = ? WHERE id = ?").run(
+        JSON.stringify({
+          failed_step: "pipeline",
+          error_code: "AI_PROVIDER_ERROR",
+          message: "simulate another retry attempt",
+          retryable: true,
+          retry_attempts: 1,
+          retry_limit: 3,
+        }),
+        itemId,
+      );
+    } finally {
+      db2.close();
+    }
+
+    const retryForceRegenerateRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      payload: {
+        mode: "RETRY",
+        options: {
+          force_regenerate: true,
+        },
+      },
+    });
+    assert.equal(retryForceRegenerateRes.statusCode, 202);
+    await app.runWorkerOnce();
+
+    const detailAfterForceRegenerateRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}`,
+    });
+    assert.equal(detailAfterForceRegenerateRes.statusCode, 200);
+    const detailAfterForceRegenerate = detailAfterForceRegenerateRes.json() as {
+      item: { status: string };
+      failure?: { failed_step?: string };
+    };
+    assert.equal(detailAfterForceRegenerate.item.status, "FAILED_EXTRACTION");
+    assert.equal(detailAfterForceRegenerate.failure?.failed_step, "extract");
+  } finally {
+    await app.close();
+  }
+});
+
 test("process endpoint replays idempotent request with same key", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-idempotent-"));
   const app = await createApp({
