@@ -790,6 +790,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const statuses = normalizeQueryList(query.status);
     const priorities = normalizeQueryList(query.priority);
     const sourceTypes = normalizeQueryList(query.source_type);
+    const retryableQuery = typeof query.retryable === "string" ? query.retryable.toLowerCase() : "";
+    const retryableFilter = retryableQuery === "true" ? true : retryableQuery === "false" ? false : null;
     const q = typeof query.q === "string" ? query.q.trim() : "";
     const sort = typeof query.sort === "string" ? query.sort : "priority_score_desc";
     const limit = Math.min(Number(query.limit ?? 20), 100);
@@ -854,8 +856,20 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       )
       .all(...params, limit) as DbItemRow[];
 
+    const mappedItems = rows.map((row) => rowToItem(row));
+    const filteredItems =
+      retryableFilter === null
+        ? mappedItems
+        : mappedItems.filter((item) => {
+            const status = String((item as { status?: unknown }).status ?? "");
+            if (!status.startsWith("FAILED_")) return false;
+            const failure = (item as { failure?: unknown }).failure as { retryable?: boolean } | undefined;
+            const isRetryable = failure?.retryable !== false;
+            return retryableFilter ? isRetryable : !isRetryable;
+          });
+
     return {
-      items: rows.map((row) => rowToItem(row)),
+      items: filteredItems,
       next_cursor: null,
     };
   });

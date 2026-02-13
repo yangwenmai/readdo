@@ -137,6 +137,14 @@ curl "http://localhost:8787/api/system/worker"
 
 # Filter inbox by status and search keyword
 curl "http://localhost:8787/api/items?status=READY&q=checklist"
+
+# List non-retryable failed items
+curl "http://localhost:8787/api/items?status=FAILED_EXTRACTION,FAILED_AI,FAILED_EXPORT&retryable=false"
+
+# Batch retry retryable FAILED_EXTRACTION/FAILED_AI
+curl -X POST "http://localhost:8787/api/items/retry-failed" \
+  -H "content-type: application/json" \
+  -d '{"limit":20}'
 ```
 
 ---

@@ -659,6 +659,22 @@ test("retry mode is blocked after retry limit reached", async () => {
     assert.equal(detail.failure.retry_attempts, 3);
     assert.equal(detail.failure.retry_limit, 3);
 
+    const retryableFalseRes = await app.inject({
+      method: "GET",
+      url: "/api/items?status=FAILED_EXTRACTION&retryable=false",
+    });
+    assert.equal(retryableFalseRes.statusCode, 200);
+    const retryableFalseItems = (retryableFalseRes.json() as { items: Array<{ id: string }> }).items;
+    assert.ok(retryableFalseItems.some((x) => x.id === itemId));
+
+    const retryableTrueRes = await app.inject({
+      method: "GET",
+      url: "/api/items?status=FAILED_EXTRACTION&retryable=true",
+    });
+    assert.equal(retryableTrueRes.statusCode, 200);
+    const retryableTrueItems = (retryableTrueRes.json() as { items: Array<{ id: string }> }).items;
+    assert.ok(retryableTrueItems.every((x) => x.id !== itemId));
+
     const blockedRetryRes = await app.inject({
       method: "POST",
       url: `/api/items/${itemId}/process`,
