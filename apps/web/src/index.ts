@@ -483,6 +483,8 @@ const html = `<!doctype html>
             <label for="targetVersionSelect">Target:</label>
             <select id="targetVersionSelect"></select>
             <button id="loadVersionBtn" type="button">Compare Versions</button>
+            <button id="copyDiffBtn" type="button" disabled>Copy Diff Summary</button>
+            <button id="exportDiffBtn" type="button" disabled>Export Diff JSON</button>
           </div>
           <div class="diff" id="versionDiffSummary">Select base/target versions to compare.</div>
           <div class="diff-grid">
@@ -515,12 +517,20 @@ const html = `<!doctype html>
         const baseVersionSelect = card.querySelector("#baseVersionSelect");
         const targetVersionSelect = card.querySelector("#targetVersionSelect");
         const loadBtn = card.querySelector("#loadVersionBtn");
+        const copyDiffBtn = card.querySelector("#copyDiffBtn");
+        const exportDiffBtn = card.querySelector("#exportDiffBtn");
         const basePreviewEl = card.querySelector("#baseArtifactPreview");
         const targetPreviewEl = card.querySelector("#targetArtifactPreview");
         const diffEl = card.querySelector("#versionDiffSummary");
         const changedListEl = card.querySelector("#changedPathsList");
         const addedListEl = card.querySelector("#addedPathsList");
         const removedListEl = card.querySelector("#removedPathsList");
+        let lastCompareResult = null;
+
+        function setDiffActionButtons(enabled) {
+          copyDiffBtn.disabled = !enabled;
+          exportDiffBtn.disabled = !enabled;
+        }
 
         for (const type of artifactTypes) {
           const opt = document.createElement("option");
@@ -567,9 +577,13 @@ const html = `<!doctype html>
             renderPathList(changedListEl, []);
             renderPathList(addedListEl, []);
             renderPathList(removedListEl, []);
+            setDiffActionButtons(false);
+            lastCompareResult = null;
           } else {
             basePreviewEl.textContent = "{}";
             targetPreviewEl.textContent = "{}";
+            setDiffActionButtons(false);
+            lastCompareResult = null;
           }
         }
 
@@ -598,6 +612,20 @@ const html = `<!doctype html>
               renderPathList(changedListEl, []);
               renderPathList(addedListEl, []);
               renderPathList(removedListEl, []);
+              lastCompareResult = {
+                item_id: detail.item.id,
+                artifact_type: type,
+                base_version: baseVersion,
+                target_version: targetVersion,
+                summary: {
+                  changed_paths: [],
+                  added_paths: [],
+                  removed_paths: [],
+                  changed_line_count: 0,
+                  compared_line_count: 0
+                }
+              };
+              setDiffActionButtons(true);
             } else {
               const compare = await request(
                 "/items/" +
@@ -622,6 +650,8 @@ const html = `<!doctype html>
                 "changed_paths=" + changedPaths.length +
                 ", added_paths=" + addedPaths.length +
                 ", removed_paths=" + removedPaths.length;
+              lastCompareResult = compare;
+              setDiffActionButtons(true);
             }
           } catch (err) {
             basePreviewEl.textContent = "Load failed: " + String(err);
@@ -630,7 +660,36 @@ const html = `<!doctype html>
             renderPathList(addedListEl, []);
             renderPathList(removedListEl, []);
             diffEl.textContent = "Diff unavailable due to load failure.";
+            setDiffActionButtons(false);
+            lastCompareResult = null;
           }
+        });
+
+        copyDiffBtn.addEventListener("click", async () => {
+          if (!lastCompareResult) return;
+          try {
+            await navigator.clipboard.writeText(JSON.stringify(lastCompareResult, null, 2));
+            errorEl.textContent = "Copied diff summary to clipboard.";
+          } catch {
+            errorEl.textContent = "Copy diff summary failed.";
+          }
+        });
+
+        exportDiffBtn.addEventListener("click", () => {
+          if (!lastCompareResult) return;
+          const payload = JSON.stringify(lastCompareResult, null, 2);
+          const blob = new Blob([payload], { type: "application/json;charset=utf-8" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          const artifactType = lastCompareResult.artifact_type || "artifact";
+          const baseVersion = lastCompareResult.base?.version ?? baseVersionSelect.value;
+          const targetVersion = lastCompareResult.target?.version ?? targetVersionSelect.value;
+          a.href = url;
+          a.download = "diff_" + artifactType + "_v" + baseVersion + "_to_v" + targetVersion + ".json";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
         });
 
         detailEl.appendChild(card);
