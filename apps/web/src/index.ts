@@ -2936,6 +2936,12 @@ const html = `<!doctype html>
         });
       }
 
+      function bindConfigList(configs, binder) {
+        configs.forEach((config) => {
+          binder(config);
+        });
+      }
+
       function bindSearchInputActions(inputEl) {
         inputEl.addEventListener("keydown", async (event) => {
           if (event.key !== "Enter") return;
@@ -3164,54 +3170,51 @@ const html = `<!doctype html>
         },
       ];
 
+      const queueControlChangeConfigs = [
+        {
+          element: archiveRetryableFilter,
+          label: "Archive Scope",
+          options: { refresh_worker_stats: true },
+        },
+        {
+          element: unarchiveModeFilter,
+          label: "Unarchive Mode",
+        },
+        {
+          element: batchLimitInput,
+          label: "Batch Limit",
+          beforeSync: () => {
+            batchLimitInput.value = String(normalizedBatchLimit());
+          },
+        },
+        {
+          element: previewOffsetInput,
+          label: "Preview Offset",
+          beforeSync: () => {
+            previewOffsetInput.value = String(normalizedPreviewOffset());
+          },
+          syncOptions: { resetOffset: false },
+        },
+      ];
+
+      const listFilterChangeConfigs = [
+        { element: statusFilter, label: "Status Filter" },
+        { element: retryableFilter, label: "Retryable Filter" },
+        { element: failureStepFilter, label: "Failure Step Filter" },
+      ];
+
       function setupQueueActionBindings() {
-        previewActionConfigs.forEach((config) => {
-          bindPreviewAction(config);
-        });
-        batchActionConfigs.forEach((config) => {
-          bindQueueBatchAction(config);
-        });
+        bindConfigList(previewActionConfigs, bindPreviewAction);
+        bindConfigList(batchActionConfigs, bindQueueBatchAction);
         bindPreviewNextAction(previewNextBtn);
       }
 
       function setupQueueInteractionBindings() {
-        const queueControlChangeConfigs = [
-          {
-            element: archiveRetryableFilter,
-            label: "Archive Scope",
-            options: { refresh_worker_stats: true },
-          },
-          {
-            element: unarchiveModeFilter,
-            label: "Unarchive Mode",
-          },
-          {
-            element: batchLimitInput,
-            label: "Batch Limit",
-            beforeSync: () => {
-              batchLimitInput.value = String(normalizedBatchLimit());
-            },
-          },
-          {
-            element: previewOffsetInput,
-            label: "Preview Offset",
-            beforeSync: () => {
-              previewOffsetInput.value = String(normalizedPreviewOffset());
-            },
-            syncOptions: { resetOffset: false },
-          },
-        ];
-        queueControlChangeConfigs.forEach((config) => {
-          bindQueueControlChange(config);
-        });
+        bindConfigList(queueControlChangeConfigs, bindQueueControlChange);
         bindSearchInputActions(queryInput);
         bindFocusChipActions(focusChipsEl);
         bindDetailModeActions();
-        [
-          { element: statusFilter, label: "Status Filter" },
-          { element: retryableFilter, label: "Retryable Filter" },
-          { element: failureStepFilter, label: "Failure Step Filter" },
-        ].forEach((entry) => {
+        bindConfigList(listFilterChangeConfigs, (entry) => {
           bindListFilterChange(entry.element, entry.label);
         });
       }
