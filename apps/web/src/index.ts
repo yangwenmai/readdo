@@ -2986,27 +2986,34 @@ const html = `<!doctype html>
         document.addEventListener("keydown", (event) => {
           if (event.defaultPrevented) return;
           if (isTextEditingTarget(event.target)) return;
-          if (event.key === "/") {
-            event.preventDefault();
-            queryInput.focus();
-            queryInput.select();
-            return;
-          }
-          if (event.key.toLowerCase() === "f") {
-            event.preventDefault();
-            setDetailAdvancedEnabled(false);
-            return;
-          }
-          if (event.key.toLowerCase() === "a") {
-            event.preventDefault();
-            setDetailAdvancedEnabled(true);
-            return;
-          }
-          if (event.key.toLowerCase() === "r") {
-            event.preventDefault();
-            refreshItemsWithErrorHandling();
-          }
+          handleGlobalShortcutKey(event);
         });
+      }
+
+      function handleGlobalShortcutKey(event) {
+        const key = event.key.toLowerCase();
+        if (event.key === "/") {
+          event.preventDefault();
+          queryInput.focus();
+          queryInput.select();
+          return true;
+        }
+        if (key === "f") {
+          event.preventDefault();
+          setDetailAdvancedEnabled(false);
+          return true;
+        }
+        if (key === "a") {
+          event.preventDefault();
+          setDetailAdvancedEnabled(true);
+          return true;
+        }
+        if (key === "r") {
+          event.preventDefault();
+          refreshItemsWithErrorHandling();
+          return true;
+        }
+        return false;
       }
 
       function bindAutoRefreshToggle(toggleEl) {
