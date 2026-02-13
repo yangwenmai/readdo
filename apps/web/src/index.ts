@@ -3219,8 +3219,11 @@ const html = `<!doctype html>
         });
       }
 
-      setupQueueActionBindings();
-      setupQueueInteractionBindings();
+      function setupQueueShell() {
+        setupQueueActionBindings();
+        setupQueueInteractionBindings();
+        startQueueRuntime();
+      }
 
       function setAutoRefresh(enabled) {
         if (autoRefreshTimer) {
@@ -3233,7 +3236,7 @@ const html = `<!doctype html>
           }, 5000);
         }
       }
-      startQueueRuntime();
+      setupQueueShell();
     </script>
   </body>
 </html>`;
