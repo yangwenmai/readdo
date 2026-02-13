@@ -45,6 +45,7 @@ const queueRecoveryLatestLabel = "Latest Run";
 const queueRecoveryClearStepLabel = "Clear Step Focus";
 const queueRecoveryClearFailedLabel = "Clear Failed Filter";
 const queueRecoveryContextLabel = "Filter Context";
+const queueRecoveryEditContextLabel = "Edit Context Filters";
 
 const html = `<!doctype html>
 <html lang="en">
@@ -654,6 +655,11 @@ const html = `<!doctype html>
         color: #334155;
         font-size: 11px;
       }
+      .recovery-radar-trend .trend-focus-hint button.secondary {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
       .trend-delta.pos { color: #166534; font-weight: 700; }
       .trend-delta.neg { color: #b91c1c; font-weight: 700; }
       .trend-delta.zero { color: #475569; font-weight: 700; }
@@ -1146,6 +1152,7 @@ const html = `<!doctype html>
       const QUEUE_RECOVERY_CLEAR_STEP_LABEL = ${JSON.stringify(queueRecoveryClearStepLabel)};
       const QUEUE_RECOVERY_CLEAR_FAILED_LABEL = ${JSON.stringify(queueRecoveryClearFailedLabel)};
       const QUEUE_RECOVERY_CONTEXT_LABEL = ${JSON.stringify(queueRecoveryContextLabel)};
+      const QUEUE_RECOVERY_EDIT_CONTEXT_LABEL = ${JSON.stringify(queueRecoveryEditContextLabel)};
       const RECOVERY_HISTORY_LIMIT = 5;
       const inboxEl = document.getElementById("inbox");
       const detailEl = document.getElementById("detail");
@@ -1730,6 +1737,31 @@ const html = `<!doctype html>
         return "unknown";
       }
 
+      function focusQueueFilterControl(control) {
+        if (!control) return;
+        control.scrollIntoView({ behavior: "smooth", block: "center" });
+        control.focus();
+        if (control === queryInput) {
+          queryInput.select();
+        }
+      }
+
+      function focusRecoveryContextControl(step) {
+        if (queryInput.value.trim()) {
+          focusQueueFilterControl(queryInput);
+          return;
+        }
+        if (retryableFilter.value) {
+          focusQueueFilterControl(retryableFilter);
+          return;
+        }
+        if (step === "unknown") {
+          focusQueueFilterControl(statusFilter);
+          return;
+        }
+        focusQueueFilterControl(failureStepFilter);
+      }
+
       function trendStepActionTitle(step) {
         if (isFailedStepFilterActive(step)) {
           if (step === "unknown") return "Click again to clear failed filter";
@@ -1896,7 +1928,9 @@ const html = `<!doctype html>
             QUEUE_RECOVERY_CONTEXT_LABEL +
             ": " +
             focusContext +
-            '</span><button type="button" id="clearTrendStepFocusBtn">' +
+            '</span><button type="button" class="secondary" id="editTrendFocusContextBtn">' +
+            QUEUE_RECOVERY_EDIT_CONTEXT_LABEL +
+            '</button><button type="button" id="clearTrendStepFocusBtn">' +
             (activeStep === "unknown" ? QUEUE_RECOVERY_CLEAR_FAILED_LABEL : QUEUE_RECOVERY_CLEAR_STEP_LABEL) +
             "</button></div>"
           : "";
@@ -2128,6 +2162,19 @@ const html = `<!doctype html>
             await focusRecoveryStepFromTrend(binding.step, activeSummary, trendBtn);
           });
         }
+        const editTrendFocusBtn = recoveryRadarEl.querySelector("#editTrendFocusContextBtn");
+        editTrendFocusBtn?.addEventListener("click", async () => {
+          await runActionWithFeedback(
+            {
+              id: "recovery_trend_edit_context",
+              label: QUEUE_RECOVERY_EDIT_CONTEXT_LABEL,
+              action: async () => {
+                focusRecoveryContextControl(activeStep);
+              },
+            },
+            { button: editTrendFocusBtn, localFeedbackEl: queueActionBannerEl },
+          );
+        });
         const clearTrendFocusBtn = recoveryRadarEl.querySelector("#clearTrendStepFocusBtn");
         clearTrendFocusBtn?.addEventListener("click", async () => {
           if (!activeStep) return;
