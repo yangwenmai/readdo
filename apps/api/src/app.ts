@@ -1486,7 +1486,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   app.get("/api/items/:id", async (request, reply) => {
     const id = (request.params as { id: string }).id;
     const query = request.query as Record<string, unknown>;
-    const includeHistory = String(query?.include_history ?? "false") === "true";
+    if (query.include_history !== undefined && typeof query.include_history !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "include_history must be true|false when provided"));
+    }
+    const includeHistoryRaw = typeof query.include_history === "string" ? query.include_history.trim().toLowerCase() : "";
+    if (includeHistoryRaw && includeHistoryRaw !== "true" && includeHistoryRaw !== "false") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "include_history must be true|false when provided"));
+    }
+    const includeHistory = includeHistoryRaw === "true";
     const versionOverrides = parseArtifactVersions(query?.artifact_versions);
     const item = db.prepare("SELECT * FROM items WHERE id = ?").get(id) as DbItemRow | undefined;
     if (!item) {

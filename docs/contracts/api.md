@@ -495,7 +495,7 @@ Headers:
 
 * `artifact_versions`（可选，json 字符串）：指定要取的版本（按类型）
   - 示例：`?artifact_versions={"todos":1,"card":2}`（URL 编码后传输）
-* `include_history`：true/false（MVP 默认 false）
+* `include_history`：`true/false`（大小写不敏感，MVP 默认 false；非法值返回 `400 VALIDATION_ERROR`）
 
 ### 6.3 Response 200
 
@@ -552,6 +552,7 @@ Headers:
 
 ### 6.4 错误
 
+* 400 VALIDATION_ERROR（如 include_history 参数非法）
 * 404 NOT_FOUND
 
 ---

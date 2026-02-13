@@ -2232,6 +2232,48 @@ test("items endpoint validates retryable and failure_step query values", async (
   }
 });
 
+test("item detail validates include_history query values", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-item-detail-include-history-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20item%20verifies%20include_history%20query%20validation%20for%20item%20detail.",
+        title: "Include History Validation",
+        domain: "example.include.history",
+        source_type: "web",
+        intent_text: "validate include_history query values",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    const validDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}?include_history=true`,
+    });
+    assert.equal(validDetailRes.statusCode, 200);
+
+    const invalidDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}?include_history=maybe`,
+    });
+    assert.equal(invalidDetailRes.statusCode, 400);
+    const invalidDetailPayload = invalidDetailRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidDetailPayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidDetailPayload.error.message, /include_history must be true\|false/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("items endpoint clamps limit to maximum 100", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-list-limit-max-"));
   const app = await createApp({
