@@ -1357,6 +1357,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     if (!url || !intentText) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "url and intent_text are required"));
     }
+    if (body.source_type !== undefined && !sourceTypeInput) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "source_type must be web|youtube|newsletter|other"));
+    }
     if (!["web", "youtube", "newsletter", "other"].includes(sourceType)) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "source_type must be web|youtube|newsletter|other"));
     }

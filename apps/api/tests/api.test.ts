@@ -529,6 +529,34 @@ test("capture rejects non-string core text fields", async () => {
     const invalidSourceTypePayload = invalidSourceTypeRes.json() as { error: { code: string; message: string } };
     assert.equal(invalidSourceTypePayload.error.code, "VALIDATION_ERROR");
     assert.match(invalidSourceTypePayload.error.message, /source_type must be a string/i);
+
+    const invalidSourceTypeEnumRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://example.com/invalid-source-type-enum",
+        source_type: "podcast",
+        intent_text: "valid intent",
+      },
+    });
+    assert.equal(invalidSourceTypeEnumRes.statusCode, 400);
+    const invalidSourceTypeEnumPayload = invalidSourceTypeEnumRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidSourceTypeEnumPayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidSourceTypeEnumPayload.error.message, /source_type must be web\|youtube\|newsletter\|other/i);
+
+    const blankSourceTypeRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://example.com/invalid-source-type-blank",
+        source_type: "   ",
+        intent_text: "valid intent",
+      },
+    });
+    assert.equal(blankSourceTypeRes.statusCode, 400);
+    const blankSourceTypePayload = blankSourceTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(blankSourceTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(blankSourceTypePayload.error.message, /source_type must be web\|youtube\|newsletter\|other/i);
   } finally {
     await app.close();
   }
