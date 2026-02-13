@@ -20,6 +20,27 @@ function detectSourceType(url) {
   return "other";
 }
 
+function canonicalizeUrlForCapture(url) {
+  try {
+    const parsed = new URL(url);
+    parsed.hash = "";
+    const trackingKeys = new Set(["fbclid", "gclid", "mc_eid", "mkt_tok"]);
+    for (const key of Array.from(parsed.searchParams.keys())) {
+      if (key.startsWith("utm_") || trackingKeys.has(key)) {
+        parsed.searchParams.delete(key);
+      }
+    }
+    const sortedEntries = Array.from(parsed.searchParams.entries()).sort(([a], [b]) => a.localeCompare(b));
+    parsed.search = "";
+    for (const [key, value] of sortedEntries) {
+      parsed.searchParams.append(key, value);
+    }
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
 async function stableCaptureKey(url, intentText) {
   const input = new TextEncoder().encode(`${url}\n${intentText}`);
   const digest = await crypto.subtle.digest("SHA-256", input);
@@ -38,7 +59,8 @@ captureBtn?.addEventListener("click", async () => {
   }
 
   try {
-    const idempotencyKey = await stableCaptureKey(tab.url, intentText);
+    const canonicalUrl = canonicalizeUrlForCapture(tab.url);
+    const idempotencyKey = await stableCaptureKey(canonicalUrl, intentText);
     const payload = {
       capture_id: idempotencyKey,
       url: tab.url,
