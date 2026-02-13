@@ -2934,6 +2934,12 @@ const html = `<!doctype html>
         });
       }
 
+      function createSimpleBatchRunner(config) {
+        return async () => {
+          await runSimpleBatchFlow(config);
+        };
+      }
+
       function resolvePreviewContinuation() {
         if (!previewContinuation || previewContinuation.next_offset == null) return null;
         const continuationKind = previewContinuation.kind;
@@ -2969,7 +2975,7 @@ const html = `<!doctype html>
         });
       }
 
-      [
+      const previewActionConfigs = [
         {
           button: previewArchiveBtn,
           id: "queue_preview_archive",
@@ -2991,11 +2997,12 @@ const html = `<!doctype html>
           kind: "unarchive",
           errorPrefix: "Unarchive preview failed: ",
         },
-      ].forEach((config) => {
+      ];
+      previewActionConfigs.forEach((config) => {
         bindPreviewAction(config);
       });
 
-      [
+      const batchActionConfigs = [
         {
           button: retryFailedBtn,
           id: "queue_retry_failed",
@@ -3008,33 +3015,30 @@ const html = `<!doctype html>
           id: "queue_archive_failed",
           label: "Archive Failed Batch",
           errorPrefix: "Archive blocked failed: ",
-          run: async () => {
-            await runSimpleBatchFlow({
-              kind: "archive",
-              renderNoEligible: renderArchiveNoEligibleOutput,
-              renderPreview: renderArchivePreviewOutput,
-              buildConfirm: buildArchiveBatchConfirmMessage,
-              cancelledMessage: "Archive blocked action cancelled.",
-              renderDone: renderArchiveBatchDoneOutput,
-            });
-          },
+          run: createSimpleBatchRunner({
+            kind: "archive",
+            renderNoEligible: renderArchiveNoEligibleOutput,
+            renderPreview: renderArchivePreviewOutput,
+            buildConfirm: buildArchiveBatchConfirmMessage,
+            cancelledMessage: "Archive blocked action cancelled.",
+            renderDone: renderArchiveBatchDoneOutput,
+          }),
         },
         {
           button: unarchiveBatchBtn,
           id: "queue_unarchive_batch",
           label: "Unarchive Batch",
           errorPrefix: "Unarchive batch failed: ",
-          run: async () => {
-            await runSimpleBatchFlow({
-              kind: "unarchive",
-              renderNoEligible: renderUnarchiveNoEligibleOutput,
-              buildConfirm: buildUnarchiveBatchConfirmMessage,
-              cancelledMessage: "Unarchive action cancelled.",
-              renderDone: renderUnarchiveBatchDoneOutput,
-            });
-          },
+          run: createSimpleBatchRunner({
+            kind: "unarchive",
+            renderNoEligible: renderUnarchiveNoEligibleOutput,
+            buildConfirm: buildUnarchiveBatchConfirmMessage,
+            cancelledMessage: "Unarchive action cancelled.",
+            renderDone: renderUnarchiveBatchDoneOutput,
+          }),
         },
-      ].forEach((config) => {
+      ];
+      batchActionConfigs.forEach((config) => {
         bindQueueBatchAction(config);
       });
 
