@@ -287,6 +287,58 @@ const html = `<!doctype html>
         flex-wrap: wrap;
         margin: 8px 0 10px;
       }
+      .queue-flow-pulse {
+        border: 1px solid #c7d2fe;
+        border-radius: 12px;
+        background: linear-gradient(145deg, #eef2ff, #f8fafc);
+        padding: 10px;
+        margin-bottom: 10px;
+      }
+      .queue-flow-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .queue-flow-title {
+        margin: 0;
+        font-size: 13px;
+        color: #312e81;
+      }
+      .queue-flow-track {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 6px;
+      }
+      .pulse-segment {
+        border-radius: 8px;
+        border: 1px solid transparent;
+        padding: 7px 8px;
+        font-size: 11px;
+        text-align: left;
+      }
+      .pulse-segment .value {
+        display: block;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.2;
+        margin-top: 2px;
+      }
+      .pulse-segment.is-empty {
+        opacity: 0.75;
+      }
+      .pulse-captured { background: #ede9fe; border-color: #ddd6fe; color: #5b21b6; }
+      .pulse-queued { background: #dbeafe; border-color: #bfdbfe; color: #1e40af; }
+      .pulse-processing { background: #e0f2fe; border-color: #bae6fd; color: #0c4a6e; }
+      .pulse-ready { background: #dcfce7; border-color: #bbf7d0; color: #166534; }
+      .pulse-shipped { background: #d1fae5; border-color: #a7f3d0; color: #065f46; }
+      .queue-flow-meta {
+        margin-top: 8px;
+      }
+      .queue-flow-meta strong {
+        color: #991b1b;
+      }
       .legend-item {
         border: 1px solid #dbe2ea;
         border-radius: 999px;
@@ -607,6 +659,12 @@ const html = `<!doctype html>
         <h2>Decision Queue</h2>
         <p class="panel-subtitle">系统会自动提炼优先级与行动项，下面是当前最有产出的执行视图。</p>
         <div id="queueHighlights" class="aha-strip"></div>
+        <div id="queueFlowPulse" class="queue-flow-pulse">
+          <div class="queue-flow-head">
+            <h4 class="queue-flow-title">Pipeline Pulse</h4>
+            <span class="muted">Track capture → ship momentum.</span>
+          </div>
+        </div>
         <div id="ahaNudge" class="aha-nudge"></div>
         <div id="queueActionBanner" class="muted action-feedback">Ready.</div>
         <div id="focusChips" class="focus-chips">
@@ -645,6 +703,7 @@ const html = `<!doctype html>
       const detailSectionNavEl = document.getElementById("detailSectionNav");
       const errorEl = document.getElementById("error");
       const queueHighlightsEl = document.getElementById("queueHighlights");
+      const queueFlowPulseEl = document.getElementById("queueFlowPulse");
       const ahaNudgeEl = document.getElementById("ahaNudge");
       const queueActionBannerEl = document.getElementById("queueActionBanner");
       const focusChipsEl = document.getElementById("focusChips");
@@ -994,14 +1053,84 @@ const html = `<!doctype html>
           .sort((a, b) => Number(b.match_score ?? -1) - Number(a.match_score ?? -1))[0];
       }
 
+      function countItemsByStatus(items) {
+        const counts = {
+          CAPTURED: 0,
+          QUEUED: 0,
+          PROCESSING: 0,
+          READY: 0,
+          FAILED: 0,
+          SHIPPED: 0,
+          ARCHIVED: 0,
+        };
+        for (const item of items) {
+          const status = String(item?.status || "");
+          if (status === "CAPTURED") counts.CAPTURED += 1;
+          else if (status === "QUEUED") counts.QUEUED += 1;
+          else if (status === "PROCESSING") counts.PROCESSING += 1;
+          else if (status === "READY") counts.READY += 1;
+          else if (status === "SHIPPED") counts.SHIPPED += 1;
+          else if (status === "ARCHIVED") counts.ARCHIVED += 1;
+          else if (status.startsWith("FAILED_")) counts.FAILED += 1;
+        }
+        return counts;
+      }
+
+      function renderQueueFlowPulse(items, counts) {
+        if (!queueFlowPulseEl) return;
+        const total = Math.max(items.length, 1);
+        const stages = [
+          { label: "Captured", status: "CAPTURED", tone: "captured", count: counts.CAPTURED },
+          { label: "Queued", status: "QUEUED", tone: "queued", count: counts.QUEUED },
+          { label: "Processing", status: "PROCESSING", tone: "processing", count: counts.PROCESSING },
+          { label: "Ready", status: "READY", tone: "ready", count: counts.READY },
+          { label: "Shipped", status: "SHIPPED", tone: "shipped", count: counts.SHIPPED },
+        ];
+        queueFlowPulseEl.innerHTML =
+          '<div class="queue-flow-head"><h4 class="queue-flow-title">Pipeline Pulse</h4><span class="muted">' +
+          items.length +
+          " total items</span></div>";
+        const track = document.createElement("div");
+        track.className = "queue-flow-track";
+        for (const stage of stages) {
+          const segment = document.createElement("button");
+          segment.type = "button";
+          segment.className = "pulse-segment pulse-" + stage.tone;
+          if (!stage.count) segment.classList.add("is-empty");
+          segment.innerHTML =
+            '<span class="label">' +
+            stage.label +
+            '</span><span class="value">' +
+            stage.count +
+            "</span>";
+          segment.title = stage.label + ": " + stage.count + " (" + Math.round((stage.count / total) * 100) + "%)";
+          segment.addEventListener("click", async () => {
+            await applyListContextAndReload("Flow: " + stage.label, {
+              button: segment,
+              mutate: () => {
+                statusFilter.value = stage.status;
+              },
+            });
+          });
+          track.appendChild(segment);
+        }
+        queueFlowPulseEl.appendChild(track);
+        const meta = document.createElement("div");
+        meta.className = "queue-flow-meta muted";
+        meta.innerHTML = "Blocked now: <strong>" + counts.FAILED + "</strong> failed items · Click stage to filter";
+        queueFlowPulseEl.appendChild(meta);
+      }
+
       function renderQueueHighlights(items) {
         if (!queueHighlightsEl) return;
-        const readyCount = items.filter((item) => item.status === "READY").length;
-        const shippedCount = items.filter((item) => item.status === "SHIPPED").length;
-        const attentionCount = items.filter((item) => String(item.status || "").startsWith("FAILED_")).length;
+        const counts = countItemsByStatus(items);
+        const readyCount = counts.READY;
+        const shippedCount = counts.SHIPPED;
+        const attentionCount = counts.FAILED;
         const retryableCount = items.filter((item) => isRetryableFailedItem(item)).length;
         const candidate = topReadyItem(items);
         const momentum = readyCount + retryableCount;
+        renderQueueFlowPulse(items, counts);
 
         queueHighlightsEl.innerHTML = "";
         const metrics = [
@@ -1089,25 +1218,7 @@ const html = `<!doctype html>
 
       function renderStatusLegend(items) {
         if (!statusLegendEl) return;
-        const counts = {
-          CAPTURED: 0,
-          QUEUED: 0,
-          PROCESSING: 0,
-          READY: 0,
-          FAILED: 0,
-          SHIPPED: 0,
-          ARCHIVED: 0,
-        };
-        for (const item of items) {
-          const status = String(item?.status || "");
-          if (status === "CAPTURED") counts.CAPTURED += 1;
-          else if (status === "QUEUED") counts.QUEUED += 1;
-          else if (status === "PROCESSING") counts.PROCESSING += 1;
-          else if (status === "READY") counts.READY += 1;
-          else if (status === "SHIPPED") counts.SHIPPED += 1;
-          else if (status === "ARCHIVED") counts.ARCHIVED += 1;
-          else if (status.startsWith("FAILED_")) counts.FAILED += 1;
-        }
+        const counts = countItemsByStatus(items);
         statusLegendEl.innerHTML = "";
         const entries = [
           { label: "Captured", dot: "captured", count: counts.CAPTURED, status: "CAPTURED" },
