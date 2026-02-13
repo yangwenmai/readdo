@@ -2590,6 +2590,28 @@ const html = `<!doctype html>
           ".";
       }
 
+      function renderArchiveNoEligibleOutput(preview) {
+        errorEl.textContent =
+          "No failed items matching archive filter. " +
+          scanWindowSummary(preview) +
+          ", retryable=" +
+          (preview.retryable_filter == null ? "all" : String(preview.retryable_filter)) +
+          ", " +
+          failureFilterSummary(preview) +
+          ".";
+      }
+
+      function renderUnarchiveNoEligibleOutput(preview) {
+        errorEl.textContent =
+          "No archived items to unarchive. " +
+          scanWindowSummary(preview) +
+          ", mode=" +
+          (preview.regenerate ? "regenerate" : "smart") +
+          ", " +
+          qFilterSummary(preview) +
+          ".";
+      }
+
       function renderRetryBatchDoneOutput(batchRes, exportSummary) {
         errorEl.textContent =
           "Batch retry done. queued=" +
@@ -2879,7 +2901,7 @@ const html = `<!doctype html>
                 syncPreviewOffsetFromResponse(preview);
                 const eligible = Number(preview.eligible ?? 0);
                 if (!eligible) {
-                  errorEl.textContent = "No failed items matching archive filter.";
+                  renderArchiveNoEligibleOutput(preview);
                   return;
                 }
                 renderArchivePreviewOutput(preview);
@@ -2946,7 +2968,7 @@ const html = `<!doctype html>
                 syncPreviewOffsetFromResponse(preview);
                 const eligible = Number(preview.eligible ?? 0);
                 if (!eligible) {
-                  errorEl.textContent = "No archived items to unarchive.";
+                  renderUnarchiveNoEligibleOutput(preview);
                   return;
                 }
                 const confirmed = confirm(buildUnarchiveBatchConfirmMessage(preview, eligible));
