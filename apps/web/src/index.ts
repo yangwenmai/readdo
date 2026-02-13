@@ -1154,7 +1154,14 @@ const html = `<!doctype html>
           }
           if (disableAll) disableAll(false);
           if (onFinally) {
-            onFinally();
+            try {
+              await onFinally();
+            } catch (finalErr) {
+              const finalMessage = "Post-action cleanup failed: " + String(finalErr);
+              setActionFeedback(detailActionBannerEl(), "error", finalMessage);
+              setActionFeedback(localFeedbackEl, "error", finalMessage);
+              errorEl.textContent = finalMessage;
+            }
           }
         }
       }
