@@ -39,6 +39,8 @@ const queueRecoveryCopyLabel = "Copy Recovery Summary";
 const queueRecoveryClearLabel = "Clear Radar";
 const queueRecoveryDownloadLabel = "Download Summary";
 const queueRecoveryHistoryHint = "History keeps last 5 recovery runs.";
+const queueRecoveryPrevLabel = "Previous Run";
+const queueRecoveryNextLabel = "Next Run";
 
 const html = `<!doctype html>
 <html lang="en">
@@ -1023,6 +1025,8 @@ const html = `<!doctype html>
           <div class="recovery-radar-actions">
             <button type="button" disabled>${queueRecoveryCopyLabel}</button>
             <button type="button" class="secondary" disabled>${queueRecoveryDownloadLabel}</button>
+            <button type="button" class="secondary" disabled>${queueRecoveryPrevLabel}</button>
+            <button type="button" class="secondary" disabled>${queueRecoveryNextLabel}</button>
             <button type="button" class="secondary" disabled>${queueRecoveryClearLabel}</button>
           </div>
           <div id="recoveryRadarTrend" class="recovery-radar-trend muted">Trend vs previous: —</div>
@@ -1062,6 +1066,8 @@ const html = `<!doctype html>
       const QUEUE_RECOVERY_CLEAR_LABEL = ${JSON.stringify(queueRecoveryClearLabel)};
       const QUEUE_RECOVERY_DOWNLOAD_LABEL = ${JSON.stringify(queueRecoveryDownloadLabel)};
       const QUEUE_RECOVERY_HISTORY_HINT = ${JSON.stringify(queueRecoveryHistoryHint)};
+      const QUEUE_RECOVERY_PREV_LABEL = ${JSON.stringify(queueRecoveryPrevLabel)};
+      const QUEUE_RECOVERY_NEXT_LABEL = ${JSON.stringify(queueRecoveryNextLabel)};
       const RECOVERY_HISTORY_LIMIT = 5;
       const inboxEl = document.getElementById("inbox");
       const detailEl = document.getElementById("detail");
@@ -1555,6 +1561,15 @@ const html = `<!doctype html>
         return recoveryRadarHistory[0] || null;
       }
 
+      function activateRecoverySummary(summaryId) {
+        const active = recoverySummaryById(summaryId);
+        if (!active) return;
+        activeRecoverySummaryId = active.summary_id;
+        latestRecoverySummary = active;
+        persistRecoveryRadarState();
+        renderRecoveryRadar(active);
+      }
+
       function recoveryTimelineLabel(summary, index) {
         const label = String(summary?.label || "Recovery Run");
         const timeText = String(summary?.created_at || "").split("T")[1]?.slice(0, 8) || "";
@@ -1637,6 +1652,10 @@ const html = `<!doctype html>
             '</button><button type="button" class="secondary" disabled>' +
             QUEUE_RECOVERY_DOWNLOAD_LABEL +
             '</button><button type="button" class="secondary" disabled>' +
+            QUEUE_RECOVERY_PREV_LABEL +
+            '</button><button type="button" class="secondary" disabled>' +
+            QUEUE_RECOVERY_NEXT_LABEL +
+            '</button><button type="button" class="secondary" disabled>' +
             QUEUE_RECOVERY_CLEAR_LABEL +
             "</button></div>" +
             '<div id="recoveryRadarTrend" class="recovery-radar-trend muted">Trend vs previous: —</div>' +
@@ -1647,6 +1666,9 @@ const html = `<!doctype html>
         }
         const totals = activeSummary.totals || {};
         const stepBuckets = activeSummary.step_buckets || emptyRecoveryStepBuckets();
+        const activeIndex = recoveryRadarHistory.findIndex((entry) => entry.summary_id === activeSummary.summary_id);
+        const hasPrevRun = activeIndex >= 0 && activeIndex < recoveryRadarHistory.length - 1;
+        const hasNextRun = activeIndex > 0;
         const trend = recoveryTrendVsPrevious(activeSummary);
         const trendHtml = trend
           ? '<div id="recoveryRadarTrend" class="recovery-radar-trend">' +
@@ -1699,6 +1721,14 @@ const html = `<!doctype html>
           QUEUE_RECOVERY_COPY_LABEL +
           '</button><button type="button" class="secondary" id="downloadRecoverySummaryBtn">' +
           QUEUE_RECOVERY_DOWNLOAD_LABEL +
+          '</button><button type="button" class="secondary" id="prevRecoverySummaryBtn" ' +
+          (hasPrevRun ? "" : "disabled") +
+          ">" +
+          QUEUE_RECOVERY_PREV_LABEL +
+          '</button><button type="button" class="secondary" id="nextRecoverySummaryBtn" ' +
+          (hasNextRun ? "" : "disabled") +
+          ">" +
+          QUEUE_RECOVERY_NEXT_LABEL +
           '</button><button type="button" class="secondary" id="clearRecoverySummaryBtn">' +
           QUEUE_RECOVERY_CLEAR_LABEL +
           "</button></div>" +
@@ -1776,6 +1806,20 @@ const html = `<!doctype html>
         downloadBtn?.addEventListener("click", () => {
           downloadRecoverySummary(activeSummary);
         });
+        const prevBtn = recoveryRadarEl.querySelector("#prevRecoverySummaryBtn");
+        prevBtn?.addEventListener("click", () => {
+          if (!hasPrevRun) return;
+          const target = recoveryRadarHistory[activeIndex + 1];
+          if (!target) return;
+          activateRecoverySummary(target.summary_id);
+        });
+        const nextBtn = recoveryRadarEl.querySelector("#nextRecoverySummaryBtn");
+        nextBtn?.addEventListener("click", () => {
+          if (!hasNextRun) return;
+          const target = recoveryRadarHistory[activeIndex - 1];
+          if (!target) return;
+          activateRecoverySummary(target.summary_id);
+        });
         const clearBtn = recoveryRadarEl.querySelector("#clearRecoverySummaryBtn");
         clearBtn?.addEventListener("click", () => {
           latestRecoverySummary = null;
@@ -1802,10 +1846,7 @@ const html = `<!doctype html>
             }
             chip.textContent = recoveryTimelineLabel(entry, index);
             chip.addEventListener("click", () => {
-              activeRecoverySummaryId = entry.summary_id;
-              latestRecoverySummary = entry;
-              persistRecoveryRadarState();
-              renderRecoveryRadar(entry);
+              activateRecoverySummary(entry.summary_id);
             });
             timelineEl.appendChild(chip);
           });
