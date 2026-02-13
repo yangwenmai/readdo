@@ -15,6 +15,7 @@ const shortcutGuideItems = [
   { key: "P", label: "Focus Priority" },
   { key: "Shift+P", label: "Focus Priority (reverse)" },
   { key: "G", label: "Edit Context Filters" },
+  { key: "N", label: "Focus Recommended Item" },
   { key: "Shift+G", label: "Clear Step Focus" },
   { key: "Esc", label: "Clear Step Focus" },
   { key: "1", label: "Focus extract step" },
@@ -2963,19 +2964,8 @@ const html = `<!doctype html>
             focusBtn.type = "button";
             focusBtn.className = "secondary";
             focusBtn.textContent = QUEUE_NUDGE_FOCUS_LABEL;
-            const focusOp = {
-              id: "nudge_focus_item",
-              label: QUEUE_NUDGE_FOCUS_LABEL,
-              action: async () => {
-                await selectItem(nudgeItemId);
-                focusQueueItemCard(nudgeItemId);
-              },
-            };
             focusBtn.addEventListener("click", async () => {
-              await runActionWithFeedback(focusOp, {
-                button: focusBtn,
-                localFeedbackEl: queueActionBannerEl,
-              });
+              await runFocusRecommendedQueueAction(nudgeItemId, focusBtn);
             });
             actionsEl.appendChild(focusBtn);
           }
@@ -4524,6 +4514,29 @@ const html = `<!doctype html>
         );
       }
 
+      async function runFocusRecommendedQueueAction(itemId = queueNudgeState.itemId, button = null) {
+        if (itemId == null) {
+          const hint = "No recommended item available right now.";
+          setActionFeedbackPair("done", hint, queueActionBannerEl);
+          errorEl.textContent = hint;
+          return;
+        }
+        await runActionWithFeedback(
+          {
+            id: "queue_focus_recommended_item",
+            label: QUEUE_NUDGE_FOCUS_LABEL,
+            action: async () => {
+              await selectItem(itemId);
+              const focused = focusQueueItemCard(itemId);
+              if (!focused) {
+                errorEl.textContent = "Recommended item selected, but hidden by current list filters.";
+              }
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
       refreshBtn.addEventListener("click", async () => {
         await runRefreshQueueAction(refreshBtn);
       });
@@ -5303,6 +5316,9 @@ const html = `<!doctype html>
         },
         g: () => {
           focusRecoveryContextFromShortcut();
+        },
+        n: () => {
+          void runFocusRecommendedQueueAction();
         },
         "shift+g": () => {
           clearRecoveryFocusFromShortcut();
