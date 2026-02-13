@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.DS_Store
+.env
+.env.local
+*.log
+coverage/
+docs/evals/reports/latest.json
+exports/
+apps/api/data/

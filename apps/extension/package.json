@@ -1,0 +1,13 @@
+{
+  "name": "@readdo/extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo \"Extension assets are static in apps/extension\"",
+    "typecheck": "echo \"No TS compile in extension yet\"",
+    "test": "node --test",
+    "lint": "echo \"No lint configured for extension yet\"",
+    "dev": "echo \"Load unpacked extension from apps/extension\""
+  }
+}

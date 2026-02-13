@@ -1,0 +1,763 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { dirname, resolve } from "node:path";
+import { DatabaseSync } from "node:sqlite";
+import { fileURLToPath } from "node:url";
+import Fastify, { FastifyInstance } from "fastify";
+import cors from "@fastify/cors";
+import { nanoid } from "nanoid";
+import { ensureSchema } from "@readdo/contracts";
+import { runEngine } from "@readdo/core";
+
+type ApiError = {
+  error: {
+    code: string;
+    message: string;
+    details?: Record<string, unknown>;
+  };
+};
+
+type CreateAppOptions = {
+  dbPath?: string;
+  engineVersion?: string;
+  workerIntervalMs?: number;
+  startWorker?: boolean;
+};
+
+type DbItemRow = {
+  id: string;
+  url: string;
+  title: string | null;
+  domain: string | null;
+  source_type: string;
+  intent_text: string;
+  status: string;
+  priority: string | null;
+  match_score: number | null;
+  failure_json: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type JobRow = {
+  id: string;
+  item_id: string;
+  kind: "PROCESS";
+  status: "QUEUED" | "LEASED" | "DONE" | "FAILED";
+  run_id: string;
+  attempts: number;
+  lease_owner: string | null;
+  lease_expires_at: string | null;
+  request_key: string | null;
+};
+
+function repoRoot(): string {
+  const current = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+  return current;
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+function plusSeconds(timestamp: string, seconds: number): string {
+  return new Date(Date.parse(timestamp) + seconds * 1000).toISOString();
+}
+
+function failure(code: string, message: string, details?: Record<string, unknown>): ApiError {
+  return details ? { error: { code, message, details } } : { error: { code, message } };
+}
+
+function normalizeText(input: string): string {
+  return input.replace(/\s+/g, " ").trim();
+}
+
+function extractContentMeta(text: string): Record<string, unknown> {
+  return {
+    word_count: text.split(/\s+/u).filter(Boolean).length,
+    language: /[\u4E00-\u9FFF]/u.test(text) ? "zh" : "en",
+  };
+}
+
+function plainTextFromHtml(html: string): string {
+  const withoutScript = html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/giu, " ")
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/giu, " ");
+  const stripped = withoutScript.replace(/<[^>]+>/g, " ");
+  return normalizeText(stripped);
+}
+
+function isReadyFromArtifacts(artifacts: Record<string, unknown>): boolean {
+  return Boolean(artifacts.summary && artifacts.score && artifacts.todos && artifacts.card);
+}
+
+function openDatabase(dbPath: string): DatabaseSync {
+  mkdirSync(dirname(dbPath), { recursive: true });
+  const db = new DatabaseSync(dbPath);
+  db.exec("PRAGMA journal_mode = WAL;");
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS items (
+      id TEXT PRIMARY KEY,
+      url TEXT NOT NULL,
+      title TEXT,
+      domain TEXT,
+      source_type TEXT NOT NULL,
+      intent_text TEXT NOT NULL,
+      status TEXT NOT NULL,
+      priority TEXT,
+      match_score REAL,
+      failure_json TEXT,
+      capture_key TEXT UNIQUE,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_items_status_updated ON items(status, updated_at);
+    CREATE INDEX IF NOT EXISTS idx_items_priority_score ON items(priority, match_score);
+
+    CREATE TABLE IF NOT EXISTS artifacts (
+      id TEXT PRIMARY KEY,
+      item_id TEXT NOT NULL,
+      artifact_type TEXT NOT NULL,
+      version INTEGER NOT NULL,
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      meta_json TEXT NOT NULL,
+      payload_json TEXT NOT NULL,
+      run_id TEXT NOT NULL,
+      UNIQUE(item_id, artifact_type, version)
+    );
+    CREATE INDEX IF NOT EXISTS idx_artifacts_item_type ON artifacts(item_id, artifact_type, version DESC);
+    CREATE INDEX IF NOT EXISTS idx_artifacts_run ON artifacts(run_id);
+
+    CREATE TABLE IF NOT EXISTS jobs (
+      id TEXT PRIMARY KEY,
+      item_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      status TEXT NOT NULL,
+      run_id TEXT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      lease_owner TEXT,
+      lease_expires_at TEXT,
+      request_key TEXT UNIQUE,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      last_error TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_jobs_status_created ON jobs(status, created_at);
+    CREATE INDEX IF NOT EXISTS idx_jobs_item_kind ON jobs(item_id, kind);
+  `);
+  return db;
+}
+
+function rowToItem(row: DbItemRow): Record<string, unknown> {
+  return {
+    id: row.id,
+    url: row.url,
+    title: row.title,
+    domain: row.domain,
+    source_type: row.source_type,
+    intent_text: row.intent_text,
+    status: row.status,
+    priority: row.priority,
+    match_score: row.match_score,
+    failure: row.failure_json ? (JSON.parse(row.failure_json) as unknown) : undefined,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+function artifactToSchema(artifactType: string):
+  | "extraction"
+  | "summary"
+  | "score"
+  | "todos"
+  | "card"
+  | "export" {
+  if (artifactType === "summary") return "summary";
+  if (artifactType === "score") return "score";
+  if (artifactType === "todos") return "todos";
+  if (artifactType === "card") return "card";
+  if (artifactType === "extraction") return "extraction";
+  return "export";
+}
+
+async function extractFromUrl(url: string): Promise<{ normalized_text: string; content_meta: Record<string, unknown> }> {
+  const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  if (!response.ok) {
+    throw new Error(`Fetch failed with status ${response.status}`);
+  }
+  const contentType = response.headers.get("content-type") ?? "";
+  const raw = await response.text();
+  const text = contentType.includes("html") ? plainTextFromHtml(raw) : normalizeText(raw);
+  if (text.length < 50) {
+    throw new Error("Extracted text too short");
+  }
+  const normalized = text.slice(0, 20000);
+  return {
+    normalized_text: normalized,
+    content_meta: extractContentMeta(normalized),
+  };
+}
+
+function latestArtifacts(db: DatabaseSync, itemId: string): Record<string, unknown> {
+  const rows = db
+    .prepare(
+      `
+      SELECT a.artifact_type, a.version, a.created_by, a.created_at, a.meta_json, a.payload_json
+      FROM artifacts a
+      INNER JOIN (
+        SELECT artifact_type, MAX(version) AS version
+        FROM artifacts
+        WHERE item_id = ?
+        GROUP BY artifact_type
+      ) latest ON latest.artifact_type = a.artifact_type AND latest.version = a.version
+      WHERE a.item_id = ?
+      `,
+    )
+    .all(itemId, itemId) as Array<{
+    artifact_type: string;
+    version: number;
+    created_by: string;
+    created_at: string;
+    meta_json: string;
+    payload_json: string;
+  }>;
+
+  return rows.reduce<Record<string, unknown>>((acc, row) => {
+    acc[row.artifact_type] = {
+      artifact_type: row.artifact_type,
+      version: row.version,
+      created_by: row.created_by,
+      created_at: row.created_at,
+      meta: JSON.parse(row.meta_json),
+      payload: JSON.parse(row.payload_json),
+    };
+    return acc;
+  }, {});
+}
+
+function writeArtifact(
+  db: DatabaseSync,
+  params: {
+    itemId: string;
+    artifactType: string;
+    payload: Record<string, unknown>;
+    runId: string;
+    engineVersion: string;
+    templateVersion: string;
+    createdBy?: "system" | "user";
+  },
+): void {
+  ensureSchema(artifactToSchema(params.artifactType), params.payload);
+  const createdAt = nowIso();
+  const versionRow = db
+    .prepare("SELECT COALESCE(MAX(version), 0) AS version FROM artifacts WHERE item_id = ? AND artifact_type = ?")
+    .get(params.itemId, params.artifactType) as { version: number };
+
+  const version = versionRow.version + 1;
+  const meta = {
+    run_id: params.runId,
+    engine_version: params.engineVersion,
+    template_version: params.templateVersion,
+    created_at: createdAt,
+    created_by: params.createdBy ?? "system",
+  };
+
+  db.prepare(
+    `
+      INSERT INTO artifacts(id, item_id, artifact_type, version, created_by, created_at, meta_json, payload_json, run_id)
+      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+  ).run(
+    `art_${nanoid(10)}`,
+    params.itemId,
+    params.artifactType,
+    version,
+    params.createdBy ?? "system",
+    createdAt,
+    JSON.stringify(meta),
+    JSON.stringify(params.payload),
+    params.runId,
+  );
+}
+
+function createProcessJob(db: DatabaseSync, itemId: string, requestKey: string): void {
+  const exists = db
+    .prepare("SELECT id FROM jobs WHERE request_key = ?")
+    .get(requestKey) as { id: string } | undefined;
+  if (exists) {
+    return;
+  }
+
+  const ts = nowIso();
+  db.prepare(
+    `
+      INSERT INTO jobs(id, item_id, kind, status, run_id, attempts, request_key, created_at, updated_at)
+      VALUES(?, ?, 'PROCESS', 'QUEUED', ?, 0, ?, ?, ?)
+    `,
+  ).run(`job_${nanoid(10)}`, itemId, `run_${nanoid(10)}`, requestKey, ts, ts);
+}
+
+export async function createApp(options: CreateAppOptions = {}): Promise<FastifyInstance> {
+  const root = repoRoot();
+  const dbPath = resolve(root, options.dbPath ?? process.env.DB_PATH ?? "apps/api/data/readdo.db");
+  const engineVersion = options.engineVersion ?? process.env.ENGINE_VERSION ?? "0.1.0";
+  const defaultProfile = (process.env.DEFAULT_PROFILE as "engineer" | "creator" | "manager" | undefined) ?? "engineer";
+  const workerIntervalMs = options.workerIntervalMs ?? 1500;
+  const startWorker = options.startWorker ?? true;
+
+  const db = openDatabase(dbPath);
+  const app = Fastify({ logger: true });
+  await app.register(cors, { origin: true });
+
+  app.get("/healthz", async () => ({ ok: true }));
+
+  app.post("/api/capture", async (request, reply) => {
+    const body = request.body as Record<string, unknown>;
+    const idempotencyKey = String(request.headers["idempotency-key"] ?? body.capture_id ?? "");
+    const url = String(body.url ?? "").trim();
+    const intentText = String(body.intent_text ?? "").trim();
+    const title = String(body.title ?? "").trim();
+    const sourceType = String(body.source_type ?? "web").trim();
+    const domain = String(body.domain ?? "").trim();
+
+    if (!url || !intentText) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "url and intent_text are required"));
+    }
+
+    if (idempotencyKey) {
+      const existing = db
+        .prepare("SELECT * FROM items WHERE capture_key = ?")
+        .get(idempotencyKey) as DbItemRow | undefined;
+      if (existing) {
+        return reply.status(201).send({
+          item: {
+            id: existing.id,
+            status: existing.status,
+            created_at: existing.created_at,
+          },
+        });
+      }
+    }
+
+    const id = `itm_${nanoid(10)}`;
+    const ts = nowIso();
+    db.prepare(
+      `
+      INSERT INTO items(id, url, title, domain, source_type, intent_text, status, created_at, updated_at, capture_key)
+      VALUES(?, ?, ?, ?, ?, ?, 'CAPTURED', ?, ?, ?)
+      `,
+    ).run(id, url, title, domain, sourceType, intentText, ts, ts, idempotencyKey || null);
+
+    createProcessJob(db, id, `capture:${id}:${idempotencyKey || "default"}`);
+
+    return reply.status(201).send({
+      item: {
+        id,
+        status: "CAPTURED",
+        created_at: ts,
+      },
+    });
+  });
+
+  app.get("/api/items", async (request) => {
+    const query = request.query as Record<string, unknown>;
+    const status = typeof query.status === "string" ? query.status : undefined;
+    const sort = typeof query.sort === "string" ? query.sort : "priority_score_desc";
+    const limit = Math.min(Number(query.limit ?? 20), 100);
+
+    const whereClause = status ? "WHERE status = ?" : "";
+    const params = status ? [status] : [];
+
+    const orderBy =
+      sort === "created_desc"
+        ? "created_at DESC"
+        : sort === "updated_desc"
+          ? "updated_at DESC"
+          : `
+            CASE status
+              WHEN 'READY' THEN 0
+              WHEN 'PROCESSING' THEN 1
+              WHEN 'QUEUED' THEN 2
+              WHEN 'CAPTURED' THEN 3
+              WHEN 'FAILED_EXTRACTION' THEN 4
+              WHEN 'FAILED_AI' THEN 5
+              WHEN 'FAILED_EXPORT' THEN 6
+              WHEN 'SHIPPED' THEN 7
+              ELSE 8
+            END,
+            CASE priority
+              WHEN 'READ_NEXT' THEN 0
+              WHEN 'WORTH_IT' THEN 1
+              WHEN 'IF_TIME' THEN 2
+              WHEN 'SKIP' THEN 3
+              ELSE 4
+            END,
+            COALESCE(match_score, -1) DESC,
+            created_at DESC
+          `;
+
+    const rows = db
+      .prepare(
+        `
+          SELECT id, url, title, domain, source_type, intent_text, status, priority, match_score, failure_json, created_at, updated_at
+          FROM items
+          ${whereClause}
+          ORDER BY ${orderBy}
+          LIMIT ?
+        `,
+      )
+      .all(...params, limit) as DbItemRow[];
+
+    return {
+      items: rows.map((row) => rowToItem(row)),
+    };
+  });
+
+  app.get("/api/items/:id", async (request, reply) => {
+    const id = (request.params as { id: string }).id;
+    const item = db.prepare("SELECT * FROM items WHERE id = ?").get(id) as DbItemRow | undefined;
+    if (!item) {
+      return reply.status(404).send(failure("NOT_FOUND", "Item not found", { item_id: id }));
+    }
+
+    return {
+      item: rowToItem(item),
+      artifacts: latestArtifacts(db, id),
+      failure: item.failure_json ? JSON.parse(item.failure_json) : undefined,
+    };
+  });
+
+  app.post("/api/items/:id/process", async (request, reply) => {
+    const id = (request.params as { id: string }).id;
+    const item = db.prepare("SELECT * FROM items WHERE id = ?").get(id) as DbItemRow | undefined;
+    if (!item) {
+      return reply.status(404).send(failure("NOT_FOUND", "Item not found"));
+    }
+    if (item.status === "PROCESSING") {
+      return reply.status(409).send(failure("PROCESSING_IN_PROGRESS", "Item is currently processing"));
+    }
+
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const processKey = String(request.headers["idempotency-key"] ?? body.process_request_id ?? `manual_${nanoid(8)}`);
+    createProcessJob(db, id, `process:${id}:${processKey}`);
+
+    const ts = nowIso();
+    db.prepare("UPDATE items SET status = 'QUEUED', updated_at = ? WHERE id = ?").run(ts, id);
+
+    return reply.status(202).send({
+      item: {
+        id,
+        status: "QUEUED",
+        updated_at: ts,
+      },
+    });
+  });
+
+  app.post("/api/items/:id/export", async (request, reply) => {
+    const id = (request.params as { id: string }).id;
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const exportKey = String(body.export_key ?? request.headers["idempotency-key"] ?? `exp_${nanoid(8)}`);
+
+    const item = db.prepare("SELECT * FROM items WHERE id = ?").get(id) as DbItemRow | undefined;
+    if (!item) {
+      return reply.status(404).send(failure("NOT_FOUND", "Item not found"));
+    }
+
+    if (!["READY", "SHIPPED", "FAILED_EXPORT"].includes(item.status)) {
+      return reply.status(409).send(failure("EXPORT_NOT_ALLOWED", "Export is only allowed for READY/SHIPPED/FAILED_EXPORT states"));
+    }
+
+    const artifacts = latestArtifacts(db, id);
+    const cardArtifact = artifacts.card as { payload?: Record<string, unknown> } | undefined;
+    if (!cardArtifact?.payload) {
+      return reply.status(409).send(failure("STATE_CONFLICT", "Card artifact is missing"));
+    }
+
+    const existingExports = db
+      .prepare("SELECT payload_json FROM artifacts WHERE item_id = ? AND artifact_type = 'export' ORDER BY version DESC LIMIT 5")
+      .all(id) as Array<{ payload_json: string }>;
+    for (const row of existingExports) {
+      const payload = JSON.parse(row.payload_json) as { export_key?: string };
+      if (payload.export_key === exportKey) {
+        const ts = nowIso();
+        db.prepare("UPDATE items SET status = 'SHIPPED', updated_at = ? WHERE id = ?").run(ts, id);
+        return {
+          item: { id, status: "SHIPPED", updated_at: ts },
+          export: {
+            artifact_type: "export",
+            payload,
+          },
+        };
+      }
+    }
+
+    const exportDir = resolve(root, "exports", id);
+    mkdirSync(exportDir, { recursive: true });
+
+    const card = cardArtifact.payload as {
+      headline: string;
+      points: string[];
+      action: string;
+      caption?: string;
+    };
+    const mdRelativePath = `exports/${id}/card_${Date.now()}.md`;
+    const captionRelativePath = `exports/${id}/caption_${Date.now()}.txt`;
+    writeFileSync(
+      resolve(root, mdRelativePath),
+      `# ${card.headline}\n\n${card.points.map((p, i) => `${i + 1}. ${p}`).join("\n")}\n\nAction: ${card.action}\n`,
+      "utf-8",
+    );
+    writeFileSync(resolve(root, captionRelativePath), card.caption ?? `${card.headline}\n${card.action}`, "utf-8");
+
+    const exportPayload = {
+      files: [
+        { type: "md", path: mdRelativePath, created_at: nowIso() },
+        { type: "caption", path: captionRelativePath, created_at: nowIso() },
+      ],
+      export_key: exportKey,
+      renderer: {
+        name: "markdown-caption-fallback",
+        version: "0.1.0",
+      },
+    };
+    ensureSchema("export", exportPayload);
+    const runId = `run_${nanoid(10)}`;
+    writeArtifact(db, {
+      itemId: id,
+      artifactType: "export",
+      payload: exportPayload,
+      runId,
+      engineVersion,
+      templateVersion: "export.v1",
+    });
+
+    const ts = nowIso();
+    db.prepare("UPDATE items SET status = 'SHIPPED', updated_at = ?, failure_json = NULL WHERE id = ?").run(ts, id);
+
+    return {
+      item: { id, status: "SHIPPED", updated_at: ts },
+      export: {
+        artifact_type: "export",
+        payload: exportPayload,
+      },
+    };
+  });
+
+  app.post("/api/items/:id/archive", async (request, reply) => {
+    const id = (request.params as { id: string }).id;
+    const item = db.prepare("SELECT * FROM items WHERE id = ?").get(id) as DbItemRow | undefined;
+    if (!item) {
+      return reply.status(404).send(failure("NOT_FOUND", "Item not found"));
+    }
+    if (item.status === "PROCESSING") {
+      return reply.status(409).send(failure("ARCHIVE_NOT_ALLOWED", "Cannot archive processing item"));
+    }
+    const ts = nowIso();
+    db.prepare("UPDATE items SET status = 'ARCHIVED', updated_at = ? WHERE id = ?").run(ts, id);
+    return {
+      item: { id, status: "ARCHIVED", updated_at: ts },
+    };
+  });
+
+  app.post("/api/items/:id/unarchive", async (request, reply) => {
+    const id = (request.params as { id: string }).id;
+    const item = db.prepare("SELECT * FROM items WHERE id = ?").get(id) as DbItemRow | undefined;
+    if (!item) {
+      return reply.status(404).send(failure("NOT_FOUND", "Item not found"));
+    }
+    if (item.status !== "ARCHIVED") {
+      return reply.status(409).send(failure("STATE_CONFLICT", "Only archived items can be unarchived"));
+    }
+
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const regenerate = Boolean(body.regenerate);
+    const artifacts = latestArtifacts(db, id);
+    const ready = isReadyFromArtifacts(artifacts);
+    const targetStatus = regenerate || !ready ? "QUEUED" : "READY";
+    const ts = nowIso();
+    db.prepare("UPDATE items SET status = ?, updated_at = ? WHERE id = ?").run(targetStatus, ts, id);
+
+    if (targetStatus === "QUEUED") {
+      createProcessJob(db, id, `unarchive:${id}:${nanoid(8)}`);
+    }
+
+    return {
+      item: { id, status: targetStatus, updated_at: ts },
+    };
+  });
+
+  async function processJob(job: JobRow): Promise<void> {
+    const item = db.prepare("SELECT * FROM items WHERE id = ?").get(job.item_id) as DbItemRow | undefined;
+    if (!item) {
+      db.prepare("UPDATE jobs SET status = 'FAILED', updated_at = ?, last_error = ? WHERE id = ?").run(nowIso(), "item_not_found", job.id);
+      return;
+    }
+
+    const runId = `run_${nanoid(10)}`;
+    db.prepare("UPDATE jobs SET run_id = ?, attempts = attempts + 1, updated_at = ? WHERE id = ?").run(runId, nowIso(), job.id);
+    db.prepare("UPDATE items SET status = 'PROCESSING', updated_at = ?, failure_json = NULL WHERE id = ?").run(nowIso(), item.id);
+
+    try {
+      const extraction = await extractFromUrl(item.url);
+      const extractionPayload = {
+        normalized_text: extraction.normalized_text,
+        extraction_hash: createHash("sha256").update(`${item.url}|${extraction.normalized_text}`).digest("hex").slice(0, 32),
+        content_meta: extraction.content_meta,
+      };
+
+      writeArtifact(db, {
+        itemId: item.id,
+        artifactType: "extraction",
+        payload: extractionPayload,
+        runId,
+        engineVersion,
+        templateVersion: "extraction.v1",
+      });
+
+      const engineInputBase = {
+        intent_text: item.intent_text,
+        extracted_text: extraction.normalized_text,
+        profile: defaultProfile,
+        source_type: item.source_type as "web" | "youtube" | "newsletter" | "other",
+        engine_version: engineVersion,
+        run_id: runId,
+      };
+      const output = await runEngine(
+        item.title || item.domain
+          ? {
+              ...engineInputBase,
+              ...(item.title ? { title: item.title } : {}),
+              ...(item.domain ? { domain: item.domain } : {}),
+            }
+          : engineInputBase,
+      );
+
+      writeArtifact(db, {
+        itemId: item.id,
+        artifactType: "summary",
+        payload: output.artifacts.summary as Record<string, unknown>,
+        runId,
+        engineVersion,
+        templateVersion: output.meta.template_versions.summary,
+      });
+      writeArtifact(db, {
+        itemId: item.id,
+        artifactType: "score",
+        payload: output.artifacts.score as Record<string, unknown>,
+        runId,
+        engineVersion,
+        templateVersion: output.meta.template_versions.score,
+      });
+      writeArtifact(db, {
+        itemId: item.id,
+        artifactType: "todos",
+        payload: output.artifacts.todos as Record<string, unknown>,
+        runId,
+        engineVersion,
+        templateVersion: output.meta.template_versions.todos,
+      });
+      writeArtifact(db, {
+        itemId: item.id,
+        artifactType: "card",
+        payload: output.artifacts.card as Record<string, unknown>,
+        runId,
+        engineVersion,
+        templateVersion: output.meta.template_versions.card,
+      });
+
+      const scorePayload = output.artifacts.score as { match_score: number; priority: string };
+      db.prepare(
+        "UPDATE items SET status = 'READY', priority = ?, match_score = ?, failure_json = NULL, updated_at = ? WHERE id = ?",
+      ).run(scorePayload.priority, scorePayload.match_score, nowIso(), item.id);
+      db.prepare("UPDATE jobs SET status = 'DONE', lease_owner = NULL, lease_expires_at = NULL, updated_at = ? WHERE id = ?").run(
+        nowIso(),
+        job.id,
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const isExtractionFailure = /(Fetch failed|Extracted text too short|network|timeout)/i.test(message);
+      const failedStatus = isExtractionFailure ? "FAILED_EXTRACTION" : "FAILED_AI";
+      const failurePayload = {
+        failed_step: isExtractionFailure ? "extract" : "pipeline",
+        error_code: isExtractionFailure ? "EXTRACTION_FETCH_FAILED" : "AI_PROVIDER_ERROR",
+        message,
+        retryable: true,
+      };
+
+      db.prepare("UPDATE items SET status = ?, failure_json = ?, updated_at = ? WHERE id = ?").run(
+        failedStatus,
+        JSON.stringify(failurePayload),
+        nowIso(),
+        item.id,
+      );
+      db.prepare("UPDATE jobs SET status = 'FAILED', last_error = ?, lease_owner = NULL, lease_expires_at = NULL, updated_at = ? WHERE id = ?").run(
+        message,
+        nowIso(),
+        job.id,
+      );
+    }
+  }
+
+  async function runWorkerOnce(): Promise<void> {
+    const now = nowIso();
+    db.prepare("UPDATE jobs SET status = 'QUEUED', lease_owner = NULL, lease_expires_at = NULL, updated_at = ? WHERE status = 'LEASED' AND lease_expires_at < ?").run(
+      now,
+      now,
+    );
+
+    const candidate = db
+      .prepare("SELECT * FROM jobs WHERE status = 'QUEUED' AND kind = 'PROCESS' ORDER BY created_at ASC LIMIT 1")
+      .get() as JobRow | undefined;
+    if (!candidate) {
+      return;
+    }
+
+    const leaseUntil = plusSeconds(now, 60);
+    const leaseResult = db
+      .prepare("UPDATE jobs SET status = 'LEASED', lease_owner = ?, lease_expires_at = ?, updated_at = ? WHERE id = ? AND status = 'QUEUED'")
+      .run("worker_local", leaseUntil, nowIso(), candidate.id);
+    if (leaseResult.changes === 0) {
+      return;
+    }
+
+    await processJob({
+      ...candidate,
+      status: "LEASED",
+      lease_owner: "worker_local",
+      lease_expires_at: leaseUntil,
+    });
+  }
+
+  let workerTimer: NodeJS.Timeout | undefined;
+  let workerBusy = false;
+  if (startWorker) {
+    workerTimer = setInterval(() => {
+      if (workerBusy) return;
+      workerBusy = true;
+      void runWorkerOnce()
+        .catch((err) => app.log.error({ err }, "worker_tick_failed"))
+        .finally(() => {
+          workerBusy = false;
+        });
+    }, workerIntervalMs);
+  }
+
+  app.decorate("runWorkerOnce", runWorkerOnce);
+
+  app.addHook("onClose", async () => {
+    if (workerTimer) {
+      clearInterval(workerTimer);
+    }
+    db.close();
+  });
+
+  return app;
+}
+
+declare module "fastify" {
+  interface FastifyInstance {
+    runWorkerOnce: () => Promise<void>;
+  }
+}
