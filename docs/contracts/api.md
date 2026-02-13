@@ -437,9 +437,9 @@ Headers:
 
 ### 5.2 Query Params
 
-* `status`（可重复）：CAPTURED, QUEUED, PROCESSING, READY, FAILED_*, SHIPPED, ARCHIVED（大小写不敏感）
-* `priority`（可重复）：READ_NEXT, WORTH_IT, IF_TIME, SKIP（大小写不敏感）
-* `source_type`（可重复）：web, youtube, newsletter, other（大小写不敏感）
+* `status`（可重复）：CAPTURED, QUEUED, PROCESSING, READY, FAILED_*, SHIPPED, ARCHIVED（大小写不敏感；包含非法值返回 `400 VALIDATION_ERROR`）
+* `priority`（可重复）：READ_NEXT, WORTH_IT, IF_TIME, SKIP（大小写不敏感；包含非法值返回 `400 VALIDATION_ERROR`）
+* `source_type`（可重复）：web, youtube, newsletter, other（大小写不敏感；包含非法值返回 `400 VALIDATION_ERROR`）
 * `retryable`：`true | false`（仅对 FAILED_* 生效；用于筛选可重试/不可重试失败项；其他值返回 `400 VALIDATION_ERROR`）
 * `failure_step`：`extract | pipeline | export`（仅对 FAILED_* 生效；按失败阶段筛选；其他值返回 `400 VALIDATION_ERROR`）
 * `q`：搜索（MVP 可仅 title/domain/intent_text）
@@ -481,7 +481,7 @@ Headers:
 
 ### 5.4 错误
 
-* 400 VALIDATION_ERROR（如 retryable / failure_step / sort 参数非法）
+* 400 VALIDATION_ERROR（如 status / priority / source_type / retryable / failure_step / sort 参数非法）
 
 ---
 

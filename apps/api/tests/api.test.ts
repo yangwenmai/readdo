@@ -1843,6 +1843,15 @@ test("items endpoint supports status and query filtering", async () => {
     assert.ok(statusMultiItems.some((x) => x.status === "CAPTURED"));
     assert.ok(statusMultiItems.every((x) => ["READY", "CAPTURED"].includes(x.status)));
 
+    const invalidStatusRes = await app.inject({
+      method: "GET",
+      url: "/api/items?status=READY,NOT_A_STATUS",
+    });
+    assert.equal(invalidStatusRes.statusCode, 400);
+    const invalidStatusPayload = invalidStatusRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidStatusPayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidStatusPayload.error.message, /status must contain valid item statuses/i);
+
     const searchRes = await app.inject({
       method: "GET",
       url: "/api/items?q=creator",
@@ -1870,6 +1879,24 @@ test("items endpoint supports status and query filtering", async () => {
     assert.ok(multiSourceTypeItems.some((x) => x.source_type === "youtube"));
     assert.ok(multiSourceTypeItems.some((x) => x.source_type === "web"));
     assert.ok(multiSourceTypeItems.every((x) => ["youtube", "web"].includes(x.source_type)));
+
+    const invalidPriorityRes = await app.inject({
+      method: "GET",
+      url: "/api/items?priority=READ_NEXT,NOT_A_PRIORITY",
+    });
+    assert.equal(invalidPriorityRes.statusCode, 400);
+    const invalidPriorityPayload = invalidPriorityRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidPriorityPayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidPriorityPayload.error.message, /priority must contain read_next\|worth_it\|if_time\|skip/i);
+
+    const invalidSourceTypeRes = await app.inject({
+      method: "GET",
+      url: "/api/items?source_type=web,unknown",
+    });
+    assert.equal(invalidSourceTypeRes.statusCode, 400);
+    const invalidSourceTypePayload = invalidSourceTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidSourceTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidSourceTypePayload.error.message, /source_type must contain web\|youtube\|newsletter\|other/i);
 
     const trimmedSortRes = await app.inject({
       method: "GET",
