@@ -1085,11 +1085,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
         retryableFilter = retryableRaw;
       } else if (typeof retryableRaw === "string") {
         const normalized = retryableRaw.trim().toLowerCase();
-        if (normalized === "true") {
-          retryableFilter = true;
-        } else if (normalized === "false") {
-          retryableFilter = false;
-        } else if (normalized === "all") {
+        if (normalized === "all") {
           retryableFilter = null;
         } else {
           return reply.status(400).send(failure("VALIDATION_ERROR", "retryable must be true|false|null|all"));

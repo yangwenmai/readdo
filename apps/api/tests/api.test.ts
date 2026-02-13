@@ -3679,6 +3679,18 @@ test("archive-failed endpoint archives blocked failures with dry-run support", a
     assert.equal(invalidRetryableRes.statusCode, 400);
     assert.equal((invalidRetryableRes.json() as { error: { code: string } }).error.code, "VALIDATION_ERROR");
 
+    const invalidRetryableStringBooleanRes = await app.inject({
+      method: "POST",
+      url: "/api/items/archive-failed",
+      payload: { retryable: "true" },
+    });
+    assert.equal(invalidRetryableStringBooleanRes.statusCode, 400);
+    const invalidRetryableStringBooleanPayload = invalidRetryableStringBooleanRes.json() as {
+      error: { code: string; message: string };
+    };
+    assert.equal(invalidRetryableStringBooleanPayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidRetryableStringBooleanPayload.error.message, /retryable must be true\|false\|null\|all/i);
+
     const archiveRes = await app.inject({
       method: "POST",
       url: "/api/items/archive-failed",
