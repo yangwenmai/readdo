@@ -91,6 +91,7 @@ const queueNudgeHeatMomentumPrefix = "Momentum";
 const queueNudgeHeatTrendLabel = "Momentum Trend";
 const queueNudgeHeatTrendSeriesLabel = "Hot+Strong";
 const queueNudgeStoryLabel = "Aha Storyline";
+const queueLeadGapLabelPrefix = "Lead Gap";
 const detailStoryLabel = "Queue Storyline";
 const detailStoryOpenLeadPrefix = "Open Lead";
 const queueNudgePoolPrefix = "Aha pool";
@@ -278,6 +279,16 @@ const html = `<!doctype html>
       .item-card.priority-worth-it { border-left: 4px solid #7c3aed; }
       .item-card.priority-if-time { border-left: 4px solid #14b8a6; }
       .item-card.priority-default { border-left: 4px solid #94a3b8; }
+      .item-card.aha-lead {
+        border-color: #86efac;
+        box-shadow: 0 12px 28px rgba(34, 197, 94, 0.24);
+      }
+      .item-card.aha-chase {
+        border-color: #93c5fd;
+      }
+      .item-card.aha-trail {
+        border-color: #cbd5e1;
+      }
       .item-card.is-spotlight {
         border-color: #93c5fd;
         box-shadow: 0 12px 26px rgba(59, 130, 246, 0.26);
@@ -475,6 +486,38 @@ const html = `<!doctype html>
         color: #b91c1c;
       }
       .aha-rank-delta.delta-flat {
+        color: #475569;
+      }
+      .aha-gap-line {
+        margin-top: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        padding: 3px 8px;
+      }
+      .aha-gap-line .label {
+        opacity: 0.82;
+      }
+      .aha-gap-line.gap-lead {
+        border-color: #86efac;
+        background: #ecfdf5;
+        color: #166534;
+      }
+      .aha-gap-line.gap-chase {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .aha-gap-line.gap-trail {
+        border-color: #d1d5db;
+        background: #f8fafc;
         color: #475569;
       }
       .score-meter {
@@ -1809,6 +1852,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_HEAT_TREND_LABEL = ${JSON.stringify(queueNudgeHeatTrendLabel)};
       const QUEUE_NUDGE_HEAT_TREND_SERIES_LABEL = ${JSON.stringify(queueNudgeHeatTrendSeriesLabel)};
       const QUEUE_NUDGE_STORY_LABEL = ${JSON.stringify(queueNudgeStoryLabel)};
+      const QUEUE_LEAD_GAP_LABEL_PREFIX = ${JSON.stringify(queueLeadGapLabelPrefix)};
       const DETAIL_STORY_LABEL = ${JSON.stringify(detailStoryLabel)};
       const DETAIL_STORY_OPEN_LEAD_PREFIX = ${JSON.stringify(detailStoryOpenLeadPrefix)};
       const QUEUE_NUDGE_POOL_PREFIX = ${JSON.stringify(queueNudgePoolPrefix)};
@@ -1969,6 +2013,7 @@ const html = `<!doctype html>
       let ahaCandidateCycleCursor = -1;
       let currentAhaRankMap = new Map();
       let previousAhaRankMap = new Map();
+      let currentAhaLeadMeta = null;
       let currentAhaHeatMap = new Map();
       let previousAhaHeatMap = new Map();
       let ahaHeatHistory = [];
@@ -2792,6 +2837,12 @@ const html = `<!doctype html>
           });
         }
         currentAhaRankMap = nextMap;
+        currentAhaLeadMeta = ranked[0]
+          ? {
+              id: String(ranked[0].id),
+              value: ahaIndexMetaForItem(ranked[0]).value,
+            }
+          : null;
       }
 
       function ahaRankFromMap(item) {
@@ -2811,6 +2862,52 @@ const html = `<!doctype html>
           return { value: delta, label: "↓" + Math.abs(delta), tone: "delta-down" };
         }
         return { value: 0, label: "→0", tone: "delta-flat" };
+      }
+
+      function ahaLeadGapMeta(item, currentRank = ahaRankFromMap(item)) {
+        if (!item || !currentRank || !currentAhaLeadMeta) return null;
+        const leadId = String(currentAhaLeadMeta.id);
+        const isLead = String(item.id) === leadId;
+        if (isLead) {
+          return {
+            tone: "gap-lead",
+            cardTone: "aha-lead",
+            label: "Lead now",
+            hint: "Keep shipping momentum.",
+          };
+        }
+        const rankGap = Math.max(Number(currentRank.rank || 0) - 1, 0);
+        const valueGap = Math.max(Number(currentAhaLeadMeta.value || 0) - Number(currentRank.value || 0), 0);
+        if (rankGap <= 2 && valueGap <= 12) {
+          return {
+            tone: "gap-chase",
+            cardTone: "aha-chase",
+            label: "+" + rankGap + " rank · -" + valueGap,
+            hint: "Close gap to lead #" + leadId,
+          };
+        }
+        return {
+          tone: "gap-trail",
+          cardTone: "aha-trail",
+          label: "+" + rankGap + " rank · -" + valueGap,
+          hint: "Trail lead #" + leadId,
+        };
+      }
+
+      function ahaLeadGapHtml(item, currentRank = ahaRankFromMap(item)) {
+        const gap = ahaLeadGapMeta(item, currentRank);
+        if (!gap) return "";
+        return (
+          '<div class="aha-gap-line ' +
+          gap.tone +
+          '"><span class="label">' +
+          QUEUE_LEAD_GAP_LABEL_PREFIX +
+          '</span>' +
+          gap.label +
+          '<span class="muted">· ' +
+          gap.hint +
+          "</span></div>"
+        );
       }
 
       function ahaCandidateChipLabel(item, rank) {
@@ -4749,6 +4846,7 @@ const html = `<!doctype html>
         const insightPillsHtml = queueInsightPillsHtml(item);
         const ahaRank = ahaRankFromMap(item);
         const ahaDelta = ahaRankDeltaFromMap(item, ahaRank);
+        const ahaGap = ahaLeadGapMeta(item, ahaRank);
         const ahaDeltaHtml = ahaDelta
           ? '<span class="aha-rank-delta ' + ahaDelta.tone + '">' + ahaDelta.label + "</span>"
           : "";
@@ -4760,7 +4858,11 @@ const html = `<!doctype html>
         const scoreMeter = scoreMeterHtml(item.match_score);
         const freshnessChip = freshnessChipHtml(item.updated_at);
         const ahaIndex = ahaIndexHtml(item);
+        const gapHtml = ahaLeadGapHtml(item, ahaRank);
         const nextMoveHtml = queueNextMoveHtml(item, ops, spotlight);
+        if (ahaGap?.cardTone) {
+          card.classList.add(ahaGap.cardTone);
+        }
         card.innerHTML = \`
           <div class="item-head">
             <div class="status-cluster">
@@ -4775,6 +4877,7 @@ const html = `<!doctype html>
           \${scoreMeter}
           \${freshnessChip}
           \${ahaIndex}
+          \${gapHtml}
           \${insightPillsHtml}
           \${flowRailHtml}
           \${nextMoveHtml}
@@ -6405,6 +6508,8 @@ const html = `<!doctype html>
         const ahaDelta = ahaRankDeltaFromMap(item, ahaRank);
         const ahaDeltaLabel = ahaDelta ? " " + ahaDelta.label : "";
         const ahaLabel = ahaRank ? "Aha #" + ahaRank.rank + "/" + ahaRank.total + " (" + ahaRank.value + ")" + ahaDeltaLabel : "Aha —";
+        const gap = ahaLeadGapMeta(item, ahaRank);
+        const gapLabel = gap ? " · " + QUEUE_LEAD_GAP_LABEL_PREFIX + " " + gap.label : "";
         selectionHintEl.textContent =
           "Selected: #" +
           String(item.id ?? "—") +
@@ -6412,6 +6517,7 @@ const html = `<!doctype html>
           String(item.status || "UNKNOWN") +
           " · " +
           ahaLabel +
+          gapLabel +
           " · " +
           actionLabel +
           " · " +

@@ -241,6 +241,18 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /aha-rank-chip/u);
     assert.match(text, /Aha Rank #/u);
     assert.match(text, /rank-top/u);
+    assert.match(text, /aha-gap-line/u);
+    assert.match(text, /gap-lead/u);
+    assert.match(text, /gap-chase/u);
+    assert.match(text, /gap-trail/u);
+    assert.match(text, /aha-lead/u);
+    assert.match(text, /aha-chase/u);
+    assert.match(text, /aha-trail/u);
+    assert.match(text, /Lead Gap/u);
+    assert.match(text, /Lead now/u);
+    assert.match(text, /Keep shipping momentum/u);
+    assert.match(text, /Close gap to lead/u);
+    assert.match(text, /Trail lead/u);
     assert.match(text, /aha-rank-delta/u);
     assert.match(text, /delta-up/u);
     assert.match(text, /delta-down/u);
