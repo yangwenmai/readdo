@@ -398,6 +398,34 @@ test("capture rejects mismatched header idempotency key and capture_id", async (
   }
 });
 
+test("capture rejects non-string capture_id", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-capture-invalid-capture-id-type-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        capture_id: ["cap-key-array"],
+        url: "https://example.com/invalid-capture-id-type",
+        source_type: "web",
+        intent_text: "invalid capture_id type should fail",
+      },
+    });
+    assert.equal(captureRes.statusCode, 400);
+    const errPayload = captureRes.json() as { error: { code: string; message: string } };
+    assert.equal(errPayload.error.code, "VALIDATION_ERROR");
+    assert.match(errPayload.error.message, /capture_id must be a string/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("capture mismatch check uses first non-empty parsed header key", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-capture-mismatch-idempotent-header-parsed-"));
   const app = await createApp({
@@ -1064,6 +1092,45 @@ test("export rejects mismatched header idempotency key and export_key", async ()
   }
 });
 
+test("export rejects non-string export_key", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-invalid-export-key-type-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20request%20validates%20non-string%20export_key%20validation.",
+        title: "Export Invalid Key Type",
+        domain: "example.export.invalid.key",
+        source_type: "web",
+        intent_text: "invalid export_key type should fail",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    await app.runWorkerOnce();
+
+    const exportRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: ["export-key-array"], formats: ["md"] },
+    });
+    assert.equal(exportRes.statusCode, 400);
+    const errPayload = exportRes.json() as { error: { code: string; message: string } };
+    assert.equal(errPayload.error.code, "VALIDATION_ERROR");
+    assert.match(errPayload.error.message, /export_key must be a string/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("export mismatch check uses first non-empty parsed header key", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-mismatch-idempotent-header-parsed-"));
   const app = await createApp({
@@ -1486,6 +1553,43 @@ test("process rejects mismatched header idempotency key and process_request_id",
     const errPayload = processRes.json() as { error: { code: string; message: string } };
     assert.equal(errPayload.error.code, "VALIDATION_ERROR");
     assert.match(errPayload.error.message, /Idempotency-Key and process_request_id must match/i);
+  } finally {
+    await app.close();
+  }
+});
+
+test("process rejects non-string process_request_id", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-invalid-request-id-type-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20request%20validates%20non-string%20process_request_id%20validation.",
+        title: "Process Invalid Request Id Type",
+        domain: "example.process.invalid.request-id",
+        source_type: "web",
+        intent_text: "invalid process_request_id type should fail",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    const processRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      payload: { mode: "PROCESS", process_request_id: ["process-key-array"] },
+    });
+    assert.equal(processRes.statusCode, 400);
+    const errPayload = processRes.json() as { error: { code: string; message: string } };
+    assert.equal(errPayload.error.code, "VALIDATION_ERROR");
+    assert.match(errPayload.error.message, /process_request_id must be a string/i);
   } finally {
     await app.close();
   }

@@ -1199,6 +1199,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
   app.post("/api/capture", async (request, reply) => {
     const body = request.body as Record<string, unknown>;
+    if (body.capture_id != null && typeof body.capture_id !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "capture_id must be a string when provided"));
+    }
     const headerKey = normalizeCaptureIdempotencyKey(request.headers["idempotency-key"], true);
     const captureId = normalizeCaptureIdempotencyKey(body.capture_id);
     if (headerKey && captureId && headerKey !== captureId) {
@@ -1602,6 +1605,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       return reply.status(400).send(failure("VALIDATION_ERROR", "mode must be PROCESS | RETRY | REGENERATE"));
     }
     const headerProcessRaw = request.headers["idempotency-key"];
+    if (body.process_request_id != null && typeof body.process_request_id !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "process_request_id must be a string when provided"));
+    }
     const headerProcessKey = normalizeIdempotencyHeaderKey(headerProcessRaw);
     const bodyProcessKey = normalizeIdempotencyKey(body.process_request_id);
     if (headerProcessKey && bodyProcessKey && headerProcessKey !== bodyProcessKey) {
@@ -1708,6 +1714,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   app.post("/api/items/:id/export", async (request, reply) => {
     const id = (request.params as { id: string }).id;
     const body = (request.body ?? {}) as Record<string, unknown>;
+    if (body.export_key != null && typeof body.export_key !== "string") {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "export_key must be a string when provided"));
+    }
     const headerExportRaw = request.headers["idempotency-key"];
     const headerExportKey = normalizeIdempotencyHeaderKey(headerExportRaw);
     const bodyExportKey = normalizeIdempotencyKey(body.export_key);
