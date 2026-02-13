@@ -212,6 +212,10 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Queue Recommended/u);
     assert.match(text, /hero-recommendation/u);
     assert.match(text, /detail-hero/u);
+    assert.match(text, /detailHeroStory/u);
+    assert.match(text, /hero-story/u);
+    assert.match(text, /Queue Storyline/u);
+    assert.match(text, /Open Lead/u);
     assert.match(text, /hero-kicker/u);
     assert.match(text, /Aha Momentum · Ready to ship now/u);
     assert.match(text, /Blocked Recovery/u);

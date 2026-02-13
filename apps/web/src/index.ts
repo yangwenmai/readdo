@@ -89,6 +89,8 @@ const queueNudgeHeatmapLabel = "Aha Heatmap";
 const queueNudgeHeatFocusLabel = "Focus";
 const queueNudgeHeatMomentumPrefix = "Momentum";
 const queueNudgeStoryLabel = "Aha Storyline";
+const detailStoryLabel = "Queue Storyline";
+const detailStoryOpenLeadPrefix = "Open Lead";
 const queueNudgePoolPrefix = "Aha pool";
 const queueNudgeCycleHint = "Cycle with Shift+N";
 const queueRecoveryCopyLabel = "Copy Recovery Summary";
@@ -721,6 +723,35 @@ const html = `<!doctype html>
       }
       .hero-actions button.primary.recommended {
         box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.65), 0 6px 16px rgba(37, 99, 235, 0.3);
+      }
+      .hero-story {
+        margin-top: 8px;
+        border: 1px dashed rgba(147, 197, 253, 0.8);
+        border-radius: 10px;
+        background: rgba(239, 246, 255, 0.85);
+        padding: 8px 10px;
+      }
+      .hero-story .label {
+        font-size: 11px;
+        color: #1e3a8a;
+        font-weight: 700;
+      }
+      .hero-story .body {
+        margin-top: 4px;
+        font-size: 12px;
+        color: #1e293b;
+        line-height: 1.45;
+      }
+      .hero-story-actions {
+        margin-top: 6px;
+        display: inline-flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .hero-story-actions button {
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-size: 11px;
       }
       .group-title {
         margin: 12px 0 6px;
@@ -1719,6 +1750,8 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_HEAT_FOCUS_LABEL = ${JSON.stringify(queueNudgeHeatFocusLabel)};
       const QUEUE_NUDGE_HEAT_MOMENTUM_PREFIX = ${JSON.stringify(queueNudgeHeatMomentumPrefix)};
       const QUEUE_NUDGE_STORY_LABEL = ${JSON.stringify(queueNudgeStoryLabel)};
+      const DETAIL_STORY_LABEL = ${JSON.stringify(detailStoryLabel)};
+      const DETAIL_STORY_OPEN_LEAD_PREFIX = ${JSON.stringify(detailStoryOpenLeadPrefix)};
       const QUEUE_NUDGE_POOL_PREFIX = ${JSON.stringify(queueNudgePoolPrefix)};
       const QUEUE_NUDGE_CYCLE_HINT = ${JSON.stringify(queueNudgeCycleHint)};
       const QUEUE_RECOVERY_COPY_LABEL = ${JSON.stringify(queueRecoveryCopyLabel)};
@@ -2511,6 +2544,44 @@ const html = `<!doctype html>
           (topPrimary?.label || "Review candidate") +
           "."
         );
+      }
+
+      function detailStoryText(item, poolItems = null) {
+        if (!item) return "";
+        const source =
+          Array.isArray(poolItems) && poolItems.length
+            ? poolItems
+            : (() => {
+                const visibleItems = visibleQueueItems();
+                return visibleItems.length ? visibleItems : allItems;
+              })();
+        const ranked = sortedAhaItems(source);
+        if (!ranked.length) return "";
+        const story = ahaStoryText(ranked, ahaHeatBuckets(ranked));
+        const top = ranked[0];
+        const topMeta = ahaIndexMetaForItem(top);
+        const index = ranked.findIndex((entry) => String(entry?.id) === String(item?.id));
+        if (index === 0) {
+          return "You are on the lead candidate #" + item.id + " (" + topMeta.value + "). " + story;
+        }
+        if (index > 0) {
+          const currentMeta = ahaIndexMetaForItem(item);
+          return (
+            "Lead is #" +
+            top.id +
+            " (" +
+            topMeta.value +
+            "), current is #" +
+            item.id +
+            " at rank #" +
+            (index + 1) +
+            " (" +
+            currentMeta.value +
+            "). " +
+            story
+          );
+        }
+        return "Current item is outside the active Aha pool. Lead is #" + top.id + " (" + topMeta.value + "). " + story;
       }
 
       function ahaRankForItem(item, poolItems = null) {
@@ -4924,6 +4995,63 @@ const html = `<!doctype html>
         return usedIds;
       }
 
+      function renderDetailHeroStory(item, hostEl) {
+        const storyHost = hostEl.querySelector("#detailHeroStory");
+        if (!storyHost || !item) return;
+        const visibleItems = visibleQueueItems();
+        const pool = visibleItems.length ? visibleItems : allItems;
+        const rankedPool = sortedAhaItems(pool);
+        if (!rankedPool.length) {
+          storyHost.innerHTML = '<span class="muted">' + DETAIL_STORY_LABEL + " unavailable.</span>";
+          return;
+        }
+        const top = rankedPool[0];
+        const story = detailStoryText(item, rankedPool);
+        storyHost.innerHTML =
+          '<div class="label">' +
+          DETAIL_STORY_LABEL +
+          '</div><div class="body">' +
+          (story || "No storyline available.") +
+          "</div>";
+        const actionsEl = document.createElement("div");
+        actionsEl.className = "hero-story-actions";
+        const copyBtn = document.createElement("button");
+        copyBtn.type = "button";
+        copyBtn.className = "secondary";
+        copyBtn.textContent = QUEUE_NUDGE_COPY_STORY_LABEL;
+        copyBtn.addEventListener("click", async () => {
+          const copied = await copyTextToClipboard(story, {
+            success: "Copied detail storyline.",
+            failure: "Copy detail storyline failed.",
+          });
+          if (!copied) {
+            errorEl.textContent = "Copy detail storyline failed.";
+          }
+        });
+        actionsEl.appendChild(copyBtn);
+        if (String(top?.id) !== String(item?.id)) {
+          const leadBtn = document.createElement("button");
+          leadBtn.type = "button";
+          leadBtn.className = "secondary";
+          leadBtn.textContent = DETAIL_STORY_OPEN_LEAD_PREFIX + " #" + top.id;
+          leadBtn.addEventListener("click", async () => {
+            await runActionWithFeedback(
+              {
+                id: "detail_story_open_lead_" + top.id,
+                label: DETAIL_STORY_OPEN_LEAD_PREFIX + " #" + top.id,
+                action: async () => {
+                  await selectItem(top.id);
+                  focusQueueItemCard(top.id, { revealCollapsed: true });
+                },
+              },
+              { button: leadBtn },
+            );
+          });
+          actionsEl.appendChild(leadBtn);
+        }
+        storyHost.appendChild(actionsEl);
+      }
+
       function renderAdvancedHintCard() {
         const card = document.createElement("div");
         card.className = "item-card";
@@ -4984,6 +5112,7 @@ const html = `<!doctype html>
             \${heroScoreMeter}
             \${heroFreshnessChip}
             \${heroAhaIndex}
+            <div id="detailHeroStory" class="hero-story"></div>
             <div class="intent">\${detail.item.intent_text}</div>
             <div>\${detail.item.title || detail.item.url}</div>
             <div class="muted">\${detail.item.domain || ""}</div>
@@ -4994,6 +5123,7 @@ const html = `<!doctype html>
         detailEl.appendChild(wrap);
         const detailOps = detailOpsFor(detail.item);
         const heroActionIds = renderDetailHeroActions(detail, wrap, detailOps);
+        renderDetailHeroStory(detail.item, wrap);
         renderDetailAha(detail);
         renderDetailQuickActions(detail, detailOps, heroActionIds);
         renderFailureGuidance(detail, heroActionIds, detailOps);
