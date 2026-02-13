@@ -3298,8 +3298,16 @@ const html = `<!doctype html>
         });
       }
 
+      function createQueueFilterSeed(key, element, options = {}) {
+        return { key, element, options };
+      }
+
       function expandQueueActionConfigs(seeds, buildConfig) {
         return seeds.map((seed) => buildConfig(seed));
+      }
+
+      function createQueueActionSeed(button, kind, options = {}) {
+        return { button, kind, ...options };
       }
 
       function createBatchActionFromSeed(seed) {
@@ -3311,19 +3319,17 @@ const html = `<!doctype html>
 
       const previewActionConfigs = expandQueueActionConfigs(
         [
-          { button: previewArchiveBtn, kind: "archive" },
-          { button: previewRetryBtn, kind: "retry" },
-          { button: previewUnarchiveBtn, kind: "unarchive" },
+          createQueueActionSeed(previewArchiveBtn, "archive"),
+          createQueueActionSeed(previewRetryBtn, "retry"),
+          createQueueActionSeed(previewUnarchiveBtn, "unarchive"),
         ],
         (seed) => createPreviewActionConfig(seed.button, seed.kind),
       );
 
       const batchActionConfigs = expandQueueActionConfigs(
         [
-          { button: retryFailedBtn, kind: "retry", run: runRetryBatchFlow },
-          {
-            button: archiveBlockedBtn,
-            kind: "archive",
+          createQueueActionSeed(retryFailedBtn, "retry", { run: runRetryBatchFlow }),
+          createQueueActionSeed(archiveBlockedBtn, "archive", {
             mode: "simple",
             flowConfig: {
               renderNoEligible: renderArchiveNoEligibleOutput,
@@ -3331,47 +3337,37 @@ const html = `<!doctype html>
               buildConfirm: buildArchiveBatchConfirmMessage,
               renderDone: renderArchiveBatchDoneOutput,
             },
-          },
-          {
-            button: unarchiveBatchBtn,
-            kind: "unarchive",
+          }),
+          createQueueActionSeed(unarchiveBatchBtn, "unarchive", {
             mode: "simple",
             flowConfig: {
               renderNoEligible: renderUnarchiveNoEligibleOutput,
               buildConfirm: buildUnarchiveBatchConfirmMessage,
               renderDone: renderUnarchiveBatchDoneOutput,
             },
-          },
+          }),
         ],
         createBatchActionFromSeed,
       );
 
       const queueControlChangeConfigs = expandQueueFilterConfigs("controls", [
-        {
-          key: "archive_scope",
-          element: archiveRetryableFilter,
-          options: { options: { refresh_worker_stats: true } },
-        },
-        { key: "unarchive_mode", element: unarchiveModeFilter },
-        {
-          key: "batch_limit",
-          element: batchLimitInput,
-          options: { beforeSync: normalizeBatchLimitInputValue },
-        },
-        {
-          key: "preview_offset",
-          element: previewOffsetInput,
-          options: {
-            beforeSync: normalizePreviewOffsetInputValue,
-            syncOptions: { resetOffset: false },
-          },
-        },
+        createQueueFilterSeed("archive_scope", archiveRetryableFilter, {
+          options: { refresh_worker_stats: true },
+        }),
+        createQueueFilterSeed("unarchive_mode", unarchiveModeFilter),
+        createQueueFilterSeed("batch_limit", batchLimitInput, {
+          beforeSync: normalizeBatchLimitInputValue,
+        }),
+        createQueueFilterSeed("preview_offset", previewOffsetInput, {
+          beforeSync: normalizePreviewOffsetInputValue,
+          syncOptions: { resetOffset: false },
+        }),
       ]);
 
       const listFilterChangeConfigs = expandQueueFilterConfigs("list", [
-        { key: "status", element: statusFilter },
-        { key: "retryable", element: retryableFilter },
-        { key: "failure_step", element: failureStepFilter },
+        createQueueFilterSeed("status", statusFilter),
+        createQueueFilterSeed("retryable", retryableFilter),
+        createQueueFilterSeed("failure_step", failureStepFilter),
       ]);
 
       function setupQueueActionBindings() {
