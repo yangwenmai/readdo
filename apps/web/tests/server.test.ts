@@ -34,6 +34,8 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Clear Filters/u);
     assert.match(text, /Preview Retry/u);
     assert.match(text, /Retry Failed/u);
+    assert.match(text, /id="selectionHint"/u);
+    assert.match(text, /Selected: none/u);
     assert.match(text, /Preview Archive/u);
     assert.match(text, /Preview Unarchive/u);
     assert.match(text, /Preview Offset/u);

@@ -1089,6 +1089,7 @@ const html = `<!doctype html>
       <div class="controls">
         <span class="muted">API: ${apiBase}</span>
         <span class="muted" id="workerStats">Queue: -</span>
+        <span class="muted" id="selectionHint">Selected: none</span>
         <button id="runWorkerBtn" type="button">Run Worker Once</button>
         <button id="previewRetryBtn" type="button">${queuePreviewLabels.retry}</button>
         <button id="previewNextBtn" type="button" style="display:none;">${queuePreviewLabels.next}</button>
@@ -1263,6 +1264,7 @@ const html = `<!doctype html>
       const recoveryFocusModeFilter = document.getElementById("recoveryFocusModeFilter");
       const archiveRetryableFilter = document.getElementById("archiveRetryableFilter");
       const workerStatsEl = document.getElementById("workerStats");
+      const selectionHintEl = document.getElementById("selectionHint");
       const runWorkerBtn = document.getElementById("runWorkerBtn");
       const previewRetryBtn = document.getElementById("previewRetryBtn");
       const previewNextBtn = document.getElementById("previewNextBtn");
@@ -3597,12 +3599,14 @@ const html = `<!doctype html>
 
           const payload = await request("/items?" + params.toString());
           allItems = payload.items || [];
+          updateSelectionHint();
           renderInbox(allItems);
           const retryableCount = allItems.filter((item) => isRetryableFailedItem(item)).length;
           retryFailedBtn.textContent = retryableCount > 0 ? "Retry Failed (" + retryableCount + ")" : "Retry Failed";
           await loadWorkerStats();
           if (selectedId) {
             await selectItem(selectedId);
+            updateSelectionHint();
           }
         } finally {
           isLoadingItems = false;
@@ -3778,6 +3782,7 @@ const html = `<!doctype html>
 
       async function selectItem(id) {
         selectedId = id;
+        updateSelectionHint();
         if (allItems.length) {
           renderInbox(allItems);
         }
@@ -3790,6 +3795,7 @@ const html = `<!doctype html>
           throw err;
         }
         renderDetailFromPayload(detail);
+        updateSelectionHint(detail?.item || null);
       }
 
       function renderFailureGuidance(detail, heroActionIds = new Set(), detailOps = []) {
@@ -4610,6 +4616,38 @@ const html = `<!doctype html>
           return selectedDetail.item;
         }
         return null;
+      }
+
+      function truncateSelectionLabel(text, max = 44) {
+        const value = String(text || "").trim();
+        if (!value) return "Untitled";
+        return value.length > max ? value.slice(0, max - 1) + "…" : value;
+      }
+
+      function primaryActionForItem(item) {
+        if (!item) return null;
+        const ops = buttonsFor(item).filter((op) => op.id !== "detail" && !op.disabled);
+        return ops.find((op) => op.is_primary) || ops[0] || null;
+      }
+
+      function updateSelectionHint(item = selectedQueueItem()) {
+        if (!selectionHintEl) return;
+        if (!item) {
+          selectionHintEl.textContent = "Selected: none";
+          return;
+        }
+        const primary = primaryActionForItem(item);
+        const title = truncateSelectionLabel(item.title || item.url || "Untitled");
+        const actionLabel = primary?.label || "No action";
+        selectionHintEl.textContent =
+          "Selected: #" +
+          String(item.id ?? "—") +
+          " " +
+          String(item.status || "UNKNOWN") +
+          " · " +
+          actionLabel +
+          " · " +
+          title;
       }
 
       async function runSelectedPrimaryItemAction(button = null) {
