@@ -105,8 +105,8 @@ Inbox 视觉分组顺序（上→下）：
 | QUEUED | —（无主按钮） | Archive | 显示 “Queued” 与预计开始；禁用 Process/Regenerate |
 | PROCESSING | —（无主按钮） | Archive(建议禁用) | 禁用所有生成类操作；显示进度；避免重复入队 |
 | READY | **Export**（Ship 输出） | Regenerate, Archive | Export 失败会进入 FAILED_EXPORT |
-| FAILED_EXTRACTION | **Retry**（Process） | Archive | 提示“抓取失败，可重试或手动粘贴内容（后续）” |
-| FAILED_AI | **Retry**（Process） | Regenerate(同 Retry), Archive | 展示 failed_step + error_code；提示可重试 |
+| FAILED_EXTRACTION | **Retry**（Process） | Archive | 若 `failure.retryable=false`，主按钮置灰并提示已达重试上限 |
+| FAILED_AI | **Retry**（Process） | Regenerate(同 Retry), Archive | 展示 failed_step + error_code；若超限则禁用 Retry |
 | FAILED_EXPORT | **Retry Export**（Export） | Archive, Regenerate | 优先允许再次 export；也可 regenerate card |
 | SHIPPED | **Re-export** | Archive | SHIPPED 仍可 regenerate（可选）；MVP 可只提供 re-export |
 | ARCHIVED | **Unarchive** | Regenerate（可选） | Unarchive 后：若 artifacts 齐备→READY；否则→QUEUED |
@@ -146,13 +146,13 @@ Inbox 视觉分组顺序（上→下）：
 ### 6.1 FAILED_EXTRACTION
 - 标题：“Couldn’t extract content”
 - 正文：简短说明（网络/站点限制）
-- CTA：Retry / Archive
+- CTA：Retry / Archive（若 retryable=false，显示“Retry limit reached”并禁用重试）
 - （未来）提供 “Paste content” 入口
 
 ### 6.2 FAILED_AI
 - 标题：”Generation failed”
 - 正文：展示 failed_step（summarize/score/todos/card）
-- CTA：Retry / Archive
+- CTA：Retry / Archive（若 retryable=false，提示先编辑 intent 或手动修订 artifact）
 
 ### 6.3 FAILED_EXPORT
 - 标题：”Export failed”

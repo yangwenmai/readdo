@@ -1,7 +1,12 @@
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { createServer } from "node:http";
+import { extname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const port = Number(process.env.WEB_PORT ?? 5173);
 const apiBase = process.env.API_BASE_URL ?? "http://localhost:8787/api";
+const repoRoot = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
+const exportsRoot = resolve(repoRoot, "exports");
 
 const html = `<!doctype html>
 <html lang="en">
@@ -26,6 +31,7 @@ const html = `<!doctype html>
       .muted { color: #6b7280; font-size: 12px; }
       .status { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #eef2ff; color: #3730a3; }
       .actions { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+      .actions button:disabled { cursor: not-allowed; opacity: 0.6; }
       .group-title { margin: 12px 0 6px; font-size: 13px; color: #374151; text-transform: uppercase; letter-spacing: 0.04em; }
       pre { background: #0b1020; color: #d1d5db; padding: 8px; border-radius: 8px; white-space: pre-wrap; word-break: break-all; font-size: 12px; }
       .empty { padding: 16px; border: 1px dashed #d1d5db; border-radius: 8px; color: #6b7280; text-align: center; }
@@ -34,6 +40,7 @@ const html = `<!doctype html>
       .editor-row { display: flex; gap: 8px; margin: 8px 0; align-items: center; flex-wrap: wrap; }
       .hint { font-size: 12px; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 6px 8px; margin-top: 6px; }
       .diff { font-size: 12px; color: #1f2937; background: #ecfeff; border: 1px solid #a5f3fc; border-radius: 6px; padding: 6px 8px; margin-top: 6px; white-space: pre-wrap; }
+      .failure-note { font-size: 12px; color: #991b1b; margin-top: 6px; }
       .file-row { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
       .file-path { flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #374151; }
       @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
@@ -146,13 +153,28 @@ const html = `<!doctype html>
         return data;
       }
 
+      function retryInfo(item) {
+        const failure = item?.failure || {};
+        const retryLimit = Number(failure.retry_limit ?? 0);
+        const retryAttempts = Number(failure.retry_attempts ?? 0);
+        const retryable = failure.retryable !== false;
+        const remaining = retryLimit > 0 ? Math.max(retryLimit - retryAttempts, 0) : null;
+        return { retryLimit, retryAttempts, retryable, remaining };
+      }
+
       function buttonsFor(item) {
         const ops = [];
         ops.push({ label: "Detail", action: () => selectItem(item.id) });
         if (item.status === "READY") {
           ops.push({ label: "Regenerate", action: () => processItem(item.id, "REGENERATE") });
         } else if (["FAILED_EXTRACTION", "FAILED_AI", "FAILED_EXPORT"].includes(item.status)) {
-          ops.push({ label: "Retry", action: () => processItem(item.id, "RETRY") });
+          const info = retryInfo(item);
+          if (info.retryable) {
+            const suffix = info.remaining == null ? "" : " (" + info.remaining + " left)";
+            ops.push({ label: "Retry" + suffix, action: () => processItem(item.id, "RETRY") });
+          } else {
+            ops.push({ label: "Retry Limit Reached", action: () => {}, disabled: true });
+          }
         } else if (item.status === "CAPTURED") {
           ops.push({ label: "Process", action: () => processItem(item.id, "PROCESS") });
         }
@@ -172,6 +194,22 @@ const html = `<!doctype html>
         card.className = "item-card";
         const title = item.title || item.url;
         const score = item.match_score != null ? Number(item.match_score).toFixed(1) : "—";
+        const retry = retryInfo(item);
+        let failureNoteHtml = "";
+        if (item.status.startsWith("FAILED_") && retry.retryLimit > 0) {
+          if (retry.retryable) {
+            failureNoteHtml =
+              '<div class="failure-note">retry: ' +
+              retry.retryAttempts +
+              "/" +
+              retry.retryLimit +
+              " used, " +
+              retry.remaining +
+              " left</div>";
+          } else {
+            failureNoteHtml = '<div class="failure-note">retry limit reached (' + retry.retryAttempts + "/" + retry.retryLimit + ")</div>";
+          }
+        }
         card.innerHTML = \`
           <div class="item-head">
             <span class="status">\${item.status}</span>
@@ -180,6 +218,7 @@ const html = `<!doctype html>
           <div class="intent">\${item.intent_text}</div>
           <div>\${title}</div>
           <div class="muted">\${item.domain || ""}</div>
+          \${failureNoteHtml}
           <div class="actions"></div>
         \`;
         const actionEl = card.querySelector(".actions");
@@ -187,7 +226,9 @@ const html = `<!doctype html>
         for (const op of ops) {
           const btn = document.createElement("button");
           btn.textContent = op.label;
+          btn.disabled = Boolean(op.disabled);
           btn.addEventListener("click", async () => {
+            if (op.disabled) return;
             try {
               errorEl.textContent = "";
               await op.action();
@@ -259,7 +300,16 @@ const html = `<!doctype html>
           const queueQueued = stats?.queue?.QUEUED ?? 0;
           const queueLeased = stats?.queue?.LEASED ?? 0;
           const processing = stats?.items?.PROCESSING ?? 0;
-          workerStatsEl.textContent = "Queue: " + queueQueued + " | Leased: " + queueLeased + " | Processing items: " + processing;
+          const blocked = stats?.retry?.non_retryable_items ?? 0;
+          workerStatsEl.textContent =
+            "Queue: " +
+            queueQueued +
+            " | Leased: " +
+            queueLeased +
+            " | Processing: " +
+            processing +
+            " | Retry blocked: " +
+            blocked;
         } catch {
           workerStatsEl.textContent = "Queue: unavailable";
         }
@@ -290,10 +340,43 @@ const html = `<!doctype html>
           <pre>\${JSON.stringify(detail.failure || null, null, 2)}</pre>
         \`;
         detailEl.appendChild(wrap);
+        renderFailureGuidance(detail);
         renderExportPanel(detail);
         renderArtifactVersionViewer(detail);
         renderIntentEditor(detail);
         renderArtifactEditor(detail);
+      }
+
+      function renderFailureGuidance(detail) {
+        const failure = detail.failure || null;
+        if (!failure) return;
+
+        const card = document.createElement("div");
+        card.className = "item-card";
+        const retryAttempts = Number(failure.retry_attempts ?? 0);
+        const retryLimit = Number(failure.retry_limit ?? 0);
+        const retryable = failure.retryable !== false;
+        const remaining = retryLimit > 0 ? Math.max(retryLimit - retryAttempts, 0) : null;
+
+        let actionGuide = "You can retry processing from Inbox.";
+        if (failure.failed_step === "extract") {
+          actionGuide = "Extraction failed. Verify URL accessibility/content length, then retry.";
+        } else if (failure.failed_step === "pipeline") {
+          actionGuide = "Pipeline failed. Review intent and content quality, then retry/regenerate.";
+        } else if (failure.failed_step === "export") {
+          actionGuide = "Export failed. Try md+caption export first, then retry png.";
+        }
+        if (!retryable) {
+          actionGuide = "Retry is blocked. Edit intent/artifact first, then run regenerate if needed.";
+        }
+
+        card.innerHTML = \`
+          <h3>Failure Guidance</h3>
+          <div class="muted">step: \${failure.failed_step || "unknown"} · code: \${failure.error_code || "UNKNOWN"}</div>
+          <div class="hint">\${actionGuide}</div>
+          <div class="muted">retry: \${retryAttempts}/\${retryLimit || "N/A"} used\${remaining == null ? "" : ", remaining: " + remaining}</div>
+        \`;
+        detailEl.appendChild(card);
       }
 
       function renderExportPanel(detail) {
@@ -343,10 +426,12 @@ const html = `<!doctype html>
             for (const file of files) {
               const row = document.createElement("div");
               row.className = "file-row";
+              const fileHref = "/" + String(file.path || "").replace(/^\/+/, "");
               row.innerHTML = \`
                 <span class="status">\${file.type}</span>
                 <span class="file-path">\${file.path}</span>
                 <button type="button">Copy Path</button>
+                <a href="\${encodeURI(fileHref)}" target="_blank" rel="noopener noreferrer">Open</a>
               \`;
               const copyBtn = row.querySelector("button");
               copyBtn.addEventListener("click", async () => {
@@ -733,7 +818,38 @@ const html = `<!doctype html>
   </body>
 </html>`;
 
-createServer((_req, res) => {
+createServer((req, res) => {
+  const url = new URL(req.url ?? "/", "http://localhost");
+  const pathname = decodeURIComponent(url.pathname);
+
+  if (pathname.startsWith("/exports/")) {
+    const relativePath = pathname.replace(/^\/+/, "");
+    const absolutePath = resolve(repoRoot, relativePath);
+    if (!(absolutePath === exportsRoot || absolutePath.startsWith(exportsRoot + "/"))) {
+      res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+      res.end("Forbidden");
+      return;
+    }
+    if (!existsSync(absolutePath) || !statSync(absolutePath).isFile()) {
+      res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+      res.end("Not found");
+      return;
+    }
+
+    const ext = extname(absolutePath).toLowerCase();
+    const contentType =
+      ext === ".png"
+        ? "image/png"
+        : ext === ".md"
+          ? "text/markdown; charset=utf-8"
+          : ext === ".txt"
+            ? "text/plain; charset=utf-8"
+            : "application/octet-stream";
+    res.writeHead(200, { "content-type": contentType });
+    res.end(readFileSync(absolutePath));
+    return;
+  }
+
   res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
   res.end(html);
 }).listen(port, "0.0.0.0", () => {

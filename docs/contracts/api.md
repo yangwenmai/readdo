@@ -328,7 +328,10 @@ Headers:
   "failure": {
     "failed_step": "summarize",
     "error_code": "AI_TIMEOUT",
-    "message": "Generation timed out. Please retry."
+    "message": "Generation timed out. Please retry.",
+    "retryable": true,
+    "retry_attempts": 1,
+    "retry_limit": 3
   }
 }
 ```

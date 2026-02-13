@@ -118,12 +118,14 @@ Key docs:
 MVP export targets:
 
 * Markdown + caption（已落地）
-* PNG（下一步补齐，基于 HTML render_spec）
+* PNG（优先尝试，失败可降级）
 
 See `docs/contracts/schemas/card.schema.json` for `render_spec`.
 
 > Export supports `formats: ["png","md","caption"]`.  
 > If png rendering fails and only png is requested, item will enter `FAILED_EXPORT`.
+> Web Detail 的 Export Records 支持 `Copy Path` 与 `Open`（通过 `/exports/...` 直接预览文件）。
+> 失败重试遵循上限策略（默认 3 次），达到上限后会返回 `RETRY_LIMIT_REACHED`。
 
 ---
 
