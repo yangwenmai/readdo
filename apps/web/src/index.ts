@@ -25,6 +25,9 @@ const shortcutGuideItems = [
   { key: "Alt+1", label: "Focus Priority Smart" },
   { key: "Alt+2", label: "Focus Priority Query First" },
   { key: "Alt+3", label: "Focus Priority Step First" },
+  { key: "[", label: "Previous Recovery Run" },
+  { key: "]", label: "Next Recovery Run" },
+  { key: "L", label: "Latest Recovery Run" },
   { key: "C", label: "Clear Filters" },
   { key: "Shift+C", label: "Reset Controls" },
   { key: "T", label: "Toggle Auto Refresh" },
@@ -1733,6 +1736,43 @@ const html = `<!doctype html>
         latestRecoverySummary = active;
         persistRecoveryRadarState();
         renderRecoveryRadar(active);
+      }
+
+      function runRecoverySummaryNavigationAction(direction) {
+        const active = activeRecoverySummary();
+        const activeIndex = active?.summary_id
+          ? recoveryRadarHistory.findIndex((entry) => entry.summary_id === active.summary_id)
+          : -1;
+        if (!active || activeIndex < 0 || recoveryRadarHistory.length <= 1) {
+          const hint = "No additional recovery run available.";
+          setActionFeedbackPair("done", hint, queueActionBannerEl);
+          errorEl.textContent = hint;
+          return;
+        }
+        let targetIndex = -1;
+        if (direction === "prev") {
+          targetIndex = activeIndex + 1;
+        } else if (direction === "next") {
+          targetIndex = activeIndex - 1;
+        } else if (direction === "latest") {
+          targetIndex = 0;
+        }
+        const target = recoveryRadarHistory[targetIndex] || null;
+        if (!target) {
+          const hint =
+            direction === "prev"
+              ? "Already at oldest recovery run."
+              : direction === "next"
+                ? "Already at latest recovery run."
+                : "Latest recovery run already active.";
+          setActionFeedbackPair("done", hint, queueActionBannerEl);
+          errorEl.textContent = hint;
+          return;
+        }
+        activateRecoverySummary(target.summary_id);
+        const label = recoveryTimelineLabel(target, targetIndex);
+        setActionFeedbackPair("done", "Recovery run: " + label, queueActionBannerEl);
+        errorEl.textContent = "Switched to " + label + ".";
       }
 
       function recoveryTimelineLabel(summary, index) {
@@ -5313,6 +5353,15 @@ const html = `<!doctype html>
         },
         "alt+3": () => {
           setRecoveryContextFocusModeFromShortcut("step_first");
+        },
+        "[": () => {
+          runRecoverySummaryNavigationAction("prev");
+        },
+        "]": () => {
+          runRecoverySummaryNavigationAction("next");
+        },
+        l: () => {
+          runRecoverySummaryNavigationAction("latest");
         },
         g: () => {
           focusRecoveryContextFromShortcut();
