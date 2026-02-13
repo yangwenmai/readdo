@@ -1996,6 +1996,26 @@ test("capture validates url and source_type", async () => {
     const inferredSourceTypeDetail = inferredSourceTypeDetailRes.json() as { item: { source_type: string } };
     assert.equal(inferredSourceTypeDetail.item.source_type, "youtube");
 
+    const inferredSourceTypeTrailingDotRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://www.youtube.com./watch?v=test123",
+        intent_text: "infer source type from URL with trailing dot hostname",
+      },
+    });
+    assert.equal(inferredSourceTypeTrailingDotRes.statusCode, 201);
+    const inferredSourceTypeTrailingDotId = (inferredSourceTypeTrailingDotRes.json() as { item: { id: string } }).item.id;
+    const inferredSourceTypeTrailingDotDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${inferredSourceTypeTrailingDotId}`,
+    });
+    assert.equal(inferredSourceTypeTrailingDotDetailRes.statusCode, 200);
+    const inferredSourceTypeTrailingDotDetail = inferredSourceTypeTrailingDotDetailRes.json() as {
+      item: { source_type: string };
+    };
+    assert.equal(inferredSourceTypeTrailingDotDetail.item.source_type, "youtube");
+
     const falsePositiveYoutubeRes = await app.inject({
       method: "POST",
       url: "/api/capture",
@@ -2106,6 +2126,27 @@ test("capture validates url and source_type", async () => {
     assert.equal(normalizedDomainDetailRes.statusCode, 200);
     const normalizedDomainDetail = normalizedDomainDetailRes.json() as { item: { domain: string | null } };
     assert.equal(normalizedDomainDetail.item.domain, "example.com");
+
+    const normalizedTrailingDotDomainRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://Example.COM./domain-normalize-dot",
+        source_type: "web",
+        intent_text: "validate domain normalization removes trailing dot",
+      },
+    });
+    assert.equal(normalizedTrailingDotDomainRes.statusCode, 201);
+    const normalizedTrailingDotDomainId = (normalizedTrailingDotDomainRes.json() as { item: { id: string } }).item.id;
+    const normalizedTrailingDotDomainDetailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${normalizedTrailingDotDomainId}`,
+    });
+    assert.equal(normalizedTrailingDotDomainDetailRes.statusCode, 200);
+    const normalizedTrailingDotDomainDetail = normalizedTrailingDotDomainDetailRes.json() as {
+      item: { domain: string | null };
+    };
+    assert.equal(normalizedTrailingDotDomainDetail.item.domain, "example.com");
 
     const dataDomainRes = await app.inject({
       method: "POST",

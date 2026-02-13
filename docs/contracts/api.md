@@ -164,7 +164,7 @@ Headers:
 
 * url 必填
 * intent_text 必填（MVP）
-* domain 可选；当 url 为 `http/https` 时，服务端总是以 URL 的 `hostname` 作为 domain（忽略 body 中传入值），并归一化为小写；非 http/https（如 data）可使用 body domain（同样归一化为小写）
+* domain 可选；当 url 为 `http/https` 时，服务端总是以 URL 的 `hostname` 作为 domain（忽略 body 中传入值），并归一化为小写且移除尾随 `.`；非 http/https（如 data）可使用 body domain（同样归一化为小写，移除尾随 `.`）
 * source_type 枚举：`web | youtube | newsletter | other`（大小写不敏感，服务端会归一化为小写）；若缺省则服务端会基于 URL `hostname` 推断（`youtube.com|youtu.be` 域名命中 -> youtube；`substack.com` 或 newsletter 形态子域命中 -> newsletter；其余 http(s) -> web）
 * url 协议白名单：`http | https | data`（如 `ftp://`、`chrome://`、`file://` 应返回 `400 VALIDATION_ERROR`）
 * 若同时提供 `Idempotency-Key` 与 `capture_id`，两者必须一致；不一致返回 `400 VALIDATION_ERROR`

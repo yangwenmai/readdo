@@ -1,11 +1,18 @@
+function normalizeHostname(hostname) {
+  return String(hostname ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\.+$/u, "");
+}
+
 function hostMatchesDomain(host, domain) {
-  const normalizedHost = String(host ?? "").toLowerCase();
-  const normalizedDomain = String(domain ?? "").toLowerCase();
+  const normalizedHost = normalizeHostname(host);
+  const normalizedDomain = normalizeHostname(domain);
   return normalizedHost === normalizedDomain || normalizedHost.endsWith(`.${normalizedDomain}`);
 }
 
 function isNewsletterLikeHost(host) {
-  const normalizedHost = String(host ?? "").toLowerCase();
+  const normalizedHost = normalizeHostname(host);
   if (hostMatchesDomain(normalizedHost, "substack.com")) return true;
   return /(^|[.-])newsletter([.-]|$)/u.test(normalizedHost);
 }
@@ -14,7 +21,7 @@ export function detectSourceType(url) {
   if (!url) return "other";
   try {
     const parsed = new URL(url);
-    const host = parsed.hostname.toLowerCase();
+    const host = normalizeHostname(parsed.hostname);
     if (hostMatchesDomain(host, "youtube.com") || hostMatchesDomain(host, "youtu.be")) return "youtube";
     if (isNewsletterLikeHost(host)) return "newsletter";
     if (parsed.protocol === "http:" || parsed.protocol === "https:") return "web";

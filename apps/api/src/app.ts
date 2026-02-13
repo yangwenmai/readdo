@@ -193,14 +193,21 @@ function normalizeQueryList(value: unknown): string[] {
   return [];
 }
 
+function normalizeHostname(hostname: string): string {
+  return hostname
+    .trim()
+    .toLowerCase()
+    .replace(/\.+$/u, "");
+}
+
 function hostMatchesDomain(host: string, domain: string): boolean {
-  const normalizedHost = host.toLowerCase();
-  const normalizedDomain = domain.toLowerCase();
+  const normalizedHost = normalizeHostname(host);
+  const normalizedDomain = normalizeHostname(domain);
   return normalizedHost === normalizedDomain || normalizedHost.endsWith(`.${normalizedDomain}`);
 }
 
 function isNewsletterLikeHost(host: string): boolean {
-  const normalizedHost = host.toLowerCase();
+  const normalizedHost = normalizeHostname(host);
   if (hostMatchesDomain(normalizedHost, "substack.com")) return true;
   return /(^|[.-])newsletter([.-]|$)/u.test(normalizedHost);
 }
@@ -208,7 +215,7 @@ function isNewsletterLikeHost(host: string): boolean {
 function inferSourceTypeFromUrl(url: string): "web" | "youtube" | "newsletter" | "other" {
   try {
     const parsed = new URL(url);
-    const host = parsed.hostname.toLowerCase();
+    const host = normalizeHostname(parsed.hostname);
     if (hostMatchesDomain(host, "youtube.com") || hostMatchesDomain(host, "youtu.be")) return "youtube";
     if (isNewsletterLikeHost(host)) return "newsletter";
     if (parsed.protocol === "http:" || parsed.protocol === "https:") return "web";
@@ -1102,7 +1109,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       return reply.status(400).send(failure("VALIDATION_ERROR", "url is invalid"));
     }
     const isWebLikeUrl = ["http:", "https:"].includes(parsedUrl.protocol);
-    const inferredDomain = isWebLikeUrl ? parsedUrl.hostname : "";
+    const inferredDomain = isWebLikeUrl ? normalizeHostname(parsedUrl.hostname) : "";
     const domain = (isWebLikeUrl ? inferredDomain : providedDomain).toLowerCase();
 
     if (idempotencyKey) {
