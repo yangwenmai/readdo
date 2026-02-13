@@ -456,6 +456,25 @@ test("retry-failed endpoint queues retryable pipeline failures only", async () =
     assert.ok(dryRunPayload.eligible_pipeline_item_ids.includes(failTwoId));
     assert.ok(dryRunPayload.eligible_export_item_ids.includes(exportFailId));
 
+    const exportOnlyDryRunRes = await app.inject({
+      method: "POST",
+      url: "/api/items/retry-failed",
+      payload: { limit: 10, dry_run: true, failure_step: "export" },
+    });
+    assert.equal(exportOnlyDryRunRes.statusCode, 200);
+    const exportOnlyDryRun = exportOnlyDryRunRes.json() as {
+      failure_step_filter: string | null;
+      scanned: number;
+      eligible_pipeline: number;
+      eligible_export: number;
+      eligible_export_item_ids: string[];
+    };
+    assert.equal(exportOnlyDryRun.failure_step_filter, "export");
+    assert.equal(exportOnlyDryRun.scanned, 1);
+    assert.equal(exportOnlyDryRun.eligible_pipeline, 0);
+    assert.equal(exportOnlyDryRun.eligible_export, 1);
+    assert.ok(exportOnlyDryRun.eligible_export_item_ids.includes(exportFailId));
+
     const dryRunFailOne = await app.inject({ method: "GET", url: `/api/items/${failOneId}` });
     const dryRunFailTwo = await app.inject({ method: "GET", url: `/api/items/${failTwoId}` });
     assert.equal((dryRunFailOne.json() as { item: { status: string } }).item.status, "FAILED_EXTRACTION");

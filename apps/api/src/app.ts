@@ -670,16 +670,28 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const limitRaw = Number(body.limit ?? 20);
     const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 1), 100) : 20;
     const dryRun = Boolean(body.dry_run);
+    const failureStepRaw = typeof body.failure_step === "string" ? body.failure_step.trim().toLowerCase() : "";
+    const failureStepFilter =
+      ["extract", "pipeline", "export"].includes(failureStepRaw) ? (failureStepRaw as "extract" | "pipeline" | "export") : null;
+    const targetStatuses =
+      failureStepFilter === "extract"
+        ? ["FAILED_EXTRACTION"]
+        : failureStepFilter === "pipeline"
+          ? ["FAILED_AI"]
+          : failureStepFilter === "export"
+            ? ["FAILED_EXPORT"]
+            : ["FAILED_EXTRACTION", "FAILED_AI", "FAILED_EXPORT"];
+    const statusPlaceholders = targetStatuses.map(() => "?").join(",");
     const failedItems = db
       .prepare(
         `
         SELECT * FROM items
-        WHERE status IN ('FAILED_EXTRACTION', 'FAILED_AI', 'FAILED_EXPORT')
+        WHERE status IN (${statusPlaceholders})
         ORDER BY updated_at ASC
         LIMIT ?
       `,
       )
-      .all(limit) as DbItemRow[];
+      .all(...targetStatuses, limit) as DbItemRow[];
 
     let queued = 0;
     let skippedNonRetryable = 0;
@@ -733,6 +745,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     return {
       requested_limit: limit,
       dry_run: dryRun,
+      failure_step_filter: failureStepFilter,
       scanned: failedItems.length,
       queued,
       queued_item_ids: queuedItemIds,

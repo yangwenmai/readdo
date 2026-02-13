@@ -933,6 +933,14 @@ const html = `<!doctype html>
         }
       });
 
+      function retryFailedPayload(dryRun) {
+        const payload = { limit: 100, dry_run: dryRun };
+        if (failureStepFilter.value) {
+          return { ...payload, failure_step: failureStepFilter.value };
+        }
+        return payload;
+      }
+
       retryFailedBtn.addEventListener("click", async () => {
         const candidates = allItems.filter((item) => isRetryableFailedItem(item));
         if (!candidates.length) {
@@ -946,7 +954,7 @@ const html = `<!doctype html>
           errorEl.textContent = "Retrying " + candidates.length + " failed items...";
           const batchRes = await request("/items/retry-failed", {
             method: "POST",
-            body: JSON.stringify({ limit: 100 })
+            body: JSON.stringify(retryFailedPayload(false))
           });
           const exportItemIds = batchRes.eligible_export_item_ids || [];
           for (const itemId of exportItemIds) {
@@ -987,11 +995,13 @@ const html = `<!doctype html>
         try {
           const preview = await request("/items/retry-failed", {
             method: "POST",
-            body: JSON.stringify({ limit: 100, dry_run: true })
+            body: JSON.stringify(retryFailedPayload(true))
           });
           errorEl.textContent =
             "Retry preview: scanned=" +
             (preview.scanned ?? 0) +
+            ", filter=" +
+            (preview.failure_step_filter || "all") +
             ", eligible_pipeline=" +
             (preview.eligible_pipeline ?? 0) +
             ", eligible_export=" +

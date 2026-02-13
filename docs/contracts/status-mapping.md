@@ -50,6 +50,7 @@ Last Updated: 2026-02-13
 - `Preview Retry`（dry-run）：调用 `/items/retry-failed` 且 `dry_run=true`，仅展示可重试规模与分类，不改状态。
 - `Retry Failed`（批量）：调用 `/items/retry-failed` 批量重试 `FAILED_EXTRACTION/FAILED_AI` 的可重试项；
   `FAILED_EXPORT` 仍应单独走 export 重试。
+  - 若 UI 已选择 `failure_step` 筛选，建议把该值透传给 `/items/retry-failed` 以保持“所见即所重试”。
 
 ### 1.2 Shipped
 包含状态：
