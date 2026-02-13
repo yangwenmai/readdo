@@ -25,6 +25,11 @@ const queuePreviewLabels = {
   unarchive: "Preview Unarchive",
   next: "Preview Next",
 };
+const queueBatchLabels = {
+  retry: { trigger: "Retry Failed", action: "Retry Failed Batch" },
+  archive: { trigger: "Archive Failed", action: "Archive Failed Batch" },
+  unarchive: { trigger: "Unarchive Archived", action: "Unarchive Batch" },
+};
 
 const html = `<!doctype html>
 <html lang="en">
@@ -468,11 +473,11 @@ const html = `<!doctype html>
         <button id="runWorkerBtn" type="button">Run Worker Once</button>
         <button id="previewRetryBtn" type="button">${queuePreviewLabels.retry}</button>
         <button id="previewNextBtn" type="button" style="display:none;">${queuePreviewLabels.next}</button>
-        <button id="retryFailedBtn" type="button">Retry Failed</button>
+        <button id="retryFailedBtn" type="button">${queueBatchLabels.retry.trigger}</button>
         <button id="previewArchiveBtn" type="button">${queuePreviewLabels.archive}</button>
-        <button id="archiveBlockedBtn" type="button">Archive Failed</button>
+        <button id="archiveBlockedBtn" type="button">${queueBatchLabels.archive.trigger}</button>
         <button id="previewUnarchiveBtn" type="button">${queuePreviewLabels.unarchive}</button>
-        <button id="unarchiveBatchBtn" type="button">Unarchive Archived</button>
+        <button id="unarchiveBatchBtn" type="button">${queueBatchLabels.unarchive.trigger}</button>
         <label class="muted" style="display:flex;align-items:center;gap:4px;">
           <input id="autoRefreshToggle" type="checkbox" />
           Auto refresh
@@ -557,6 +562,7 @@ const html = `<!doctype html>
       const API_BASE = ${JSON.stringify(apiBase)};
       const SHORTCUT_TRIGGER_KEY = ${JSON.stringify(shortcutTriggerKey)};
       const QUEUE_PREVIEW_LABELS = ${JSON.stringify(queuePreviewLabels)};
+      const QUEUE_BATCH_LABELS = ${JSON.stringify(queueBatchLabels)};
       const inboxEl = document.getElementById("inbox");
       const detailEl = document.getElementById("detail");
       const detailModeChipsEl = document.getElementById("detailModeChips");
@@ -654,9 +660,9 @@ const html = `<!doctype html>
           next: { id: "queue_preview_next", label: QUEUE_PREVIEW_LABELS.next },
         },
         batch: {
-          retry: { id: "queue_retry_failed", label: "Retry Failed Batch" },
-          archive: { id: "queue_archive_failed", label: "Archive Failed Batch" },
-          unarchive: { id: "queue_unarchive_batch", label: "Unarchive Batch" },
+          retry: { id: "queue_retry_failed", label: QUEUE_BATCH_LABELS.retry.action },
+          archive: { id: "queue_archive_failed", label: QUEUE_BATCH_LABELS.archive.action },
+          unarchive: { id: "queue_unarchive_batch", label: QUEUE_BATCH_LABELS.unarchive.action },
         },
       };
       const queueFilterMeta = {
