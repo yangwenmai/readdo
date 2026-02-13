@@ -46,6 +46,10 @@ const html = `<!doctype html>
         <span class="muted">API: ${apiBase}</span>
         <span class="muted" id="workerStats">Queue: -</span>
         <button id="runWorkerBtn" type="button">Run Worker Once</button>
+        <label class="muted" style="display:flex;align-items:center;gap:4px;">
+          <input id="autoRefreshToggle" type="checkbox" />
+          Auto refresh
+        </label>
         <input id="queryInput" placeholder="Search title/domain/intent" />
         <select id="statusFilter">
           <option value="">All Status</option>
@@ -81,10 +85,13 @@ const html = `<!doctype html>
       const statusFilter = document.getElementById("statusFilter");
       const workerStatsEl = document.getElementById("workerStats");
       const runWorkerBtn = document.getElementById("runWorkerBtn");
+      const autoRefreshToggle = document.getElementById("autoRefreshToggle");
 
       let allItems = [];
       let selectedId = null;
       let selectedDetail = null;
+      let isLoadingItems = false;
+      let autoRefreshTimer = null;
 
       function groupedItems(items) {
         const groups = {
@@ -222,21 +229,27 @@ const html = `<!doctype html>
       }
 
       async function loadItems() {
-        const query = queryInput.value.trim();
-        const status = statusFilter.value;
-        const params = new URLSearchParams({
-          sort: "priority_score_desc",
-          limit: "100"
-        });
-        if (query) params.set("q", query);
-        if (status) params.set("status", status);
+        if (isLoadingItems) return;
+        isLoadingItems = true;
+        try {
+          const query = queryInput.value.trim();
+          const status = statusFilter.value;
+          const params = new URLSearchParams({
+            sort: "priority_score_desc",
+            limit: "100"
+          });
+          if (query) params.set("q", query);
+          if (status) params.set("status", status);
 
-        const payload = await request("/items?" + params.toString());
-        allItems = payload.items || [];
-        renderInbox(allItems);
-        await loadWorkerStats();
-        if (selectedId) {
-          await selectItem(selectedId);
+          const payload = await request("/items?" + params.toString());
+          allItems = payload.items || [];
+          renderInbox(allItems);
+          await loadWorkerStats();
+          if (selectedId) {
+            await selectItem(selectedId);
+          }
+        } finally {
+          isLoadingItems = false;
         }
       }
 
@@ -697,6 +710,24 @@ const html = `<!doctype html>
 
       loadItems().catch((err) => {
         errorEl.textContent = String(err);
+      });
+
+      function setAutoRefresh(enabled) {
+        if (autoRefreshTimer) {
+          clearInterval(autoRefreshTimer);
+          autoRefreshTimer = null;
+        }
+        if (enabled) {
+          autoRefreshTimer = setInterval(() => {
+            loadItems().catch((err) => {
+              errorEl.textContent = String(err);
+            });
+          }, 5000);
+        }
+      }
+
+      autoRefreshToggle.addEventListener("change", () => {
+        setAutoRefresh(Boolean(autoRefreshToggle.checked));
       });
     </script>
   </body>
