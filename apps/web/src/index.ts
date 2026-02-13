@@ -211,6 +211,11 @@ const html = `<!doctype html>
         align-items: center;
         gap: 6px;
       }
+      .legend-item.active {
+        border-color: #1d4ed8;
+        color: #1d4ed8;
+        box-shadow: 0 3px 10px rgba(37, 99, 235, 0.22);
+      }
       .legend-dot {
         width: 8px;
         height: 8px;
@@ -960,6 +965,9 @@ const html = `<!doctype html>
           const btn = document.createElement("button");
           btn.type = "button";
           btn.className = "legend-item";
+          if (statusFilter.value === entry.status) {
+            btn.classList.add("active");
+          }
           btn.innerHTML =
             '<span class="legend-dot ' +
             entry.dot +
@@ -969,18 +977,20 @@ const html = `<!doctype html>
             entry.count +
             "</span>";
           btn.addEventListener("click", async () => {
-            statusFilter.value = entry.status;
-            syncFocusChips();
-            try {
-              errorEl.textContent = "";
-              persistControls();
-              resetPreviewOffset();
-              clearPreviewContinuation();
-              clearPreviewOutput();
-              await loadItems();
-            } catch (err) {
-              errorEl.textContent = String(err);
-            }
+            const op = {
+              id: "legend_filter_" + entry.label.toLowerCase(),
+              label: "Filter: " + entry.label,
+              action: async () => {
+                statusFilter.value = entry.status;
+                syncFocusChips();
+                persistControls();
+                resetPreviewOffset();
+                clearPreviewContinuation();
+                clearPreviewOutput();
+                await loadItems();
+              },
+            };
+            await runActionWithFeedback(op, { button: btn, localFeedbackEl: queueActionBannerEl });
           });
           statusLegendEl.appendChild(btn);
         }
