@@ -460,6 +460,7 @@ const html = `<!doctype html>
           Auto refresh
         </label>
         <input id="queryInput" placeholder="Search title/domain/intent (press /)" />
+        <span class="muted">Press ? for shortcuts</span>
         <select id="statusFilter">
           <option value="">All Status</option>
           <option value="CAPTURED">CAPTURED</option>
