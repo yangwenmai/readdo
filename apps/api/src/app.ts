@@ -1257,6 +1257,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     if (body.capture_id != null && typeof body.capture_id !== "string") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "capture_id must be a string when provided"));
     }
+    if (typeof body.capture_id === "string" && !body.capture_id.trim()) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "capture_id must be a non-empty string when provided"));
+    }
     if (body.url != null && typeof body.url !== "string") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "url must be a string"));
     }
@@ -1922,6 +1925,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     }
     if (body.export_key != null && typeof body.export_key !== "string") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "export_key must be a string when provided"));
+    }
+    if (typeof body.export_key === "string" && !body.export_key.trim()) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "export_key must be a non-empty string when provided"));
     }
     if (body.card_version != null && (!Number.isInteger(body.card_version) || Number(body.card_version) < 1)) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "card_version must be an integer >= 1 when provided"));

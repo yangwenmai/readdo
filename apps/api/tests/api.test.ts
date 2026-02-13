@@ -421,6 +421,21 @@ test("capture rejects non-string capture_id", async () => {
     const errPayload = captureRes.json() as { error: { code: string; message: string } };
     assert.equal(errPayload.error.code, "VALIDATION_ERROR");
     assert.match(errPayload.error.message, /capture_id must be a string/i);
+
+    const blankCaptureIdRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        capture_id: "   ",
+        url: "https://example.com/invalid-capture-id-empty",
+        source_type: "web",
+        intent_text: "blank capture_id should fail",
+      },
+    });
+    assert.equal(blankCaptureIdRes.statusCode, 400);
+    const blankErrPayload = blankCaptureIdRes.json() as { error: { code: string; message: string } };
+    assert.equal(blankErrPayload.error.code, "VALIDATION_ERROR");
+    assert.match(blankErrPayload.error.message, /capture_id must be a non-empty string/i);
   } finally {
     await app.close();
   }
@@ -1181,6 +1196,16 @@ test("export rejects non-string export_key", async () => {
     const errPayload = exportRes.json() as { error: { code: string; message: string } };
     assert.equal(errPayload.error.code, "VALIDATION_ERROR");
     assert.match(errPayload.error.message, /export_key must be a string/i);
+
+    const blankExportKeyRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      payload: { export_key: "   ", formats: ["md"] },
+    });
+    assert.equal(blankExportKeyRes.statusCode, 400);
+    const blankExportErrPayload = blankExportKeyRes.json() as { error: { code: string; message: string } };
+    assert.equal(blankExportErrPayload.error.code, "VALIDATION_ERROR");
+    assert.match(blankExportErrPayload.error.message, /export_key must be a non-empty string/i);
   } finally {
     await app.close();
   }
