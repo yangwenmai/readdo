@@ -34,6 +34,8 @@ const html = `<!doctype html>
       .editor-row { display: flex; gap: 8px; margin: 8px 0; align-items: center; flex-wrap: wrap; }
       .hint { font-size: 12px; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 6px 8px; margin-top: 6px; }
       .diff { font-size: 12px; color: #1f2937; background: #ecfeff; border: 1px solid #a5f3fc; border-radius: 6px; padding: 6px 8px; margin-top: 6px; white-space: pre-wrap; }
+      .file-row { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
+      .file-path { flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #374151; }
       @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
     </style>
   </head>
@@ -320,8 +322,30 @@ const html = `<!doctype html>
                 <span class="status">export v\${exp.version}</span>
                 <span class="muted">\${exp.created_by} · \${exp.created_at}</span>
               </div>
-              <pre>\${JSON.stringify(files, null, 2)}</pre>
+              <div class="muted">renderer: \${exp?.payload?.renderer?.name || "N/A"}</div>
+              <div class="muted">export_key: \${exp?.payload?.export_key || "N/A"}</div>
+              <div class="file-list"></div>
             \`;
+            const fileListEl = card.querySelector(".file-list");
+            for (const file of files) {
+              const row = document.createElement("div");
+              row.className = "file-row";
+              row.innerHTML = \`
+                <span class="status">\${file.type}</span>
+                <span class="file-path">\${file.path}</span>
+                <button type="button">Copy Path</button>
+              \`;
+              const copyBtn = row.querySelector("button");
+              copyBtn.addEventListener("click", async () => {
+                try {
+                  await navigator.clipboard.writeText(file.path);
+                  errorEl.textContent = "Copied path: " + file.path;
+                } catch {
+                  errorEl.textContent = "Copy failed for path: " + file.path;
+                }
+              });
+              fileListEl.appendChild(row);
+            }
             listEl.appendChild(card);
           }
         }
