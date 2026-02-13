@@ -648,9 +648,22 @@ test("items endpoint supports status and query filtering", async () => {
       url: "/api/items?status=READY",
     });
     assert.equal(readyItemsRes.statusCode, 200);
-    const readyItems = (readyItemsRes.json() as { items: Array<{ status: string }> }).items;
+    const readyItemsPayload = readyItemsRes.json() as { items: Array<{ status: string; priority?: string | null }> };
+    const readyItems = readyItemsPayload.items;
     assert.ok(readyItems.length >= 1);
     assert.ok(readyItems.every((x) => x.status === "READY"));
+
+    const readyPriority = readyItemsPayload.items[0]?.priority;
+    assert.ok(typeof readyPriority === "string" && readyPriority.length > 0);
+    const readyPriorityLower = readyPriority.toLowerCase();
+    const priorityLowercaseRes = await app.inject({
+      method: "GET",
+      url: `/api/items?priority=${encodeURIComponent(readyPriorityLower)}`,
+    });
+    assert.equal(priorityLowercaseRes.statusCode, 200);
+    const priorityLowercaseItems = (priorityLowercaseRes.json() as { items: Array<{ priority?: string | null }> }).items;
+    assert.ok(priorityLowercaseItems.length >= 1);
+    assert.ok(priorityLowercaseItems.every((x) => x.priority === readyPriority));
 
     const readyItemsLowercaseRes = await app.inject({
       method: "GET",
