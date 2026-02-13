@@ -1905,6 +1905,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     if (item.status === "PROCESSING") {
       return reply.status(409).send(failure("PROCESSING_IN_PROGRESS", "Item is currently processing"));
     }
+    const query = request.query as Record<string, unknown>;
+    if (Object.keys(query).length > 0) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "process does not accept query parameters"));
+    }
 
     if (request.body !== undefined && !isObjectRecord(request.body)) {
       return reply.status(400).send(failure("VALIDATION_ERROR", "request body must be an object when provided"));

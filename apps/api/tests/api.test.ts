@@ -1734,6 +1734,16 @@ test("process endpoint validates request body shape and allowed keys", async () 
     const blankProcessRequestIdPayload = blankProcessRequestIdRes.json() as { error: { code: string; message: string } };
     assert.equal(blankProcessRequestIdPayload.error.code, "VALIDATION_ERROR");
     assert.match(blankProcessRequestIdPayload.error.message, /process_request_id must be a non-empty string/i);
+
+    const queryNotAllowedRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process?dry_run=true`,
+      payload: { mode: "PROCESS" },
+    });
+    assert.equal(queryNotAllowedRes.statusCode, 400);
+    const queryNotAllowedPayload = queryNotAllowedRes.json() as { error: { code: string; message: string } };
+    assert.equal(queryNotAllowedPayload.error.code, "VALIDATION_ERROR");
+    assert.match(queryNotAllowedPayload.error.message, /process does not accept query parameters/i);
   } finally {
     await app.close();
   }

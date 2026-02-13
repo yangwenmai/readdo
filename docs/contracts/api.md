@@ -754,6 +754,7 @@ To：
 Headers:
 
 * `Idempotency-Key: <uuid>`（推荐）
+* 不接受任何 query 参数（传入任意 query key 返回 `400 VALIDATION_ERROR`）
   Body:
 
 ```json
@@ -808,6 +809,7 @@ options（MVP 可选）：
 
 ### 7.5 错误
 
+* 400 VALIDATION_ERROR
 * 404 NOT_FOUND
 * 409 PROCESSING_IN_PROGRESS
 * 409 STATE_CONFLICT（不允许的状态，或并发条件下状态在入队前发生变化）
