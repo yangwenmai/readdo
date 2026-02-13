@@ -93,6 +93,7 @@ const html = `<!doctype html>
       <section>
         <h2>Decision Queue</h2>
         <div id="error" class="error"></div>
+        <pre id="retryPreviewOutput" style="display:none;"></pre>
         <div id="inbox"></div>
       </section>
       <section>
@@ -105,6 +106,7 @@ const html = `<!doctype html>
       const inboxEl = document.getElementById("inbox");
       const detailEl = document.getElementById("detail");
       const errorEl = document.getElementById("error");
+      const retryPreviewOutputEl = document.getElementById("retryPreviewOutput");
       const refreshBtn = document.getElementById("refreshBtn");
       const queryInput = document.getElementById("queryInput");
       const statusFilter = document.getElementById("statusFilter");
@@ -959,6 +961,8 @@ const html = `<!doctype html>
           errorEl.textContent = "No retryable failed items.";
           return;
         }
+        retryPreviewOutputEl.style.display = "none";
+        retryPreviewOutputEl.textContent = "";
         retryFailedBtn.disabled = true;
         let exportSuccess = 0;
         let exportFailed = 0;
@@ -1021,8 +1025,21 @@ const html = `<!doctype html>
             ", skipped_non_retryable=" +
             (preview.skipped_non_retryable ?? 0) +
             ".";
+          retryPreviewOutputEl.style.display = "block";
+          retryPreviewOutputEl.textContent = JSON.stringify(
+            {
+              filter: preview.failure_step_filter || "all",
+              eligible_pipeline_item_ids: preview.eligible_pipeline_item_ids || [],
+              eligible_export_item_ids: preview.eligible_export_item_ids || [],
+              skipped_non_retryable: preview.skipped_non_retryable || 0,
+            },
+            null,
+            2,
+          );
         } catch (err) {
           errorEl.textContent = "Retry preview failed: " + String(err);
+          retryPreviewOutputEl.style.display = "none";
+          retryPreviewOutputEl.textContent = "";
         } finally {
           previewRetryBtn.disabled = false;
         }
