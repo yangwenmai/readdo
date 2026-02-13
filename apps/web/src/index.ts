@@ -328,6 +328,10 @@ const html = `<!doctype html>
       .pulse-segment.is-empty {
         opacity: 0.75;
       }
+      .pulse-segment.active {
+        border-color: #1d4ed8;
+        box-shadow: 0 5px 14px rgba(37, 99, 235, 0.24);
+      }
       .pulse-captured { background: #ede9fe; border-color: #ddd6fe; color: #5b21b6; }
       .pulse-queued { background: #dbeafe; border-color: #bfdbfe; color: #1e40af; }
       .pulse-processing { background: #e0f2fe; border-color: #bae6fd; color: #0c4a6e; }
@@ -338,6 +342,15 @@ const html = `<!doctype html>
       }
       .queue-flow-meta strong {
         color: #991b1b;
+      }
+      .queue-flow-meta button {
+        margin-left: 8px;
+        padding: 4px 8px;
+        border-radius: 8px;
+        border: 1px solid #fecaca;
+        background: #fff1f2;
+        color: #b91c1c;
+        font-size: 11px;
       }
       .legend-item {
         border: 1px solid #dbe2ea;
@@ -1097,6 +1110,7 @@ const html = `<!doctype html>
           segment.type = "button";
           segment.className = "pulse-segment pulse-" + stage.tone;
           if (!stage.count) segment.classList.add("is-empty");
+          if (statusFilter.value === stage.status) segment.classList.add("active");
           segment.innerHTML =
             '<span class="label">' +
             stage.label +
@@ -1118,6 +1132,23 @@ const html = `<!doctype html>
         const meta = document.createElement("div");
         meta.className = "queue-flow-meta muted";
         meta.innerHTML = "Blocked now: <strong>" + counts.FAILED + "</strong> failed items · Click stage to filter";
+        if (counts.FAILED > 0) {
+          const failedBtn = document.createElement("button");
+          failedBtn.type = "button";
+          failedBtn.textContent = "View Failed";
+          if (statusFilter.value === "FAILED_EXTRACTION,FAILED_AI,FAILED_EXPORT") {
+            failedBtn.disabled = true;
+          }
+          failedBtn.addEventListener("click", async () => {
+            await applyListContextAndReload("Flow: Failed", {
+              button: failedBtn,
+              mutate: () => {
+                statusFilter.value = "FAILED_EXTRACTION,FAILED_AI,FAILED_EXPORT";
+              },
+            });
+          });
+          meta.appendChild(failedBtn);
+        }
         queueFlowPulseEl.appendChild(meta);
       }
 
