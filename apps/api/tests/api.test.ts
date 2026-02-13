@@ -2599,6 +2599,15 @@ test("items endpoint supports status and query filtering", async () => {
     assert.equal(invalidStatusPayload.error.code, "VALIDATION_ERROR");
     assert.match(invalidStatusPayload.error.message, /status must contain valid item statuses/i);
 
+    const blankStatusRes = await app.inject({
+      method: "GET",
+      url: "/api/items?status=%20%20%20",
+    });
+    assert.equal(blankStatusRes.statusCode, 400);
+    const blankStatusPayload = blankStatusRes.json() as { error: { code: string; message: string } };
+    assert.equal(blankStatusPayload.error.code, "VALIDATION_ERROR");
+    assert.match(blankStatusPayload.error.message, /status must contain valid item statuses/i);
+
     const searchRes = await app.inject({
       method: "GET",
       url: "/api/items?q=creator",
@@ -2636,6 +2645,15 @@ test("items endpoint supports status and query filtering", async () => {
     assert.equal(invalidPriorityPayload.error.code, "VALIDATION_ERROR");
     assert.match(invalidPriorityPayload.error.message, /priority must contain read_next\|worth_it\|if_time\|skip/i);
 
+    const blankPriorityRes = await app.inject({
+      method: "GET",
+      url: "/api/items?priority=%20%20%20",
+    });
+    assert.equal(blankPriorityRes.statusCode, 400);
+    const blankPriorityPayload = blankPriorityRes.json() as { error: { code: string; message: string } };
+    assert.equal(blankPriorityPayload.error.code, "VALIDATION_ERROR");
+    assert.match(blankPriorityPayload.error.message, /priority must contain read_next\|worth_it\|if_time\|skip/i);
+
     const invalidSourceTypeRes = await app.inject({
       method: "GET",
       url: "/api/items?source_type=web,unknown",
@@ -2644,6 +2662,15 @@ test("items endpoint supports status and query filtering", async () => {
     const invalidSourceTypePayload = invalidSourceTypeRes.json() as { error: { code: string; message: string } };
     assert.equal(invalidSourceTypePayload.error.code, "VALIDATION_ERROR");
     assert.match(invalidSourceTypePayload.error.message, /source_type must contain web\|youtube\|newsletter\|other/i);
+
+    const blankSourceTypeRes = await app.inject({
+      method: "GET",
+      url: "/api/items?source_type=%20%20%20",
+    });
+    assert.equal(blankSourceTypeRes.statusCode, 400);
+    const blankSourceTypePayload = blankSourceTypeRes.json() as { error: { code: string; message: string } };
+    assert.equal(blankSourceTypePayload.error.code, "VALIDATION_ERROR");
+    assert.match(blankSourceTypePayload.error.message, /source_type must contain web\|youtube\|newsletter\|other/i);
 
     const trimmedSortRes = await app.inject({
       method: "GET",

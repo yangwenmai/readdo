@@ -1434,6 +1434,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   app.get("/api/items", async (request, reply) => {
     const query = request.query as Record<string, unknown>;
     const rawStatuses = normalizeQueryList(query.status).map((x) => x.toUpperCase());
+    if (query.status !== undefined && rawStatuses.length === 0) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "status must contain valid item statuses"));
+    }
     const statuses = Array.from(
       new Set(
         rawStatuses.flatMap((status) =>
@@ -1442,7 +1445,13 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       ),
     );
     const priorities = normalizeQueryList(query.priority).map((x) => x.toUpperCase());
+    if (query.priority !== undefined && priorities.length === 0) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "priority must contain READ_NEXT|WORTH_IT|IF_TIME|SKIP"));
+    }
     const sourceTypes = normalizeQueryList(query.source_type).map((x) => x.toLowerCase());
+    if (query.source_type !== undefined && sourceTypes.length === 0) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "source_type must contain web|youtube|newsletter|other"));
+    }
     const allowedStatuses = new Set([
       "CAPTURED",
       "QUEUED",
