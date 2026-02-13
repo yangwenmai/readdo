@@ -123,6 +123,18 @@ const html = `<!doctype html>
         background: #1d4ed8;
         color: #ffffff;
       }
+      .section-chip {
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        color: #1e293b;
+        border-radius: 999px;
+        padding: 5px 10px;
+        font-size: 12px;
+      }
+      .section-chip:hover {
+        border-color: #60a5fa;
+        color: #1d4ed8;
+      }
       .aha-card {
         border: 1px solid #dbeafe;
         border-radius: 12px;
@@ -198,6 +210,27 @@ const html = `<!doctype html>
         color: #334155;
         font-weight: 700;
       }
+      details.detail-section {
+        border: 1px solid #dbe2ea;
+        border-radius: 12px;
+        background: #ffffff;
+        margin-top: 10px;
+        overflow: hidden;
+      }
+      details.detail-section > summary {
+        cursor: pointer;
+        list-style: none;
+        padding: 10px 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+      }
+      details.detail-section > summary::-webkit-details-marker { display: none; }
+      .detail-section-title { font-weight: 700; color: #0f172a; font-size: 14px; }
+      .detail-section-subtitle { color: #64748b; font-size: 12px; }
+      .detail-section-body { padding: 10px; border-top: 1px solid #e2e8f0; }
+      .detail-section-body .item-card { margin: 0; box-shadow: none; }
       pre { background: #0b1020; color: #d1d5db; padding: 8px; border-radius: 8px; white-space: pre-wrap; word-break: break-all; font-size: 12px; }
       .empty { padding: 18px; border: 1px dashed #cbd5e1; border-radius: 10px; color: #64748b; text-align: center; background: #f8fafc; }
       .error { color: #b91c1c; font-size: 13px; }
@@ -361,6 +394,7 @@ const html = `<!doctype html>
       <section>
         <h2>Detail</h2>
         <p class="panel-subtitle">查看结构化工件、版本差异与导出记录，快速完成从想法到交付。</p>
+        <div id="detailSectionNav" class="focus-chips" style="display:none;"></div>
         <div id="detail" class="empty">Select one item from the list.</div>
       </section>
     </main>
@@ -368,6 +402,7 @@ const html = `<!doctype html>
       const API_BASE = ${JSON.stringify(apiBase)};
       const inboxEl = document.getElementById("inbox");
       const detailEl = document.getElementById("detail");
+      const detailSectionNavEl = document.getElementById("detailSectionNav");
       const errorEl = document.getElementById("error");
       const queueHighlightsEl = document.getElementById("queueHighlights");
       const focusChipsEl = document.getElementById("focusChips");
@@ -452,6 +487,47 @@ const html = `<!doctype html>
         previewContinuation = { kind, next_offset: Number(nextOffset) };
         previewNextBtn.style.display = "inline-block";
         previewNextBtn.textContent = "Preview Next (" + nextOffset + ")";
+      }
+
+      function clearDetailSectionNav() {
+        if (!detailSectionNavEl) return;
+        detailSectionNavEl.innerHTML = "";
+        detailSectionNavEl.style.display = "none";
+      }
+
+      function addDetailSectionNav(label, sectionId) {
+        if (!detailSectionNavEl) return;
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "section-chip";
+        btn.textContent = label;
+        btn.addEventListener("click", () => {
+          const section = document.getElementById(sectionId);
+          if (!section) return;
+          if (section instanceof HTMLDetailsElement) {
+            section.open = true;
+          }
+          section.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+        detailSectionNavEl.appendChild(btn);
+        detailSectionNavEl.style.display = "flex";
+      }
+
+      function appendDetailSection(sectionId, title, subtitle, contentEl, defaultOpen = false) {
+        const wrapper = document.createElement("details");
+        wrapper.className = "detail-section";
+        wrapper.id = sectionId;
+        wrapper.open = defaultOpen;
+        wrapper.innerHTML =
+          '<summary><div><div class="detail-section-title">' +
+          title +
+          '</div><div class="detail-section-subtitle">' +
+          subtitle +
+          "</div></div><span class=\"muted\">Expand</span></summary><div class=\"detail-section-body\"></div>";
+        const body = wrapper.querySelector(".detail-section-body");
+        body.appendChild(contentEl);
+        detailEl.appendChild(wrapper);
+        addDetailSectionNav(title, sectionId);
       }
 
       function persistControls() {
@@ -798,7 +874,9 @@ const html = `<!doctype html>
           li.textContent = reason;
           reasonsListEl.appendChild(li);
         }
+        card.id = "detail-snapshot";
         detailEl.appendChild(card);
+        addDetailSectionNav("Snapshot", "detail-snapshot");
       }
 
       function renderDetailQuickActions(detail) {
@@ -832,7 +910,9 @@ const html = `<!doctype html>
           });
           actionEl.appendChild(btn);
         }
+        card.id = "detail-quick-actions";
         detailEl.appendChild(card);
+        addDetailSectionNav("Quick Actions", "detail-quick-actions");
       }
 
       function appendGroup(target, title, items) {
@@ -946,6 +1026,7 @@ const html = `<!doctype html>
         if (allItems.length) {
           renderInbox(allItems);
         }
+        clearDetailSectionNav();
         detailEl.innerHTML = '<div class="item-card"><div class="muted">Loading detail…</div></div>';
         let detail;
         try {
@@ -1020,7 +1101,7 @@ const html = `<!doctype html>
           <div class="hint">\${actionGuide}</div>
           <div class="muted">retry: \${retryAttempts}/\${retryLimit || "N/A"} used\${remaining == null ? "" : ", remaining: " + remaining}</div>
         \`;
-        detailEl.appendChild(card);
+        appendDetailSection("detail-failure", "Failure Guidance", "失败原因与恢复建议", card, true);
       }
 
       function renderExportPanel(detail) {
@@ -1160,7 +1241,7 @@ const html = `<!doctype html>
           \`;
         }
 
-        detailEl.appendChild(panel);
+        appendDetailSection("detail-export", "Export Records", "导出快照、历史记录与文件快捷操作", panel, true);
       }
 
       function renderArtifactVersionViewer(detail) {
@@ -1389,7 +1470,7 @@ const html = `<!doctype html>
           URL.revokeObjectURL(url);
         });
 
-        detailEl.appendChild(card);
+        appendDetailSection("detail-versions", "Version Viewer", "比较不同 artifact 版本差异", card, false);
       }
 
       function renderIntentEditor(detail) {
@@ -1439,7 +1520,7 @@ const html = `<!doctype html>
           void submitIntent(true);
         });
 
-        detailEl.appendChild(card);
+        appendDetailSection("detail-intent-editor", "Edit Intent", "调整意图并按需触发重新生成", card, false);
       }
 
       function renderArtifactEditor(detail) {
@@ -1523,7 +1604,7 @@ const html = `<!doctype html>
           }
         });
 
-        detailEl.appendChild(card);
+        appendDetailSection("detail-artifact-editor", "Edit Artifact", "创建用户版本并保留历史", card, false);
       }
 
       async function processItem(id, mode) {
