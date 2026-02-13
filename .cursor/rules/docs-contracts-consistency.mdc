@@ -1,0 +1,15 @@
+---
+description: 约束 contracts 文档与 schema 的一致性
+globs: docs/contracts/**/*.md
+alwaysApply: false
+---
+
+# Contracts Consistency
+
+处理 `docs/contracts/` 下文档时，优先保证契约可执行与跨文档一致：
+
+- 状态机、API、pipeline 的状态转移必须一致（尤其 `FAILED_*` 与 retry）。
+- 字段命名以 schema 为准；文档不得引入未定义字段名。
+- 任何路径引用统一使用仓库真实路径（当前项目为 `docs/...`）。
+- 若改动影响 UI/runner 行为，必须同步更新对应契约文档。
+- 修改后快速自检：是否出现“文档允许但 schema 不允许”的冲突。
