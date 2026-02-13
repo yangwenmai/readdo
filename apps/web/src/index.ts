@@ -1016,7 +1016,7 @@ const html = `<!doctype html>
 
       async function processItem(id, mode) {
         const requestId = crypto.randomUUID();
-        await request("/items/" + id + "/process", {
+        const response = await request("/items/" + id + "/process", {
           method: "POST",
           body: JSON.stringify({
             process_request_id: requestId,
@@ -1024,6 +1024,9 @@ const html = `<!doctype html>
           }),
           headers: { "Idempotency-Key": requestId }
         });
+        if (response?.idempotent_replay === true) {
+          errorEl.textContent = "Process request replayed by idempotency key.";
+        }
         await loadItems();
       }
 
