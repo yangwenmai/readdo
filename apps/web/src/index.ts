@@ -2693,26 +2693,44 @@ const html = `<!doctype html>
         return kind === "retry" || kind === "archive" || kind === "unarchive";
       }
 
-      async function requestPreviewByKind(kind, offset) {
+      function batchPayloadByKind(kind, dryRun, offset) {
+        if (kind === "retry") {
+          return retryFailedPayload(dryRun, offset);
+        }
+        if (kind === "archive") {
+          return archiveBlockedPayload(dryRun, offset);
+        }
+        if (kind === "unarchive") {
+          return unarchiveBatchPayload(dryRun, offset);
+        }
+        throw new Error("Unsupported batch payload kind: " + String(kind));
+      }
+
+      async function requestBatchByKind(kind, dryRun, offset) {
+        const payload = batchPayloadByKind(kind, dryRun, offset);
         if (kind === "retry") {
           return request("/items/retry-failed", {
             method: "POST",
-            body: JSON.stringify(retryFailedPayload(true, offset))
+            body: JSON.stringify(payload)
           });
         }
         if (kind === "archive") {
           return request("/items/archive-failed", {
             method: "POST",
-            body: JSON.stringify(archiveBlockedPayload(true, offset))
+            body: JSON.stringify(payload)
           });
         }
         if (kind === "unarchive") {
           return request("/items/unarchive-batch", {
             method: "POST",
-            body: JSON.stringify(unarchiveBatchPayload(true, offset))
+            body: JSON.stringify(payload)
           });
         }
-        throw new Error("Unsupported preview kind: " + String(kind));
+        throw new Error("Unsupported batch request kind: " + String(kind));
+      }
+
+      async function requestPreviewByKind(kind, offset) {
+        return requestBatchByKind(kind, true, offset);
       }
 
       function renderPreviewByKind(kind, preview) {
@@ -2786,10 +2804,7 @@ const html = `<!doctype html>
                 }
                 errorEl.textContent = "Retrying failed items...";
                 const executeOffset = normalizedPreviewOffset();
-                const batchRes = await request("/items/retry-failed", {
-                  method: "POST",
-                  body: JSON.stringify(retryFailedPayload(false, executeOffset))
-                });
+                const batchRes = await requestBatchByKind("retry", false, executeOffset);
                 syncPreviewOffsetFromResponse(batchRes);
                 const exportItemIds = batchRes.eligible_export_item_ids || [];
                 for (const itemId of exportItemIds) {
@@ -2874,10 +2889,7 @@ const html = `<!doctype html>
                   return;
                 }
                 const executeOffset = normalizedPreviewOffset();
-                const result = await request("/items/archive-failed", {
-                  method: "POST",
-                  body: JSON.stringify(archiveBlockedPayload(false, executeOffset))
-                });
+                const result = await requestBatchByKind("archive", false, executeOffset);
                 syncPreviewOffsetFromResponse(result);
                 renderArchiveBatchDoneOutput(result);
               } catch (err) {
@@ -2962,10 +2974,7 @@ const html = `<!doctype html>
                   return;
                 }
                 const executeOffset = normalizedPreviewOffset();
-                const result = await request("/items/unarchive-batch", {
-                  method: "POST",
-                  body: JSON.stringify(unarchiveBatchPayload(false, executeOffset))
-                });
+                const result = await requestBatchByKind("unarchive", false, executeOffset);
                 syncPreviewOffsetFromResponse(result);
                 renderUnarchiveBatchDoneOutput(result);
               } catch (err) {
