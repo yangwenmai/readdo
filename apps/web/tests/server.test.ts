@@ -49,6 +49,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Advanced Panels \(A\)/u);
     assert.match(text, /Aha Snapshot/u);
     assert.match(text, /Quick Actions/u);
+    assert.match(text, /Recommended Action/u);
     assert.match(text, /Process & Regenerate/u);
     assert.match(text, /Ship & Export/u);
     assert.match(text, /Maintain Queue/u);

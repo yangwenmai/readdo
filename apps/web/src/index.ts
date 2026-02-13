@@ -126,6 +126,10 @@ const html = `<!doctype html>
       .quick-action-group .actions {
         margin-top: 0;
       }
+      .quick-action-group .actions .primary {
+        border-color: #1d4ed8;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.26);
+      }
       .action-feedback {
         margin-top: 8px;
       }
@@ -1006,29 +1010,53 @@ const html = `<!doctype html>
 
       function buttonsFor(item) {
         const ops = [];
-        ops.push({ label: "Detail", action: () => selectItem(item.id), group: "view" });
+        ops.push({ id: "detail", label: "Detail", action: () => selectItem(item.id), group: "view", priority: 100 });
+        let primaryActionId = null;
+        if (item.status === "CAPTURED") primaryActionId = "process";
+        else if (item.status === "READY") primaryActionId = "export";
+        else if (item.status === "SHIPPED") primaryActionId = "reexport";
+        else if (item.status === "ARCHIVED") primaryActionId = "unarchive";
+        else if (["FAILED_EXTRACTION", "FAILED_AI", "FAILED_EXPORT"].includes(item.status)) primaryActionId = "retry";
         if (item.status === "READY") {
-          ops.push({ label: "Regenerate", action: () => processItem(item.id, "REGENERATE"), group: "process" });
+          ops.push({ id: "regenerate", label: "Regenerate", action: () => processItem(item.id, "REGENERATE"), group: "process", priority: 30 });
         } else if (["FAILED_EXTRACTION", "FAILED_AI", "FAILED_EXPORT"].includes(item.status)) {
           const info = retryInfo(item);
           if (info.retryable) {
             const suffix = info.remaining == null ? "" : " (" + info.remaining + " left)";
-            ops.push({ label: "Retry" + suffix, action: () => processItem(item.id, "RETRY"), group: "process" });
+            ops.push({ id: "retry", label: "Retry" + suffix, action: () => processItem(item.id, "RETRY"), group: "process", priority: 10 });
           } else {
-            ops.push({ label: "Retry Limit Reached", action: () => {}, disabled: true, group: "process" });
+            ops.push({ id: "retry_blocked", label: "Retry Limit Reached", action: () => {}, disabled: true, group: "process", priority: 50 });
+            if (item.status === "FAILED_EXPORT") {
+              primaryActionId = "export";
+            } else {
+              primaryActionId = "regenerate";
+            }
           }
         } else if (item.status === "CAPTURED") {
-          ops.push({ label: "Process", action: () => processItem(item.id, "PROCESS"), group: "process" });
+          ops.push({ id: "process", label: "Process", action: () => processItem(item.id, "PROCESS"), group: "process", priority: 10 });
         }
         if (["READY", "SHIPPED", "FAILED_EXPORT"].includes(item.status)) {
-          ops.push({ label: item.status === "SHIPPED" ? "Re-export" : "Export", action: () => exportItem(item.id), group: "ship" });
+          const isReExport = item.status === "SHIPPED";
+          ops.push({
+            id: isReExport ? "reexport" : "export",
+            label: isReExport ? "Re-export" : "Export",
+            action: () => exportItem(item.id),
+            group: "ship",
+            priority: isReExport ? 20 : 15,
+          });
         }
         if (item.status === "ARCHIVED") {
-          ops.push({ label: "Unarchive", action: () => unarchiveItem(item.id), group: "maintain" });
+          ops.push({ id: "unarchive", label: "Unarchive", action: () => unarchiveItem(item.id), group: "maintain", priority: 20 });
         } else if (item.status !== "PROCESSING") {
-          ops.push({ label: "Archive", action: () => archiveItem(item.id), group: "maintain" });
+          ops.push({ id: "archive", label: "Archive", action: () => archiveItem(item.id), group: "maintain", priority: 80 });
         }
-        return ops;
+        if (primaryActionId === "regenerate" && !ops.find((op) => op.id === "regenerate")) {
+          if (ops.find((op) => op.id === "process")) primaryActionId = "process";
+          else if (ops.find((op) => op.id === "export")) primaryActionId = "export";
+        }
+        return ops
+          .map((op) => ({ ...op, is_primary: op.id === primaryActionId }))
+          .sort((a, b) => Number(a.priority ?? 100) - Number(b.priority ?? 100));
       }
 
       function renderItem(item) {
@@ -1078,6 +1106,10 @@ const html = `<!doctype html>
         for (const op of ops) {
           const btn = document.createElement("button");
           btn.textContent = op.label;
+          if (op.is_primary) {
+            btn.classList.add("primary");
+            btn.title = "Recommended action";
+          }
           btn.disabled = Boolean(op.disabled);
           btn.addEventListener("click", async () => {
             if (op.disabled) return;
@@ -1162,9 +1194,11 @@ const html = `<!doctype html>
 
         const card = document.createElement("div");
         card.className = "item-card";
+        const primaryOp = ops.find((op) => op.is_primary) || null;
         card.innerHTML = \`
           <h3>Quick Actions</h3>
           <div class="muted">无需回到列表，直接在详情完成处理、导出与归档。</div>
+          <div class="hint">Recommended Action: \${primaryOp?.label || "Choose any action below based on your goal."}</div>
           <div class="quick-action-grid" id="detailQuickActions"></div>
           <div class="muted action-feedback" id="detailQuickActionMsg">Ready.</div>
         \`;
@@ -1191,6 +1225,9 @@ const html = `<!doctype html>
           for (const op of groupOps) {
             const btn = document.createElement("button");
             btn.textContent = op.label;
+            if (op.is_primary) {
+              btn.classList.add("primary");
+            }
             const locked = Boolean(op.disabled);
             btn.disabled = locked;
             btn.dataset.locked = locked ? "true" : "false";
