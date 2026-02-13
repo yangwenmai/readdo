@@ -3240,20 +3240,15 @@ const html = `<!doctype html>
         );
       }
 
-      function previewActionMetaByKind(kind) {
-        const meta = queueActionMeta.preview[kind];
-        if (!meta) throw new Error("Unsupported preview action kind: " + String(kind));
-        return meta;
-      }
-
-      function batchActionMetaByKind(kind) {
-        const meta = queueActionMeta.batch[kind];
-        if (!meta) throw new Error("Unsupported batch action kind: " + String(kind));
+      function queueActionMetaByKind(group, kind) {
+        const groupMeta = queueActionMeta[group];
+        const meta = groupMeta?.[kind];
+        if (!meta) throw new Error("Unsupported queue action kind: " + String(group) + "." + String(kind));
         return meta;
       }
 
       function createPreviewActionConfig(button, kind) {
-        const meta = previewActionMetaByKind(kind);
+        const meta = queueActionMetaByKind("preview", kind);
         return {
           button,
           id: meta.id,
@@ -3264,7 +3259,7 @@ const html = `<!doctype html>
       }
 
       function createBatchActionConfig(button, kind, run) {
-        const meta = batchActionMetaByKind(kind);
+        const meta = queueActionMetaByKind("batch", kind);
         return {
           button,
           id: meta.id,
@@ -3290,10 +3285,15 @@ const html = `<!doctype html>
         return { element, label, ...options };
       }
 
-      function queueControlLabelByKey(key) {
-        const label = queueFilterMeta.controls[key];
-        if (!label) throw new Error("Unsupported queue control key: " + String(key));
+      function queueFilterLabelByKey(group, key) {
+        const groupMeta = queueFilterMeta[group];
+        const label = groupMeta?.[key];
+        if (!label) throw new Error("Unsupported queue filter key: " + String(group) + "." + String(key));
         return label;
+      }
+
+      function queueControlLabelByKey(key) {
+        return queueFilterLabelByKey("controls", key);
       }
 
       function createQueueControlChangeConfigByKey(key, element, options = {}) {
@@ -3305,9 +3305,7 @@ const html = `<!doctype html>
       }
 
       function listFilterLabelByKey(key) {
-        const label = queueFilterMeta.list[key];
-        if (!label) throw new Error("Unsupported list filter key: " + String(key));
-        return label;
+        return queueFilterLabelByKey("list", key);
       }
 
       function createListFilterChangeConfigByKey(key, element) {
