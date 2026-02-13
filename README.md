@@ -184,6 +184,12 @@ curl -X POST "http://localhost:8787/api/items/archive-failed" \
 curl -X POST "http://localhost:8787/api/items/unarchive-batch" \
   -H "content-type: application/json" \
   -d '{"limit":20,"offset":0,"dry_run":true,"regenerate":false,"q":"AI-native"}'
+
+# Process endpoint idempotent replay (same key can be safely retried)
+curl -X POST "http://localhost:8787/api/items/<item_id>/process" \
+  -H "content-type: application/json" \
+  -H "Idempotency-Key: process-demo-001" \
+  -d '{"mode":"REGENERATE"}'
 ```
 
 ---
