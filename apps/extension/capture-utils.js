@@ -1,10 +1,15 @@
 export function detectSourceType(url) {
   if (!url) return "other";
-  const lower = url.toLowerCase();
-  if (lower.includes("youtube.com") || lower.includes("youtu.be")) return "youtube";
-  if (lower.includes("substack.com") || lower.includes("newsletter")) return "newsletter";
-  if (lower.startsWith("http")) return "web";
-  return "other";
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    if (host.includes("youtube.com") || host.includes("youtu.be")) return "youtube";
+    if (host.includes("substack.com") || host.includes("newsletter")) return "newsletter";
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") return "web";
+    return "other";
+  } catch {
+    return "other";
+  }
 }
 
 export function isSupportedCaptureUrl(url) {

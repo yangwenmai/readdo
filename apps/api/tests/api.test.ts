@@ -652,6 +652,15 @@ test("items endpoint supports status and query filtering", async () => {
     assert.ok(readyItems.length >= 1);
     assert.ok(readyItems.every((x) => x.status === "READY"));
 
+    const readyItemsLowercaseRes = await app.inject({
+      method: "GET",
+      url: "/api/items?status=ready",
+    });
+    assert.equal(readyItemsLowercaseRes.statusCode, 200);
+    const readyItemsLowercase = (readyItemsLowercaseRes.json() as { items: Array<{ status: string }> }).items;
+    assert.ok(readyItemsLowercase.length >= 1);
+    assert.ok(readyItemsLowercase.every((x) => x.status === "READY"));
+
     const searchRes = await app.inject({
       method: "GET",
       url: "/api/items?q=creator",

@@ -426,8 +426,8 @@ Headers:
 
 ### 5.2 Query Params
 
-* `status`（可重复）：CAPTURED, QUEUED, PROCESSING, READY, FAILED_*, SHIPPED, ARCHIVED
-* `priority`（可重复）：READ_NEXT, WORTH_IT, IF_TIME, SKIP
+* `status`（可重复）：CAPTURED, QUEUED, PROCESSING, READY, FAILED_*, SHIPPED, ARCHIVED（大小写不敏感）
+* `priority`（可重复）：READ_NEXT, WORTH_IT, IF_TIME, SKIP（大小写不敏感）
 * `source_type`（可重复）：web, youtube, newsletter, other（大小写不敏感）
 * `retryable`：`true | false`（仅对 FAILED_* 生效；用于筛选可重试/不可重试失败项）
 * `failure_step`：`extract | pipeline | export`（仅对 FAILED_* 生效；按失败阶段筛选）

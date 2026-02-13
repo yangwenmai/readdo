@@ -1132,8 +1132,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
   app.get("/api/items", async (request) => {
     const query = request.query as Record<string, unknown>;
-    const statuses = normalizeQueryList(query.status);
-    const priorities = normalizeQueryList(query.priority);
+    const statuses = normalizeQueryList(query.status).map((x) => x.toUpperCase());
+    const priorities = normalizeQueryList(query.priority).map((x) => x.toUpperCase());
     const sourceTypes = normalizeQueryList(query.source_type).map((x) => x.toLowerCase());
     const retryableQuery = typeof query.retryable === "string" ? query.retryable.toLowerCase() : "";
     const retryableFilter = retryableQuery === "true" ? true : retryableQuery === "false" ? false : null;
