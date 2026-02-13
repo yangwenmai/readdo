@@ -3292,19 +3292,12 @@ const html = `<!doctype html>
         return { element, label: queueFilterLabelByKey(group, key), ...options };
       }
 
-      function expandQueueFilterConfigs(group, seeds) {
-        return seeds.map((seed) => {
-          const { key, element, ...options } = seed;
-          return createQueueFilterConfigByKey(group, key, element, options);
-        });
-      }
-
       function createQueueFilterSeed(key, element, options = {}) {
         return { key, element, ...options };
       }
 
-      function expandQueueActionConfigs(seeds, buildConfig) {
-        return seeds.map((seed) => buildConfig(seed));
+      function expandSeedConfigs(seeds, mapSeed) {
+        return seeds.map((seed) => mapSeed(seed));
       }
 
       function createQueueActionSeed(button, kind, options = {}) {
@@ -3318,7 +3311,7 @@ const html = `<!doctype html>
         return createBatchActionConfig(seed.button, seed.kind, seed.run);
       }
 
-      const previewActionConfigs = expandQueueActionConfigs(
+      const previewActionConfigs = expandSeedConfigs(
         [
           createQueueActionSeed(previewArchiveBtn, "archive"),
           createQueueActionSeed(previewRetryBtn, "retry"),
@@ -3327,7 +3320,7 @@ const html = `<!doctype html>
         (seed) => createPreviewActionConfig(seed.button, seed.kind),
       );
 
-      const batchActionConfigs = expandQueueActionConfigs(
+      const batchActionConfigs = expandSeedConfigs(
         [
           createQueueActionSeed(retryFailedBtn, "retry", { run: runRetryBatchFlow }),
           createQueueActionSeed(archiveBlockedBtn, "archive", {
@@ -3351,7 +3344,7 @@ const html = `<!doctype html>
         createBatchActionFromSeed,
       );
 
-      const queueControlChangeConfigs = expandQueueFilterConfigs("controls", [
+      const queueControlChangeConfigs = expandSeedConfigs([
         createQueueFilterSeed("archive_scope", archiveRetryableFilter, {
           options: { refresh_worker_stats: true },
         }),
@@ -3363,13 +3356,19 @@ const html = `<!doctype html>
           beforeSync: normalizePreviewOffsetInputValue,
           syncOptions: { resetOffset: false },
         }),
-      ]);
+      ], (seed) => {
+        const { key, element, ...options } = seed;
+        return createQueueFilterConfigByKey("controls", key, element, options);
+      });
 
-      const listFilterChangeConfigs = expandQueueFilterConfigs("list", [
+      const listFilterChangeConfigs = expandSeedConfigs([
         createQueueFilterSeed("status", statusFilter),
         createQueueFilterSeed("retryable", retryableFilter),
         createQueueFilterSeed("failure_step", failureStepFilter),
-      ]);
+      ], (seed) => {
+        const { key, element, ...options } = seed;
+        return createQueueFilterConfigByKey("list", key, element, options);
+      });
 
       function setupQueueActionBindings() {
         bindConfigList(previewActionConfigs, bindPreviewAction);
