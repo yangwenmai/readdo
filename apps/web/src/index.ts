@@ -104,6 +104,25 @@ const html = `<!doctype html>
       .actions button:disabled { cursor: not-allowed; opacity: 0.6; transform: none; box-shadow: none; }
       .group-title { margin: 12px 0 6px; font-size: 13px; color: #334155; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
       .aha-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+      .focus-chips {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin: 6px 0 10px;
+      }
+      .focus-chip {
+        border: 1px solid #bfdbfe;
+        background: #eff6ff;
+        color: #1e3a8a;
+        border-radius: 999px;
+        padding: 5px 10px;
+        font-size: 12px;
+      }
+      .focus-chip.active {
+        border-color: #1d4ed8;
+        background: #1d4ed8;
+        color: #ffffff;
+      }
       .aha-card {
         border: 1px solid #dbeafe;
         border-radius: 12px;
@@ -280,6 +299,13 @@ const html = `<!doctype html>
         <h2>Decision Queue</h2>
         <p class="panel-subtitle">系统会自动提炼优先级与行动项，下面是当前最有产出的执行视图。</p>
         <div id="queueHighlights" class="aha-strip"></div>
+        <div id="focusChips" class="focus-chips">
+          <button type="button" class="focus-chip active" data-focus="all">All</button>
+          <button type="button" class="focus-chip" data-focus="ready">Ready</button>
+          <button type="button" class="focus-chip" data-focus="failed">Failed</button>
+          <button type="button" class="focus-chip" data-focus="queued">Queued</button>
+          <button type="button" class="focus-chip" data-focus="archived">Archived</button>
+        </div>
         <div id="error" class="error"></div>
         <pre id="retryPreviewOutput" style="display:none;"></pre>
         <div id="inbox"></div>
@@ -296,6 +322,7 @@ const html = `<!doctype html>
       const detailEl = document.getElementById("detail");
       const errorEl = document.getElementById("error");
       const queueHighlightsEl = document.getElementById("queueHighlights");
+      const focusChipsEl = document.getElementById("focusChips");
       const retryPreviewOutputEl = document.getElementById("retryPreviewOutput");
       const refreshBtn = document.getElementById("refreshBtn");
       const clearFiltersBtn = document.getElementById("clearFiltersBtn");
@@ -337,6 +364,25 @@ const html = `<!doctype html>
         preview_offset: 0,
         auto_refresh: false,
       };
+
+      function statusByFocusChip(focus) {
+        if (focus === "ready") return "READY";
+        if (focus === "failed") return "FAILED_EXTRACTION,FAILED_AI,FAILED_EXPORT";
+        if (focus === "queued") return "QUEUED";
+        if (focus === "archived") return "ARCHIVED";
+        return "";
+      }
+
+      function syncFocusChips() {
+        if (!focusChipsEl) return;
+        const buttons = focusChipsEl.querySelectorAll("[data-focus]");
+        for (const button of buttons) {
+          const focus = button.getAttribute("data-focus") || "all";
+          const statusValue = statusByFocusChip(focus);
+          const isActive = statusFilter.value === statusValue;
+          button.classList.toggle("active", isActive);
+        }
+      }
 
       function clearPreviewContinuation() {
         previewContinuation = null;
@@ -738,6 +784,7 @@ const html = `<!doctype html>
         if (isLoadingItems) return;
         isLoadingItems = true;
         try {
+          syncFocusChips();
           persistControls();
           const query = queryInput.value.trim();
           const status = statusFilter.value;
@@ -2176,9 +2223,30 @@ const html = `<!doctype html>
         clearPreviewOutput();
       });
 
+      if (focusChipsEl) {
+        focusChipsEl.querySelectorAll("[data-focus]").forEach((button) => {
+          button.addEventListener("click", async () => {
+            const focus = button.getAttribute("data-focus") || "all";
+            statusFilter.value = statusByFocusChip(focus);
+            syncFocusChips();
+            try {
+              errorEl.textContent = "";
+              persistControls();
+              resetPreviewOffset();
+              clearPreviewContinuation();
+              clearPreviewOutput();
+              await loadItems();
+            } catch (err) {
+              errorEl.textContent = String(err);
+            }
+          });
+        });
+      }
+
       statusFilter.addEventListener("change", async () => {
         try {
           errorEl.textContent = "";
+          syncFocusChips();
           persistControls();
           resetPreviewOffset();
           clearPreviewContinuation();
