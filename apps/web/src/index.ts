@@ -102,6 +102,7 @@ const queueNudgeDuelSeriesLabel = "Lead-Rival";
 const queueNudgeOpenRivalLabel = "Open Rival";
 const queueNudgeCopyDuelLabel = "Copy Duel";
 const queueNudgeRunRivalLabel = "Run Rival Action (Alt+E)";
+const queueNudgeCopyBriefLabel = "Copy Decision Brief";
 const queueLeadGapLabelPrefix = "Lead Gap";
 const queueDuelRoleLabelPrefix = "Duel Role";
 const detailStoryLabel = "Queue Storyline";
@@ -2104,6 +2105,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_OPEN_RIVAL_LABEL = ${JSON.stringify(queueNudgeOpenRivalLabel)};
       const QUEUE_NUDGE_COPY_DUEL_LABEL = ${JSON.stringify(queueNudgeCopyDuelLabel)};
       const QUEUE_NUDGE_RUN_RIVAL_LABEL = ${JSON.stringify(queueNudgeRunRivalLabel)};
+      const QUEUE_NUDGE_COPY_BRIEF_LABEL = ${JSON.stringify(queueNudgeCopyBriefLabel)};
       const QUEUE_LEAD_GAP_LABEL_PREFIX = ${JSON.stringify(queueLeadGapLabelPrefix)};
       const QUEUE_DUEL_ROLE_LABEL_PREFIX = ${JSON.stringify(queueDuelRoleLabelPrefix)};
       const DETAIL_STORY_LABEL = ${JSON.stringify(detailStoryLabel)};
@@ -2899,6 +2901,30 @@ const html = `<!doctype html>
             );
           })
           .join("");
+      }
+
+      function ahaDecisionBriefText(poolItems) {
+        const ranked = sortedAhaItems(poolItems);
+        if (!ranked.length) return "";
+        const story = ahaStoryText(ranked, ahaHeatBuckets(ranked));
+        const duel = ahaDuelText(ranked);
+        const duelGap = ahaDuelGapMeta(ranked);
+        const duelEdge = ahaDuelEdgeMeta(ranked);
+        const duelTrend = ahaDuelGapTrendMeta();
+        const lines = ["Aha Decision Brief", story || "Storyline unavailable."];
+        if (duel) {
+          lines.push(duel);
+        }
+        if (duelGap) {
+          lines.push(QUEUE_NUDGE_DUEL_GAP_LABEL + ": " + duelGap.label + " · " + duelGap.hint);
+        }
+        if (duelEdge) {
+          lines.push(QUEUE_NUDGE_DUEL_EDGE_LABEL + ": " + duelEdge.label + " · " + duelEdge.hint);
+        }
+        if (duelTrend) {
+          lines.push(QUEUE_NUDGE_DUEL_TREND_LABEL + ": " + duelTrend.label);
+        }
+        return lines.join("\n");
       }
 
       function ahaHeatTrendPoints() {
@@ -5005,6 +5031,14 @@ const html = `<!doctype html>
                 await runCopyAhaDuelAction(copyDuelBtn);
               });
               actionsEl.appendChild(copyDuelBtn);
+              const copyBriefBtn = document.createElement("button");
+              copyBriefBtn.type = "button";
+              copyBriefBtn.className = "secondary";
+              copyBriefBtn.textContent = QUEUE_NUDGE_COPY_BRIEF_LABEL;
+              copyBriefBtn.addEventListener("click", async () => {
+                await runCopyAhaDecisionBriefAction(copyBriefBtn);
+              });
+              actionsEl.appendChild(copyBriefBtn);
               const runRivalBtn = document.createElement("button");
               runRivalBtn.type = "button";
               runRivalBtn.className = "secondary";
@@ -5841,6 +5875,14 @@ const html = `<!doctype html>
             }
           });
           actionsEl.appendChild(copyDuelBtn);
+          const copyBriefBtn = document.createElement("button");
+          copyBriefBtn.type = "button";
+          copyBriefBtn.className = "secondary";
+          copyBriefBtn.textContent = QUEUE_NUDGE_COPY_BRIEF_LABEL;
+          copyBriefBtn.addEventListener("click", async () => {
+            await runCopyAhaDecisionBriefAction(copyBriefBtn);
+          });
+          actionsEl.appendChild(copyBriefBtn);
         }
         if (String(top?.id) !== String(item?.id)) {
           const leadBtn = document.createElement("button");
@@ -6886,6 +6928,32 @@ const html = `<!doctype html>
               });
               if (!copied) {
                 throw new Error("Copy Aha duel failed.");
+              }
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
+      async function runCopyAhaDecisionBriefAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_copy_aha_decision_brief",
+            label: "Copy Decision Brief",
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const pool = visibleItems.length ? visibleItems : allItems;
+              const brief = ahaDecisionBriefText(pool);
+              if (!brief) {
+                errorEl.textContent = "Decision brief is unavailable under current filters.";
+                return;
+              }
+              const copied = await copyTextToClipboard(brief, {
+                success: "Copied decision brief.",
+                failure: "Copy decision brief failed.",
+              });
+              if (!copied) {
+                throw new Error("Copy decision brief failed.");
               }
             },
           },
