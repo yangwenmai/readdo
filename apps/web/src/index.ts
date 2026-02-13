@@ -53,6 +53,7 @@ const html = `<!doctype html>
         box-shadow: 0 8px 30px rgba(148, 163, 184, 0.16);
       }
       h2 { margin: 0; font-size: 16px; }
+      h3 { margin: 12px 0 8px; font-size: 15px; color: #0f172a; }
       .panel-subtitle { margin: 6px 0 10px; font-size: 12px; color: #64748b; }
       .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
       .controls .muted { color: #e2e8f0; }
@@ -82,6 +83,9 @@ const html = `<!doctype html>
         background: linear-gradient(180deg, #ffffff, #f8fafc);
         box-shadow: 0 4px 10px rgba(148, 163, 184, 0.16);
       }
+      .item-card.clickable { cursor: pointer; }
+      .item-card.clickable:hover { border-color: #93c5fd; box-shadow: 0 10px 24px rgba(59, 130, 246, 0.2); }
+      .item-card.is-selected { border-color: #2563eb; box-shadow: 0 12px 28px rgba(37, 99, 235, 0.24); }
       .item-card.priority-read-next { border-left: 4px solid #2563eb; }
       .item-card.priority-worth-it { border-left: 4px solid #7c3aed; }
       .item-card.priority-if-time { border-left: 4px solid #14b8a6; }
@@ -110,6 +114,71 @@ const html = `<!doctype html>
       .aha-label { color: #1e3a8a; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
       .aha-value { color: #0f172a; font-size: 24px; font-weight: 800; line-height: 1; }
       .aha-meta { color: #475569; font-size: 12px; margin-top: 6px; }
+      .detail-aha .aha-insight {
+        font-size: 14px;
+        line-height: 1.45;
+        color: #0f172a;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 10px;
+        padding: 10px;
+        margin: 8px 0 10px;
+      }
+      .detail-aha-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .detail-aha-kpi {
+        border: 1px solid #dbeafe;
+        border-radius: 10px;
+        padding: 8px;
+        background: #ffffff;
+      }
+      .detail-aha-kpi .label {
+        color: #1e3a8a;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .detail-aha-kpi .value {
+        margin-top: 4px;
+        font-size: 14px;
+        color: #0f172a;
+        font-weight: 700;
+      }
+      .score-meter {
+        height: 8px;
+        border-radius: 999px;
+        background: #e2e8f0;
+        overflow: hidden;
+        margin-top: 6px;
+      }
+      .score-meter-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #38bdf8, #2563eb);
+      }
+      .aha-reasons {
+        margin: 10px 0 0;
+        padding-left: 16px;
+      }
+      .aha-reasons li {
+        color: #334155;
+        margin: 4px 0;
+        font-size: 12px;
+      }
+      details.raw-panel {
+        border: 1px solid #dbe2ea;
+        border-radius: 10px;
+        padding: 8px 10px;
+        background: #f8fafc;
+        margin-top: 8px;
+      }
+      details.raw-panel > summary {
+        cursor: pointer;
+        color: #334155;
+        font-weight: 700;
+      }
       pre { background: #0b1020; color: #d1d5db; padding: 8px; border-radius: 8px; white-space: pre-wrap; word-break: break-all; font-size: 12px; }
       .empty { padding: 18px; border: 1px dashed #cbd5e1; border-radius: 10px; color: #64748b; text-align: center; background: #f8fafc; }
       .error { color: #b91c1c; font-size: 13px; }
@@ -127,6 +196,9 @@ const html = `<!doctype html>
       .diff-column li { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
       @media (max-width: 1200px) {
         .aha-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 900px) {
+        .detail-aha-grid { grid-template-columns: 1fr; }
       }
       @media (max-width: 1100px) {
         main { grid-template-columns: 1fr; min-height: auto; }
@@ -514,7 +586,8 @@ const html = `<!doctype html>
 
       function renderItem(item) {
         const card = document.createElement("div");
-        card.className = "item-card priority-" + priorityTone(item.priority);
+        const isSelected = selectedId === item.id;
+        card.className = "item-card clickable priority-" + priorityTone(item.priority) + (isSelected ? " is-selected" : "");
         const title = item.title || item.url;
         const score = item.match_score != null ? Number(item.match_score).toFixed(1) : "—";
         const retry = retryInfo(item);
@@ -546,6 +619,13 @@ const html = `<!doctype html>
         \`;
         const actionEl = card.querySelector(".actions");
         const ops = buttonsFor(item);
+        card.addEventListener("click", (event) => {
+          const target = event.target;
+          if (target instanceof HTMLElement && (target.closest("button") || target.closest("a"))) {
+            return;
+          }
+          void selectItem(item.id);
+        });
         for (const op of ops) {
           const btn = document.createElement("button");
           btn.textContent = op.label;
@@ -566,6 +646,63 @@ const html = `<!doctype html>
           actionEl.appendChild(btn);
         }
         return card;
+      }
+
+      function renderDetailAha(detail) {
+        const summaryPayload = detail.artifacts?.summary?.payload ?? {};
+        const scorePayload = detail.artifacts?.score?.payload ?? {};
+        const todosPayload = detail.artifacts?.todos?.payload ?? {};
+        const todos = Array.isArray(todosPayload.todos) ? todosPayload.todos : [];
+        const reasons = Array.isArray(scorePayload.reasons) ? scorePayload.reasons.filter((x) => typeof x === "string") : [];
+        const scoreRaw = Number(scorePayload.match_score ?? detail.item.match_score ?? 0);
+        const score = Number.isFinite(scoreRaw) ? Math.min(Math.max(scoreRaw, 0), 100) : 0;
+        const insight =
+          typeof summaryPayload.insight === "string" && summaryPayload.insight.trim()
+            ? summaryPayload.insight.trim()
+            : "No insight yet. Run process/regenerate to build a stronger snapshot.";
+        const nextTodo = todos[0] || null;
+
+        const card = document.createElement("div");
+        card.className = "item-card detail-aha";
+        card.innerHTML = \`
+          <h3>Aha Snapshot</h3>
+          <div class="panel-subtitle">把内容价值压缩成“为什么现在做、先做什么、做完看到什么”。</div>
+          <div class="aha-insight"></div>
+          <div class="detail-aha-grid">
+            <div class="detail-aha-kpi">
+              <div class="label">Match Score</div>
+              <div class="value">\${score.toFixed(1)} · \${scorePayload.priority || detail.item.priority || "N/A"}</div>
+              <div class="score-meter"><div class="score-meter-fill" style="width:\${score}%;"></div></div>
+            </div>
+            <div class="detail-aha-kpi">
+              <div class="label">Best Next Task</div>
+              <div class="value" id="nextTaskValue">—</div>
+            </div>
+            <div class="detail-aha-kpi">
+              <div class="label">Effort & Throughput</div>
+              <div class="value" id="effortValue">—</div>
+            </div>
+          </div>
+          <ul class="aha-reasons" id="ahaReasonsList"></ul>
+        \`;
+        const insightEl = card.querySelector(".aha-insight");
+        const nextTaskValueEl = card.querySelector("#nextTaskValue");
+        const effortValueEl = card.querySelector("#effortValue");
+        const reasonsListEl = card.querySelector("#ahaReasonsList");
+        insightEl.textContent = insight;
+        nextTaskValueEl.textContent = nextTodo ? (nextTodo.title || "Untitled task") : "No task yet";
+        if (nextTodo?.eta) {
+          effortValueEl.textContent = nextTodo.eta + " first step · " + todos.length + " tasks total";
+        } else {
+          effortValueEl.textContent = todos.length + " tasks total";
+        }
+        const showReasons = reasons.length ? reasons.slice(0, 3) : ["No score reasons yet. Process this item to generate explainable reasons."];
+        for (const reason of showReasons) {
+          const li = document.createElement("li");
+          li.textContent = reason;
+          reasonsListEl.appendChild(li);
+        }
+        detailEl.appendChild(card);
       }
 
       function appendGroup(target, title, items) {
@@ -675,6 +812,9 @@ const html = `<!doctype html>
 
       async function selectItem(id) {
         selectedId = id;
+        if (allItems.length) {
+          renderInbox(allItems);
+        }
         const detail = await request("/items/" + id + "?include_history=true");
         selectedDetail = detail;
         detailEl.innerHTML = "";
@@ -690,14 +830,21 @@ const html = `<!doctype html>
             <div>\${detail.item.title || detail.item.url}</div>
             <div class="muted">\${detail.item.domain || ""}</div>
           </div>
-          <h3>Artifacts</h3>
-          <pre>\${JSON.stringify(detail.artifacts || {}, null, 2)}</pre>
-          <h3>Artifact History</h3>
-          <pre>\${JSON.stringify(detail.artifact_history || {}, null, 2)}</pre>
-          <h3>Failure</h3>
-          <pre>\${JSON.stringify(detail.failure || null, null, 2)}</pre>
+          <details class="raw-panel">
+            <summary>Artifacts JSON</summary>
+            <pre>\${JSON.stringify(detail.artifacts || {}, null, 2)}</pre>
+          </details>
+          <details class="raw-panel">
+            <summary>Artifact History JSON</summary>
+            <pre>\${JSON.stringify(detail.artifact_history || {}, null, 2)}</pre>
+          </details>
+          <details class="raw-panel">
+            <summary>Failure JSON</summary>
+            <pre>\${JSON.stringify(detail.failure || null, null, 2)}</pre>
+          </details>
         \`;
         detailEl.appendChild(wrap);
+        renderDetailAha(detail);
         renderFailureGuidance(detail);
         renderExportPanel(detail);
         renderArtifactVersionViewer(detail);
