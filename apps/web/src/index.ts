@@ -43,6 +43,7 @@ const html = `<!doctype html>
       <div class="controls">
         <span class="muted">API: ${apiBase}</span>
         <span class="muted" id="workerStats">Queue: -</span>
+        <button id="runWorkerBtn" type="button">Run Worker Once</button>
         <input id="queryInput" placeholder="Search title/domain/intent" />
         <select id="statusFilter">
           <option value="">All Status</option>
@@ -77,6 +78,7 @@ const html = `<!doctype html>
       const queryInput = document.getElementById("queryInput");
       const statusFilter = document.getElementById("statusFilter");
       const workerStatsEl = document.getElementById("workerStats");
+      const runWorkerBtn = document.getElementById("runWorkerBtn");
 
       let allItems = [];
       let selectedId = null;
@@ -619,6 +621,16 @@ const html = `<!doctype html>
       refreshBtn.addEventListener("click", async () => {
         try {
           errorEl.textContent = "";
+          await loadItems();
+        } catch (err) {
+          errorEl.textContent = String(err);
+        }
+      });
+
+      runWorkerBtn.addEventListener("click", async () => {
+        try {
+          errorEl.textContent = "";
+          await request("/system/worker/run-once", { method: "POST", body: JSON.stringify({}) });
           await loadItems();
         } catch (err) {
           errorEl.textContent = String(err);

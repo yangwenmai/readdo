@@ -527,6 +527,22 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     };
   });
 
+  app.post("/api/system/worker/run-once", async () => {
+    await runWorkerOnce();
+    const queueRows = db
+      .prepare("SELECT status, COUNT(1) AS count FROM jobs GROUP BY status")
+      .all() as Array<{ status: string; count: number }>;
+    const queue = queueRows.reduce<Record<string, number>>((acc, row) => {
+      acc[row.status] = row.count;
+      return acc;
+    }, {});
+    return {
+      ok: true,
+      queue,
+      timestamp: nowIso(),
+    };
+  });
+
   app.post("/api/capture", async (request, reply) => {
     const body = request.body as Record<string, unknown>;
     const idempotencyKey = String(request.headers["idempotency-key"] ?? body.capture_id ?? "");

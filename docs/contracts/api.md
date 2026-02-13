@@ -114,6 +114,7 @@ Artifacts payload 必须满足 `docs/contracts/schemas/*.schema.json`。
 
 * POST `/capture`
 * GET  `/system/worker`（队列与状态统计）
+* POST `/system/worker/run-once`（手动执行一次 worker）
 * GET  `/items`
 * GET  `/items/{id}`
 * POST `/items/{id}/intent`（intent 编辑）
@@ -202,6 +203,27 @@ Headers:
   "worker": {
     "interval_ms": 1500,
     "active": true
+  },
+  "timestamp": "2026-02-13T12:00:00Z"
+}
+```
+
+---
+
+## 4.7 POST /system/worker/run-once（调试/本地手动推进）
+
+### 4.7.1 目的
+
+手动触发一次 worker 轮询（领取一个 QUEUED job 并执行），主要用于本地调试与演示。
+
+### 4.7.2 Response 200
+
+```json
+{
+  "ok": true,
+  "queue": {
+    "QUEUED": 0,
+    "DONE": 12
   },
   "timestamp": "2026-02-13T12:00:00Z"
 }

@@ -418,3 +418,46 @@ test("png-only export failure moves item to FAILED_EXPORT", async () => {
     await app.close();
   }
 });
+
+test("manual worker run endpoint drains one queued job", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-run-once-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 1000,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20entry%20is%20used%20to%20verify%20manual%20worker%20run-once%20endpoint.",
+        title: "Run Once",
+        domain: "example.runonce",
+        source_type: "web",
+        intent_text: "test run once endpoint",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+
+    const runOnceRes = await app.inject({
+      method: "POST",
+      url: "/api/system/worker/run-once",
+    });
+    assert.equal(runOnceRes.statusCode, 200);
+    const runOncePayload = runOnceRes.json() as { ok: boolean; queue: Record<string, number> };
+    assert.equal(runOncePayload.ok, true);
+
+    const detailRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}`,
+    });
+    assert.equal(detailRes.statusCode, 200);
+    const detail = detailRes.json() as { item: { status: string } };
+    assert.ok(["READY", "FAILED_EXTRACTION", "FAILED_AI"].includes(detail.item.status));
+  } finally {
+    await app.close();
+  }
+});
