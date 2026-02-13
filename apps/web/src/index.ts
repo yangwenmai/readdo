@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { createServer } from "node:http";
+import { IncomingMessage, ServerResponse, createServer } from "node:http";
 import { extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -818,41 +818,63 @@ const html = `<!doctype html>
   </body>
 </html>`;
 
-createServer((req, res) => {
-  const url = new URL(req.url ?? "/", "http://localhost");
-  const pathname = decodeURIComponent(url.pathname);
+function contentTypeForFile(path: string): string {
+  const ext = extname(path).toLowerCase();
+  if (ext === ".png") return "image/png";
+  if (ext === ".md") return "text/markdown; charset=utf-8";
+  if (ext === ".txt") return "text/plain; charset=utf-8";
+  return "application/octet-stream";
+}
+
+function resolveExportPath(pathname: string): string | null {
+  if (!pathname.startsWith("/exports/")) return null;
+  const relativePath = pathname.replace(/^\/+/, "");
+  const absolutePath = resolve(repoRoot, relativePath);
+  if (!(absolutePath === exportsRoot || absolutePath.startsWith(exportsRoot + "/"))) {
+    return null;
+  }
+  return absolutePath;
+}
+
+export function handleWebRequest(req: IncomingMessage, res: ServerResponse): void {
+  const rawPathname = (req.url ?? "/").split("?")[0] || "/";
+  let pathname = rawPathname;
+  try {
+    pathname = decodeURIComponent(rawPathname);
+  } catch {
+    pathname = rawPathname;
+  }
+  const exportPath = resolveExportPath(pathname);
 
   if (pathname.startsWith("/exports/")) {
-    const relativePath = pathname.replace(/^\/+/, "");
-    const absolutePath = resolve(repoRoot, relativePath);
-    if (!(absolutePath === exportsRoot || absolutePath.startsWith(exportsRoot + "/"))) {
+    if (!exportPath) {
       res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
       res.end("Forbidden");
       return;
     }
-    if (!existsSync(absolutePath) || !statSync(absolutePath).isFile()) {
+    if (!existsSync(exportPath) || !statSync(exportPath).isFile()) {
       res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
       res.end("Not found");
       return;
     }
-
-    const ext = extname(absolutePath).toLowerCase();
-    const contentType =
-      ext === ".png"
-        ? "image/png"
-        : ext === ".md"
-          ? "text/markdown; charset=utf-8"
-          : ext === ".txt"
-            ? "text/plain; charset=utf-8"
-            : "application/octet-stream";
-    res.writeHead(200, { "content-type": contentType });
-    res.end(readFileSync(absolutePath));
+    res.writeHead(200, { "content-type": contentTypeForFile(exportPath) });
+    res.end(readFileSync(exportPath));
     return;
   }
 
   res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
   res.end(html);
-}).listen(port, "0.0.0.0", () => {
-  // eslint-disable-next-line no-console
-  console.log(`Web shell running on http://localhost:${port}`);
-});
+}
+
+export function startWebServer(listenPort = port) {
+  const server = createServer(handleWebRequest);
+  return server.listen(listenPort, "0.0.0.0", () => {
+    // eslint-disable-next-line no-console
+    console.log(`Web shell running on http://localhost:${listenPort}`);
+  });
+}
+
+const isMain = process.argv[1] ? resolve(process.argv[1]) === fileURLToPath(import.meta.url) : false;
+if (isMain) {
+  startWebServer();
+}
