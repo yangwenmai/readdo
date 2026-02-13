@@ -205,7 +205,13 @@ Headers:
 
 提供本地 worker 队列与 item 状态统计，便于 UI 显示“处理中/排队中”概览。
 
-### 4.6.2 Response 200
+### 4.6.2 Request
+
+约束：
+
+* 不接受任何 query 参数（传入任意 query key 返回 `400 VALIDATION_ERROR`）
+
+### 4.6.3 Response 200
 
 ```json
 {
@@ -237,6 +243,12 @@ Headers:
   "timestamp": "2026-02-13T12:00:00Z"
 }
 ```
+
+---
+
+### 4.6.4 错误
+
+* 400 VALIDATION_ERROR
 
 ---
 

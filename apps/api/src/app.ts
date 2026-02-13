@@ -815,7 +815,11 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
 
   app.get("/healthz", async () => ({ ok: true }));
 
-  app.get("/api/system/worker", async () => {
+  app.get("/api/system/worker", async (request, reply) => {
+    const query = request.query as Record<string, unknown>;
+    if (Object.keys(query).length > 0) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "worker status does not accept query parameters"));
+    }
     const jobRows = db
       .prepare("SELECT status, COUNT(1) AS count FROM jobs GROUP BY status")
       .all() as Array<{ status: string; count: number }>;

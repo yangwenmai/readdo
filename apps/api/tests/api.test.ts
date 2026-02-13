@@ -3475,6 +3475,15 @@ test("worker status endpoint returns queue and item counters", async () => {
     assert.equal(payload.worker.active, false);
     assert.equal(payload.worker.interval_ms, 20);
     assert.ok(Boolean(payload.timestamp));
+
+    const invalidWorkerQueryRes = await app.inject({
+      method: "GET",
+      url: "/api/system/worker?verbose=true",
+    });
+    assert.equal(invalidWorkerQueryRes.statusCode, 400);
+    const invalidWorkerQueryPayload = invalidWorkerQueryRes.json() as { error: { code: string; message: string } };
+    assert.equal(invalidWorkerQueryPayload.error.code, "VALIDATION_ERROR");
+    assert.match(invalidWorkerQueryPayload.error.message, /worker status does not accept query parameters/i);
   } finally {
     await app.close();
   }
