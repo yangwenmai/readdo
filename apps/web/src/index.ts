@@ -275,6 +275,21 @@ const html = `<!doctype html>
       .hero-actions .muted {
         width: 100%;
       }
+      .hero-recommendation {
+        width: 100%;
+        border: 1px dashed #93c5fd;
+        border-radius: 10px;
+        background: #eff6ff;
+        color: #1e3a8a;
+        font-size: 12px;
+        padding: 6px 8px;
+      }
+      .hero-recommendation strong {
+        font-weight: 700;
+      }
+      .hero-actions button.primary.recommended {
+        box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.65), 0 6px 16px rgba(37, 99, 235, 0.3);
+      }
       .group-title {
         margin: 12px 0 6px;
         font-size: 13px;
@@ -1957,6 +1972,7 @@ const html = `<!doctype html>
         if (!actionHost) return usedIds;
         const ops = detailOps;
         if (!ops.length) return usedIds;
+        const spotlight = queueNudgeForItem(detail.item);
         actionHost.innerHTML = '<div class="muted">Primary Next Step</div>';
         const primaryOp = ops.find((op) => op.is_primary) || ops[0];
         const secondaryOp = ops.find((op) => op.id === "archive" || op.id === "unarchive");
@@ -1969,12 +1985,21 @@ const html = `<!doctype html>
           btn.type = "button";
           btn.textContent = op.label;
           if (op.is_primary) btn.classList.add("primary");
+          if (spotlight && op.label === spotlight.actionLabel) {
+            btn.classList.add("recommended");
+          }
           btn.disabled = Boolean(op.disabled);
           btn.addEventListener("click", async () => {
             await runActionWithFeedback(op, { button: btn });
           });
           actionHost.appendChild(btn);
           usedIds.add(op.id);
+        }
+        if (spotlight) {
+          const recommendation = document.createElement("div");
+          recommendation.className = "hero-recommendation";
+          recommendation.innerHTML = "<strong>Queue Recommended</strong>: " + spotlight.actionLabel + " · " + spotlight.context;
+          actionHost.appendChild(recommendation);
         }
         return usedIds;
       }

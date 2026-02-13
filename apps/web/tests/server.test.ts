@@ -77,6 +77,8 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Next Recommended Move/u);
     assert.match(text, /Primary Next Step/u);
     assert.match(text, /id="detailActionBanner"/u);
+    assert.match(text, /Queue Recommended/u);
+    assert.match(text, /hero-recommendation/u);
     assert.match(text, /Mirrors global action status/u);
     assert.match(text, /Top actions are pinned in the header/u);
     assert.match(text, /Primary shipping action is already pinned in header/u);
