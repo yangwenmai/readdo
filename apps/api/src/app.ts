@@ -510,19 +510,18 @@ function parseArtifactVersions(value: unknown): Record<string, number> {
   if (typeof value !== "string" || !value.trim()) {
     return {};
   }
-  try {
-    const parsed = JSON.parse(value) as Record<string, unknown>;
-    const output: Record<string, number> = {};
-    for (const [k, v] of Object.entries(parsed)) {
-      const n = Number(v);
-      if (Number.isInteger(n) && n >= 1) {
-        output[k] = n;
-      }
-    }
-    return output;
-  } catch {
+  const parsed = safeParseJson(value);
+  if (!isObjectRecord(parsed)) {
     return {};
   }
+  const output: Record<string, number> = {};
+  for (const [k, v] of Object.entries(parsed)) {
+    const n = Number(v);
+    if (Number.isInteger(n) && n >= 1) {
+      output[k] = n;
+    }
+  }
+  return output;
 }
 
 function selectedArtifacts(db: DatabaseSync, itemId: string, versionOverrides: Record<string, number>): Record<string, unknown> {

@@ -2061,6 +2061,24 @@ test("user edit creates new artifact version and exposes history", async () => {
     assert.equal(pinned.artifacts.todos.version, before.artifacts.todos.version);
     assert.equal(pinned.artifacts.todos.created_by, "system");
     assert.equal(pinned.artifact_versions_selected.todos, before.artifacts.todos.version);
+
+    const invalidPinnedRes = await app.inject({
+      method: "GET",
+      url: `/api/items/${itemId}?artifact_versions=${encodeURIComponent('"oops"')}`,
+    });
+    assert.equal(invalidPinnedRes.statusCode, 200);
+    const invalidPinned = invalidPinnedRes.json() as {
+      artifacts: {
+        todos: {
+          version: number;
+          created_by: string;
+        };
+      };
+      artifact_versions_selected: Record<string, number>;
+    };
+    assert.equal(Object.keys(invalidPinned.artifact_versions_selected).length, 0);
+    assert.equal(invalidPinned.artifacts.todos.version, after.artifacts.todos.version);
+    assert.equal(invalidPinned.artifacts.todos.created_by, "user");
   } finally {
     await app.close();
   }

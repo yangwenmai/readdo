@@ -537,7 +537,7 @@ Headers:
 * 若历史 artifact 行存在损坏 JSON：
   - `payload` 非法（含非对象形态）：服务端会跳过该损坏版本
   - `meta` 非法：服务端会降级为 `{}`，保留可用 payload
-* `artifact_versions_selected` 回显被接受的版本选择（未提供或解析失败时为空对象）
+* `artifact_versions_selected` 回显被接受的版本选择（未提供、解析失败或非对象输入时为空对象）
 * 仅当 `include_history=true` 时返回 `artifact_history`
 
 ### 6.4 错误
