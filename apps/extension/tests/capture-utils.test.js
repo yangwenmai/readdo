@@ -45,6 +45,11 @@ test("canonicalizeUrlForCapture removes default ports", () => {
   assert.equal(httpCanonical, "http://example.com/path?z=9");
 });
 
+test("canonicalizeUrlForCapture trims trailing-dot hostnames", () => {
+  const canonical = canonicalizeUrlForCapture("https://Example.com./path?b=2&a=1");
+  assert.equal(canonical, "https://example.com/path?a=1&b=2");
+});
+
 test("canonicalizeUrlForCapture strips tracking params case-insensitively", () => {
   const canonical = canonicalizeUrlForCapture("https://example.com/path?A=1&UTM_SOURCE=x&FbClId=foo&b=2");
   assert.equal(canonical, "https://example.com/path?A=1&b=2");
@@ -109,6 +114,14 @@ test("stableCaptureKey normalizes whitespace in intent text", async () => {
 
 test("stableCaptureKey matches explicit and implicit default ports after canonicalization", async () => {
   const canonicalA = canonicalizeUrlForCapture("https://example.com:443/path?a=1");
+  const canonicalB = canonicalizeUrlForCapture("https://example.com/path?a=1");
+  const keyA = await stableCaptureKey(canonicalA, "same intent");
+  const keyB = await stableCaptureKey(canonicalB, "same intent");
+  assert.equal(keyA, keyB);
+});
+
+test("stableCaptureKey matches trailing-dot and normal hostnames after canonicalization", async () => {
+  const canonicalA = canonicalizeUrlForCapture("https://example.com./path?a=1");
   const canonicalB = canonicalizeUrlForCapture("https://example.com/path?a=1");
   const keyA = await stableCaptureKey(canonicalA, "same intent");
   const keyB = await stableCaptureKey(canonicalB, "same intent");
