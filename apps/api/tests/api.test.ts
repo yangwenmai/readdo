@@ -318,6 +318,54 @@ test("export idempotency replays old export_key beyond recent window", async () 
   }
 });
 
+test("export endpoint supports idempotency via header key only", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-idempotent-header-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20content%20verifies%20header-only%20export%20idempotency%20replay%20behavior.",
+        title: "Export Header Replay",
+        domain: "example.export.header.idempotent",
+        source_type: "web",
+        intent_text: "verify export replay by header idempotency key",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+    await app.runWorkerOnce();
+
+    const firstRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      headers: { "Idempotency-Key": "export-header-only-key-1" },
+      payload: { formats: ["md"] },
+    });
+    assert.equal(firstRes.statusCode, 200);
+    const firstPayload = firstRes.json() as { idempotent_replay: boolean };
+    assert.equal(firstPayload.idempotent_replay, false);
+
+    const replayRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/export`,
+      headers: { "Idempotency-Key": "export-header-only-key-1" },
+      payload: { formats: ["md"] },
+    });
+    assert.equal(replayRes.statusCode, 200);
+    const replayPayload = replayRes.json() as { idempotent_replay: boolean };
+    assert.equal(replayPayload.idempotent_replay, true);
+  } finally {
+    await app.close();
+  }
+});
+
 test("export rejects mismatched header idempotency key and export_key", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-export-mismatch-idempotent-"));
   const app = await createApp({
@@ -454,6 +502,52 @@ test("process endpoint replays idempotent request with same key", async () => {
     assert.equal(replayPayload.mode, "REGENERATE");
     assert.equal(replayPayload.idempotent_replay, true);
     assert.equal(replayPayload.item.status, "QUEUED");
+  } finally {
+    await app.close();
+  }
+});
+
+test("process endpoint supports idempotency via process_request_id body field", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-process-idempotent-body-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const captureRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "data:text/plain,This%20content%20is%20used%20to%20verify%20body-only%20process%20idempotency%20replay%20behavior.",
+        title: "Process Body Replay",
+        domain: "example.process.body.idempotent",
+        source_type: "web",
+        intent_text: "validate process idempotency replay by process_request_id",
+      },
+    });
+    assert.equal(captureRes.statusCode, 201);
+    const itemId = (captureRes.json() as { item: { id: string } }).item.id;
+    await app.runWorkerOnce();
+
+    const firstProcessRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      payload: { mode: "REGENERATE", process_request_id: "process-body-only-key-1" },
+    });
+    assert.equal(firstProcessRes.statusCode, 202);
+    const firstPayload = firstProcessRes.json() as { idempotent_replay: boolean };
+    assert.equal(firstPayload.idempotent_replay, false);
+
+    const replayRes = await app.inject({
+      method: "POST",
+      url: `/api/items/${itemId}/process`,
+      payload: { mode: "REGENERATE", process_request_id: "process-body-only-key-1" },
+    });
+    assert.equal(replayRes.statusCode, 202);
+    const replayPayload = replayRes.json() as { idempotent_replay: boolean };
+    assert.equal(replayPayload.idempotent_replay, true);
   } finally {
     await app.close();
   }
