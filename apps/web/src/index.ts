@@ -1343,6 +1343,8 @@ const html = `<!doctype html>
             ", export_failed=" +
             exportFailed +
             ".";
+        } catch (err) {
+          errorEl.textContent = "Retry failed batch action failed: " + String(err);
         } finally {
           retryFailedBtn.disabled = false;
           await loadItems();
