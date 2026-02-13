@@ -20,6 +20,7 @@ const shortcutGuideItems = [
   { key: "Shift+P", label: "Focus Priority (reverse)" },
   { key: "G", label: "Edit Context Filters" },
   { key: "N", label: "Focus Recommended Item" },
+  { key: "Z", label: "Focus Top Aha Item" },
   { key: "M", label: "Run Primary Item Action" },
   { key: "O", label: "Open Selected Source" },
   { key: "Y", label: "Copy Selected Source" },
@@ -2180,6 +2181,17 @@ const html = `<!doctype html>
           .sort((a, b) => Number(b.match_score ?? -1) - Number(a.match_score ?? -1))[0];
       }
 
+      function topAhaItem(items) {
+        if (!Array.isArray(items) || !items.length) return null;
+        return (
+          [...items].sort((a, b) => {
+            const ahaDelta = ahaIndexMetaForItem(b).value - ahaIndexMetaForItem(a).value;
+            if (ahaDelta !== 0) return ahaDelta;
+            return Number(b.match_score ?? -1) - Number(a.match_score ?? -1);
+          })[0] || null
+        );
+      }
+
       function setQueueNudgeState(state = {}) {
         queueNudgeState = { ...emptyQueueNudgeState, ...state };
       }
@@ -3245,6 +3257,12 @@ const html = `<!doctype html>
           ids.push(rawId);
         }
         return ids;
+      }
+
+      function visibleQueueItems() {
+        const ids = new Set(visibleQueueItemIds());
+        if (!ids.size) return [];
+        return allItems.filter((item) => ids.has(String(item?.id)));
       }
 
       function revealCollapsedGroupForItem(itemId) {
@@ -5146,6 +5164,33 @@ const html = `<!doctype html>
         );
       }
 
+      async function runFocusTopAhaQueueAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_focus_top_aha_item",
+            label: "Focus Top Aha Item",
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const candidates = visibleItems.length ? visibleItems : allItems;
+              if (!candidates.length) {
+                errorEl.textContent = "No items available to focus.";
+                return;
+              }
+              const target = topAhaItem(candidates);
+              if (!target) {
+                errorEl.textContent = "No Aha candidate available right now.";
+                return;
+              }
+              await selectItem(target.id);
+              focusQueueItemCard(target.id, { revealCollapsed: true });
+              const meta = ahaIndexMetaForItem(target);
+              errorEl.textContent = "Focused top Aha item #" + target.id + " (" + meta.value + ").";
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
       function selectedQueueItem() {
         if (selectedId == null) return null;
         const fromList = allItems.find((item) => String(item?.id) === String(selectedId)) || null;
@@ -6250,6 +6295,9 @@ const html = `<!doctype html>
         },
         n: () => {
           void runFocusRecommendedQueueAction();
+        },
+        z: () => {
+          void runFocusTopAhaQueueAction();
         },
         m: () => {
           void runSelectedPrimaryItemAction();
