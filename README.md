@@ -62,6 +62,7 @@ Web Inbox 还支持 `Failure Step` 下拉筛选（extract/pipeline/export），�
 批量预览会显示 `scanned/scanned_total` 与 `truncated`，用于识别是否被 limit 截断。
 可通过 `Batch Limit` 输入框控制每次批量预览/执行扫描的最大条数（1..200）。
 当 `truncated=yes` 时，可根据返回的 `next_offset` 继续翻页预览下一批候选。
+筛选条件与 Batch Limit、Auto refresh 会在浏览器本地持久化，刷新页面后自动恢复。
 
 ### 4) Load Chrome Extension
 

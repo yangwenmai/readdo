@@ -45,6 +45,7 @@ Last Updated: 2026-02-13
 - status=ALL
 - retryable=ALL（可选切换 `true/false`，用于快速定位“可重试失败项”或“已达上限项”）
 - failure_step=ALL（可选切换 `extract/pipeline/export`，用于按失败阶段聚焦处理）
+- 建议持久化用户筛选偏好（本地存储），避免刷新后丢失上下文
 
 头部统计建议展示：
 - Queue（QUEUED/LEASED）

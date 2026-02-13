@@ -147,6 +147,45 @@ const html = `<!doctype html>
       let selectedDetail = null;
       let isLoadingItems = false;
       let autoRefreshTimer = null;
+      const controlsStorageKey = "readdo.web.controls.v1";
+
+      function persistControls() {
+        try {
+          const payload = {
+            q: queryInput.value || "",
+            status: statusFilter.value || "",
+            retryable: retryableFilter.value || "",
+            failure_step: failureStepFilter.value || "",
+            archive_retryable: archiveRetryableFilter.value || "false",
+            unarchive_mode: unarchiveModeFilter.value || "smart",
+            batch_limit: normalizedBatchLimit(),
+            auto_refresh: Boolean(autoRefreshToggle.checked),
+          };
+          localStorage.setItem(controlsStorageKey, JSON.stringify(payload));
+        } catch {
+          // ignore storage failures
+        }
+      }
+
+      function restoreControls() {
+        try {
+          const raw = localStorage.getItem(controlsStorageKey);
+          if (!raw) return;
+          const payload = JSON.parse(raw);
+          if (typeof payload?.q === "string") queryInput.value = payload.q;
+          if (typeof payload?.status === "string") statusFilter.value = payload.status;
+          if (typeof payload?.retryable === "string") retryableFilter.value = payload.retryable;
+          if (typeof payload?.failure_step === "string") failureStepFilter.value = payload.failure_step;
+          if (typeof payload?.archive_retryable === "string") archiveRetryableFilter.value = payload.archive_retryable;
+          if (typeof payload?.unarchive_mode === "string") unarchiveModeFilter.value = payload.unarchive_mode;
+          if (Number.isInteger(Number(payload?.batch_limit))) {
+            batchLimitInput.value = String(Math.min(Math.max(Number(payload.batch_limit), 1), 200));
+          }
+          autoRefreshToggle.checked = Boolean(payload?.auto_refresh);
+        } catch {
+          // ignore malformed storage payloads
+        }
+      }
 
       function groupedItems(items) {
         const groups = {
@@ -326,6 +365,7 @@ const html = `<!doctype html>
         if (isLoadingItems) return;
         isLoadingItems = true;
         try {
+          persistControls();
           const query = queryInput.value.trim();
           const status = statusFilter.value;
           const retryable = retryableFilter.value;
@@ -1369,13 +1409,24 @@ const html = `<!doctype html>
       });
 
       archiveRetryableFilter.addEventListener("change", async () => {
+        persistControls();
         await loadWorkerStats();
+      });
+
+      unarchiveModeFilter.addEventListener("change", () => {
+        persistControls();
+      });
+
+      batchLimitInput.addEventListener("change", () => {
+        batchLimitInput.value = String(normalizedBatchLimit());
+        persistControls();
       });
 
       queryInput.addEventListener("keydown", async (event) => {
         if (event.key !== "Enter") return;
         try {
           errorEl.textContent = "";
+          persistControls();
           await loadItems();
         } catch (err) {
           errorEl.textContent = String(err);
@@ -1385,6 +1436,7 @@ const html = `<!doctype html>
       statusFilter.addEventListener("change", async () => {
         try {
           errorEl.textContent = "";
+          persistControls();
           await loadItems();
         } catch (err) {
           errorEl.textContent = String(err);
@@ -1394,6 +1446,7 @@ const html = `<!doctype html>
       retryableFilter.addEventListener("change", async () => {
         try {
           errorEl.textContent = "";
+          persistControls();
           await loadItems();
         } catch (err) {
           errorEl.textContent = String(err);
@@ -1403,12 +1456,15 @@ const html = `<!doctype html>
       failureStepFilter.addEventListener("change", async () => {
         try {
           errorEl.textContent = "";
+          persistControls();
           await loadItems();
         } catch (err) {
           errorEl.textContent = String(err);
         }
       });
 
+      restoreControls();
+      setAutoRefresh(Boolean(autoRefreshToggle.checked));
       loadItems().catch((err) => {
         errorEl.textContent = String(err);
       });
@@ -1428,6 +1484,7 @@ const html = `<!doctype html>
       }
 
       autoRefreshToggle.addEventListener("change", () => {
+        persistControls();
         setAutoRefresh(Boolean(autoRefreshToggle.checked));
       });
     </script>
