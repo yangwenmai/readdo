@@ -24,6 +24,8 @@ const shortcutGuideItems = [
   { key: "Alt+1", label: "Focus Priority Smart" },
   { key: "Alt+2", label: "Focus Priority Query First" },
   { key: "Alt+3", label: "Focus Priority Step First" },
+  { key: "C", label: "Clear Filters" },
+  { key: "Shift+C", label: "Reset Controls" },
   { key: "R", label: "Refresh" },
   { key: shortcutTriggerKey, label: "Show shortcuts" },
 ];
@@ -4437,7 +4439,7 @@ const html = `<!doctype html>
         await loadItems();
       }
 
-      refreshBtn.addEventListener("click", async () => {
+      async function runRefreshQueueAction(button = null) {
         await runActionWithFeedback(
           {
             id: "queue_refresh",
@@ -4447,11 +4449,11 @@ const html = `<!doctype html>
               await loadItems();
             },
           },
-          { button: refreshBtn, localFeedbackEl: queueActionBannerEl },
+          { button, localFeedbackEl: queueActionBannerEl },
         );
-      });
+      }
 
-      resetControlsBtn.addEventListener("click", async () => {
+      async function runResetControlsAction(button = null) {
         await runActionWithFeedback(
           {
             id: "queue_reset_controls",
@@ -4469,11 +4471,11 @@ const html = `<!doctype html>
               await loadItems();
             },
           },
-          { button: resetControlsBtn, localFeedbackEl: queueActionBannerEl },
+          { button, localFeedbackEl: queueActionBannerEl },
         );
-      });
+      }
 
-      clearFiltersBtn.addEventListener("click", async () => {
+      async function runClearFiltersAction(button = null) {
         await runActionWithFeedback(
           {
             id: "queue_clear_filters",
@@ -4486,8 +4488,20 @@ const html = `<!doctype html>
               await loadItems();
             },
           },
-          { button: clearFiltersBtn, localFeedbackEl: queueActionBannerEl },
+          { button, localFeedbackEl: queueActionBannerEl },
         );
+      }
+
+      refreshBtn.addEventListener("click", async () => {
+        await runRefreshQueueAction(refreshBtn);
+      });
+
+      resetControlsBtn.addEventListener("click", async () => {
+        await runResetControlsAction(resetControlsBtn);
+      });
+
+      clearFiltersBtn.addEventListener("click", async () => {
+        await runClearFiltersAction(clearFiltersBtn);
       });
 
       runWorkerBtn.addEventListener("click", async () => {
@@ -5228,6 +5242,7 @@ const html = `<!doctype html>
         }
         if (event.shiftKey && key === "p") return "shift+p";
         if (event.shiftKey && key === "g") return "shift+g";
+        if (event.shiftKey && key === "c") return "shift+c";
         return key;
       }
 
@@ -5270,6 +5285,12 @@ const html = `<!doctype html>
         "shift+g": () => {
           clearRecoveryFocusFromShortcut();
         },
+        c: () => {
+          void runClearFiltersAction();
+        },
+        "shift+c": () => {
+          void runResetControlsAction();
+        },
         escape: () => {
           clearRecoveryFocusFromShortcut({ silent_when_empty: true });
         },
@@ -5286,7 +5307,7 @@ const html = `<!doctype html>
           focusRecoveryStepFromShortcut("unknown");
         },
         r: () => {
-          refreshItemsWithErrorHandling();
+          void runRefreshQueueAction();
         },
       };
 
