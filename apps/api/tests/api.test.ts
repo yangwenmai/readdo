@@ -441,6 +441,44 @@ test("capture rejects non-string capture_id", async () => {
   }
 });
 
+test("capture validates request body shape and allowed keys", async () => {
+  const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-capture-body-validation-"));
+  const app = await createApp({
+    dbPath: join(dbDir, "readdo.db"),
+    workerIntervalMs: 20,
+    startWorker: false,
+  });
+
+  try {
+    const nonObjectBodyRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: [],
+    });
+    assert.equal(nonObjectBodyRes.statusCode, 400);
+    const nonObjectBodyPayload = nonObjectBodyRes.json() as { error: { code: string; message: string } };
+    assert.equal(nonObjectBodyPayload.error.code, "VALIDATION_ERROR");
+    assert.match(nonObjectBodyPayload.error.message, /request body must be an object/i);
+
+    const unknownKeyRes = await app.inject({
+      method: "POST",
+      url: "/api/capture",
+      payload: {
+        url: "https://example.com/capture-unknown-key",
+        source_type: "web",
+        intent_text: "unknown key should fail",
+        unknown_key: true,
+      },
+    });
+    assert.equal(unknownKeyRes.statusCode, 400);
+    const unknownKeyPayload = unknownKeyRes.json() as { error: { code: string; message: string } };
+    assert.equal(unknownKeyPayload.error.code, "VALIDATION_ERROR");
+    assert.match(unknownKeyPayload.error.message, /capture body supports only capture_id\|url\|title\|domain\|source_type\|intent_text/i);
+  } finally {
+    await app.close();
+  }
+});
+
 test("capture rejects non-string core text fields", async () => {
   const dbDir = mkdtempSync(join(tmpdir(), "readdo-api-capture-invalid-core-field-types-"));
   const app = await createApp({

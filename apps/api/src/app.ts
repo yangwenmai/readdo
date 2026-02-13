@@ -1253,7 +1253,18 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   });
 
   app.post("/api/capture", async (request, reply) => {
-    const body = (request.body ?? {}) as Record<string, unknown>;
+    if (request.body !== undefined && !isObjectRecord(request.body)) {
+      return reply.status(400).send(failure("VALIDATION_ERROR", "request body must be an object when provided"));
+    }
+    const body = (isObjectRecord(request.body) ? request.body : {}) as Record<string, unknown>;
+    const unknownCaptureKey = Object.keys(body).find(
+      (key) => !["capture_id", "url", "title", "domain", "source_type", "intent_text"].includes(key),
+    );
+    if (unknownCaptureKey) {
+      return reply
+        .status(400)
+        .send(failure("VALIDATION_ERROR", "capture body supports only capture_id|url|title|domain|source_type|intent_text"));
+    }
     if (body.capture_id != null && typeof body.capture_id !== "string") {
       return reply.status(400).send(failure("VALIDATION_ERROR", "capture_id must be a string when provided"));
     }

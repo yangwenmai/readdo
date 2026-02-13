@@ -162,6 +162,8 @@ Headers:
 
 约束：
 
+* body 若提供，必须是对象
+* body 当前仅支持键：`capture_id`、`url`、`title`、`domain`、`source_type`、`intent_text`
 * url 必填
 * url / intent_text 必须为字符串；intent_text 必填（MVP）
 * title / domain / source_type 若提供，必须为字符串
