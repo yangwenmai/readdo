@@ -4854,29 +4854,45 @@ const html = `<!doctype html>
           return;
         }
         const currentIndex = selectedId == null ? -1 : visibleIds.findIndex((id) => id === String(selectedId));
-        const targetIndex =
-          direction === "next"
-            ? currentIndex < 0
-              ? 0
-              : Math.min(currentIndex + 1, visibleIds.length - 1)
-            : currentIndex < 0
-              ? visibleIds.length - 1
-              : Math.max(currentIndex - 1, 0);
-        if (targetIndex === currentIndex && currentIndex >= 0) {
-          const edgeHint = direction === "next" ? "Already at last visible item." : "Already at first visible item.";
-          setActionFeedbackPair("done", edgeHint, queueActionBannerEl);
-          errorEl.textContent = edgeHint;
+        const isNext = direction === "next";
+        let targetIndex = 0;
+        let wrapped = false;
+        if (currentIndex < 0) {
+          targetIndex = isNext ? 0 : visibleIds.length - 1;
+        } else if (visibleIds.length <= 1) {
+          const hint = "Only one visible item available.";
+          setActionFeedbackPair("done", hint, queueActionBannerEl);
+          errorEl.textContent = hint;
           return;
+        } else if (isNext) {
+          targetIndex = currentIndex + 1;
+          if (targetIndex >= visibleIds.length) {
+            targetIndex = 0;
+            wrapped = true;
+          }
+        } else {
+          targetIndex = currentIndex - 1;
+          if (targetIndex < 0) {
+            targetIndex = visibleIds.length - 1;
+            wrapped = true;
+          }
         }
         const targetId = visibleIds[targetIndex];
         await runActionWithFeedback(
           {
             id: "queue_nav_" + direction,
-            label: direction === "next" ? "Select next item" : "Select previous item",
+            label:
+              (direction === "next" ? "Select next item" : "Select previous item") +
+              (wrapped ? " (wrapped)" : ""),
             action: async () => {
               await selectItem(targetId);
               focusQueueItemCard(targetId, { revealCollapsed: true });
-              errorEl.textContent = "Selected item " + String(targetIndex + 1) + "/" + String(visibleIds.length) + ".";
+              errorEl.textContent =
+                "Selected item " +
+                String(targetIndex + 1) +
+                "/" +
+                String(visibleIds.length) +
+                (wrapped ? " (wrapped)." : ".");
             },
           },
           { localFeedbackEl: queueActionBannerEl },
