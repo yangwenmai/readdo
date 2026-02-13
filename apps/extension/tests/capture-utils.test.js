@@ -128,3 +128,11 @@ test("stableCaptureKey matches trailing-dot and normal hostnames after canonical
   const keyB = await stableCaptureKey(canonicalB, "same intent");
   assert.equal(keyA, keyB);
 });
+
+test("stableCaptureKey canonicalizes raw URL input internally", async () => {
+  const rawUrl = "https://Example.com.:443/path?utm_source=x&b=2&a=1#section";
+  const canonicalUrl = canonicalizeUrlForCapture(rawUrl);
+  const keyFromRaw = await stableCaptureKey(rawUrl, "same intent");
+  const keyFromCanonical = await stableCaptureKey(canonicalUrl, "same intent");
+  assert.equal(keyFromRaw, keyFromCanonical);
+});
