@@ -801,6 +801,40 @@ const html = `<!doctype html>
         detailEl.appendChild(card);
       }
 
+      function renderDetailQuickActions(detail) {
+        const ops = buttonsFor(detail.item).filter((op) => op.label !== "Detail");
+        if (!ops.length) return;
+
+        const card = document.createElement("div");
+        card.className = "item-card";
+        card.innerHTML = \`
+          <h3>Quick Actions</h3>
+          <div class="muted">无需回到列表，直接在详情完成处理、导出与归档。</div>
+          <div class="actions" id="detailQuickActions"></div>
+        \`;
+        const actionEl = card.querySelector("#detailQuickActions");
+        for (const op of ops) {
+          const btn = document.createElement("button");
+          btn.textContent = op.label;
+          btn.disabled = Boolean(op.disabled);
+          btn.addEventListener("click", async () => {
+            if (op.disabled) return;
+            const previousDisabled = btn.disabled;
+            btn.disabled = true;
+            try {
+              errorEl.textContent = "";
+              await op.action();
+            } catch (err) {
+              errorEl.textContent = String(err);
+            } finally {
+              btn.disabled = previousDisabled;
+            }
+          });
+          actionEl.appendChild(btn);
+        }
+        detailEl.appendChild(card);
+      }
+
       function appendGroup(target, title, items) {
         if (!items.length) return;
         const label = document.createElement("div");
@@ -949,6 +983,7 @@ const html = `<!doctype html>
         \`;
         detailEl.appendChild(wrap);
         renderDetailAha(detail);
+        renderDetailQuickActions(detail);
         renderFailureGuidance(detail);
         renderExportPanel(detail);
         renderArtifactVersionViewer(detail);

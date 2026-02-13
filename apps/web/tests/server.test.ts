@@ -42,6 +42,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /id="focusChips"/u);
     assert.match(text, /data-focus="ready"/u);
     assert.match(text, /Aha Snapshot/u);
+    assert.match(text, /Quick Actions/u);
     assert.match(text, /Export Snapshot/u);
     assert.match(text, /Copy Latest Paths/u);
     assert.match(text, /Artifacts JSON/u);
