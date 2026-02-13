@@ -1631,7 +1631,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
       return reply.status(409).send(failure("ARCHIVE_NOT_ALLOWED", "Cannot archive processing item"));
     }
     const ts = nowIso();
-    db.prepare("UPDATE items SET status = 'ARCHIVED', updated_at = ? WHERE id = ?").run(ts, id);
+    const updateRes = db.prepare("UPDATE items SET status = 'ARCHIVED', updated_at = ? WHERE id = ? AND status = ?").run(ts, id, item.status);
+    if (updateRes.changes === 0) {
+      return reply.status(409).send(failure("STATE_CONFLICT", "Item status changed before archive, please retry", { item_id: id, status: item.status }));
+    }
     return {
       item: { id, status: "ARCHIVED", updated_at: ts },
     };
@@ -1653,7 +1656,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const ready = isReadyFromArtifacts(artifacts);
     const targetStatus = regenerate || !ready ? "QUEUED" : "READY";
     const ts = nowIso();
-    db.prepare("UPDATE items SET status = ?, updated_at = ? WHERE id = ?").run(targetStatus, ts, id);
+    const updateRes = db.prepare("UPDATE items SET status = ?, updated_at = ? WHERE id = ? AND status = 'ARCHIVED'").run(targetStatus, ts, id);
+    if (updateRes.changes === 0) {
+      return reply.status(409).send(failure("STATE_CONFLICT", "Item status changed before unarchive, please retry", { item_id: id, status: item.status }));
+    }
 
     if (targetStatus === "QUEUED") {
       createProcessJob(db, id, `unarchive:${id}:${nanoid(8)}`);

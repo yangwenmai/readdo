@@ -830,7 +830,7 @@ reason 枚举（MVP 建议）：
 ### 9.4 错误
 
 * 409 ARCHIVE_NOT_ALLOWED
-* 409 PROCESSING_IN_PROGRESS
+* 409 STATE_CONFLICT（并发条件下状态在归档前发生变化）
 
 ---
 
@@ -862,6 +862,11 @@ Body:
   "item": { "id": "itm_...", "status": "READY", "updated_at": "..." }
 }
 ```
+
+### 10.4 错误
+
+* 404 NOT_FOUND
+* 409 STATE_CONFLICT（非 ARCHIVED 状态，或并发条件下状态在恢复前发生变化）
 
 ---
 
