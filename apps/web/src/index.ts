@@ -5217,6 +5217,20 @@ const html = `<!doctype html>
         });
       }
 
+      function hasReservedShortcutModifier(event) {
+        return Boolean(event.ctrlKey || event.metaKey);
+      }
+
+      function shortcutChordByEvent(event) {
+        const key = event.key.toLowerCase();
+        if (event.altKey && (key === "1" || key === "2" || key === "3")) {
+          return "alt+" + key;
+        }
+        if (event.shiftKey && key === "p") return "shift+p";
+        if (event.shiftKey && key === "g") return "shift+g";
+        return key;
+      }
+
       const shortcutActionMap = {
         [SHORTCUT_TRIGGER_KEY]: () => {
           if (isShortcutPanelOpen()) {
@@ -5238,8 +5252,26 @@ const html = `<!doctype html>
         p: () => {
           cycleRecoveryContextFocusMode();
         },
+        "shift+p": () => {
+          cycleRecoveryContextFocusMode("previous");
+        },
+        "alt+1": () => {
+          setRecoveryContextFocusModeFromShortcut("smart");
+        },
+        "alt+2": () => {
+          setRecoveryContextFocusModeFromShortcut("query_first");
+        },
+        "alt+3": () => {
+          setRecoveryContextFocusModeFromShortcut("step_first");
+        },
         g: () => {
           focusRecoveryContextFromShortcut();
+        },
+        "shift+g": () => {
+          clearRecoveryFocusFromShortcut();
+        },
+        escape: () => {
+          clearRecoveryFocusFromShortcut({ silent_when_empty: true });
         },
         "1": () => {
           focusRecoveryStepFromShortcut("extract");
@@ -5271,38 +5303,10 @@ const html = `<!doctype html>
           }
           return;
         }
-        if (key === "p" && event.shiftKey) {
-          event.preventDefault();
-          cycleRecoveryContextFocusMode("previous");
-          return;
-        }
-        if (event.altKey && key === "1") {
-          event.preventDefault();
-          setRecoveryContextFocusModeFromShortcut("smart");
-          return;
-        }
-        if (event.altKey && key === "2") {
-          event.preventDefault();
-          setRecoveryContextFocusModeFromShortcut("query_first");
-          return;
-        }
-        if (event.altKey && key === "3") {
-          event.preventDefault();
-          setRecoveryContextFocusModeFromShortcut("step_first");
-          return;
-        }
-        if (key === "escape") {
-          if (!activeFailedStepKey()) return;
-          event.preventDefault();
-          clearRecoveryFocusFromShortcut({ silent_when_empty: true });
-          return;
-        }
-        if (key === "g" && event.shiftKey) {
-          event.preventDefault();
-          clearRecoveryFocusFromShortcut();
-          return;
-        }
-        const action = shortcutActionByKey(key);
+        if (hasReservedShortcutModifier(event)) return;
+        const chord = shortcutChordByEvent(event);
+        if (chord === "escape" && !activeFailedStepKey()) return;
+        const action = shortcutActionByKey(chord);
         if (!action) return;
         event.preventDefault();
         action();
