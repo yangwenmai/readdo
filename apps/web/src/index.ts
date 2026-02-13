@@ -23,6 +23,8 @@ const shortcutGuideItems = [
   { key: "O", label: "Open Selected Source" },
   { key: "Y", label: "Copy Selected Source" },
   { key: "I", label: "Copy Selected Context" },
+  { key: "B", label: "Open First Blocked" },
+  { key: "X", label: "Rescue Last Retry" },
   { key: "Shift+G", label: "Clear Step Focus" },
   { key: "Esc", label: "Clear Step Focus" },
   { key: "1", label: "Focus extract step" },
@@ -2882,25 +2884,8 @@ const html = `<!doctype html>
           const blockedDetailBtn = document.createElement("button");
           blockedDetailBtn.type = "button";
           blockedDetailBtn.textContent = "Open First Blocked";
-          const blockedDetailOp = {
-            id: "flow_open_first_blocked",
-            label: "Open First Blocked",
-            action: async () => {
-              const firstBlocked = blockedFailedCandidates(allItems)[0] || null;
-              if (!firstBlocked) {
-                errorEl.textContent = "No blocked failed item under current filters.";
-                return;
-              }
-              setDetailAdvancedEnabled(true, false);
-              await selectItem(firstBlocked.id);
-              focusQueueItemCard(firstBlocked.id, { revealCollapsed: true });
-            },
-          };
           blockedDetailBtn.addEventListener("click", async () => {
-            await runActionWithFeedback(blockedDetailOp, {
-              button: blockedDetailBtn,
-              localFeedbackEl: queueActionBannerEl,
-            });
+            await runOpenFirstBlockedAction(blockedDetailBtn);
           });
           meta.appendChild(blockedDetailBtn);
         }
@@ -2908,56 +2893,8 @@ const html = `<!doctype html>
           const lastRetryBtn = document.createElement("button");
           lastRetryBtn.type = "button";
           lastRetryBtn.textContent = "Rescue Last Retry";
-          const rescueOp = {
-            id: "flow_rescue_last_retry",
-            label: "Rescue Last Retry",
-            action: async () => {
-              const limit = normalizedBatchLimit();
-              const candidates = lastAttemptRetryCandidates(allItems).slice(0, limit);
-              if (!candidates.length) {
-                errorEl.textContent = "No last-attempt retry candidates under current filters.";
-                return;
-              }
-              const confirmed = confirm(
-                "Retry " +
-                  candidates.length +
-                  " last-attempt failed items now? (sorted by score desc, limit=" +
-                  limit +
-                  ")",
-              );
-              if (!confirmed) {
-                errorEl.textContent = "Rescue Last Retry cancelled.";
-                return;
-              }
-              const result = await retryItemsByIds(
-                candidates.map((item) => ({ id: item.id, failed_step: item.failure?.failed_step || null })),
-              );
-              errorEl.textContent =
-                "Rescue Last Retry done. queued=" +
-                result.queued +
-                ", replayed=" +
-                result.replayed +
-                ", failed=" +
-                result.failed +
-                ".";
-              setLatestRecoverySummary({
-                label: "Rescue Last Retry",
-                totals: {
-                  targeted: result.targeted ?? candidates.length,
-                  queued: result.queued ?? 0,
-                  replayed: result.replayed ?? 0,
-                  failed: result.failed ?? 0,
-                },
-                step_buckets: result.step_buckets,
-              });
-              await loadItems();
-            },
-          };
           lastRetryBtn.addEventListener("click", async () => {
-            await runActionWithFeedback(rescueOp, {
-              button: lastRetryBtn,
-              localFeedbackEl: queueActionBannerEl,
-            });
+            await runRescueLastRetryAction(lastRetryBtn);
           });
           meta.appendChild(lastRetryBtn);
         }
@@ -4799,6 +4736,77 @@ const html = `<!doctype html>
         );
       }
 
+      async function runOpenFirstBlockedAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "flow_open_first_blocked",
+            label: "Open First Blocked",
+            action: async () => {
+              const firstBlocked = blockedFailedCandidates(allItems)[0] || null;
+              if (!firstBlocked) {
+                errorEl.textContent = "No blocked failed item under current filters.";
+                return;
+              }
+              setDetailAdvancedEnabled(true, false);
+              await selectItem(firstBlocked.id);
+              focusQueueItemCard(firstBlocked.id, { revealCollapsed: true });
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
+      async function runRescueLastRetryAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "flow_rescue_last_retry",
+            label: "Rescue Last Retry",
+            action: async () => {
+              const limit = normalizedBatchLimit();
+              const candidates = lastAttemptRetryCandidates(allItems).slice(0, limit);
+              if (!candidates.length) {
+                errorEl.textContent = "No last-attempt retry candidates under current filters.";
+                return;
+              }
+              const confirmed = confirm(
+                "Retry " +
+                  candidates.length +
+                  " last-attempt failed items now? (sorted by score desc, limit=" +
+                  limit +
+                  ")",
+              );
+              if (!confirmed) {
+                errorEl.textContent = "Rescue Last Retry cancelled.";
+                return;
+              }
+              const result = await retryItemsByIds(
+                candidates.map((item) => ({ id: item.id, failed_step: item.failure?.failed_step || null })),
+              );
+              errorEl.textContent =
+                "Rescue Last Retry done. queued=" +
+                result.queued +
+                ", replayed=" +
+                result.replayed +
+                ", failed=" +
+                result.failed +
+                ".";
+              setLatestRecoverySummary({
+                label: "Rescue Last Retry",
+                totals: {
+                  targeted: result.targeted ?? candidates.length,
+                  queued: result.queued ?? 0,
+                  replayed: result.replayed ?? 0,
+                  failed: result.failed ?? 0,
+                },
+                step_buckets: result.step_buckets,
+              });
+              await loadItems();
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
       async function runQueueSelectionNavigationAction(direction) {
         const visibleIds = visibleQueueItemIds();
         if (!visibleIds.length) {
@@ -5653,6 +5661,12 @@ const html = `<!doctype html>
         },
         i: () => {
           void runCopySelectedContextAction();
+        },
+        b: () => {
+          void runOpenFirstBlockedAction();
+        },
+        x: () => {
+          void runRescueLastRetryAction();
         },
         "shift+g": () => {
           clearRecoveryFocusFromShortcut();
