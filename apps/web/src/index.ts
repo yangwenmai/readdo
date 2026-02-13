@@ -811,6 +811,16 @@ const html = `<!doctype html>
         color: #1e293b;
         line-height: 1.45;
       }
+      .hero-story .hero-duel {
+        margin-top: 6px;
+        border: 1px dashed rgba(148, 163, 184, 0.55);
+        border-radius: 8px;
+        background: rgba(248, 250, 252, 0.9);
+        padding: 6px 8px;
+        font-size: 11px;
+        color: #334155;
+        line-height: 1.4;
+      }
       .hero-story-actions {
         margin-top: 6px;
         display: inline-flex;
@@ -5337,12 +5347,20 @@ const html = `<!doctype html>
         }
         const top = rankedPool[0];
         const story = detailStoryText(item, rankedPool);
+        const duel = ahaDuelText(rankedPool);
+        const rival = rankedPool[1] || null;
         storyHost.innerHTML =
           '<div class="label">' +
           DETAIL_STORY_LABEL +
           '</div><div class="body">' +
           (story || "No storyline available.") +
           "</div>";
+        if (duel) {
+          const duelEl = document.createElement("div");
+          duelEl.className = "hero-duel";
+          duelEl.textContent = duel;
+          storyHost.appendChild(duelEl);
+        }
         const actionsEl = document.createElement("div");
         actionsEl.className = "hero-story-actions";
         const copyBtn = document.createElement("button");
@@ -5359,6 +5377,22 @@ const html = `<!doctype html>
           }
         });
         actionsEl.appendChild(copyBtn);
+        if (duel) {
+          const copyDuelBtn = document.createElement("button");
+          copyDuelBtn.type = "button";
+          copyDuelBtn.className = "secondary";
+          copyDuelBtn.textContent = QUEUE_NUDGE_COPY_DUEL_LABEL;
+          copyDuelBtn.addEventListener("click", async () => {
+            const copied = await copyTextToClipboard(duel, {
+              success: "Copied detail duel.",
+              failure: "Copy detail duel failed.",
+            });
+            if (!copied) {
+              errorEl.textContent = "Copy detail duel failed.";
+            }
+          });
+          actionsEl.appendChild(copyDuelBtn);
+        }
         if (String(top?.id) !== String(item?.id)) {
           const leadBtn = document.createElement("button");
           leadBtn.type = "button";
@@ -5378,6 +5412,26 @@ const html = `<!doctype html>
             );
           });
           actionsEl.appendChild(leadBtn);
+        }
+        if (rival && String(rival.id) !== String(item.id)) {
+          const rivalBtn = document.createElement("button");
+          rivalBtn.type = "button";
+          rivalBtn.className = "secondary";
+          rivalBtn.textContent = QUEUE_NUDGE_OPEN_RIVAL_LABEL + " #" + rival.id;
+          rivalBtn.addEventListener("click", async () => {
+            await runActionWithFeedback(
+              {
+                id: "detail_story_open_rival_" + rival.id,
+                label: QUEUE_NUDGE_OPEN_RIVAL_LABEL + " #" + rival.id,
+                action: async () => {
+                  await selectItem(rival.id);
+                  focusQueueItemCard(rival.id, { revealCollapsed: true });
+                },
+              },
+              { button: rivalBtn },
+            );
+          });
+          actionsEl.appendChild(rivalBtn);
         }
         storyHost.appendChild(actionsEl);
       }
