@@ -209,6 +209,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /nudge-duel-signal-consensus-protocol-script/u);
     assert.match(text, /nudge-duel-signal-consensus-protocol-script-lane/u);
     assert.match(text, /nudge-duel-signal-consensus-protocol-script-checklist/u);
+    assert.match(text, /nudge-duel-signal-consensus-protocol-flow/u);
     assert.match(text, /nudge-duel-signal-consensus-protocol-chart/u);
     assert.match(text, /nudge-duel-signal-chart/u);
     assert.match(text, /nudge-duel-snapshot/u);
@@ -251,6 +252,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Duel Signal Protocol Script/u);
     assert.match(text, /Duel Signal Script Lane/u);
     assert.match(text, /Duel Signal Script Checklist/u);
+    assert.match(text, /Duel Signal Flow/u);
     assert.match(text, /Protocol Confidence Points/u);
     assert.match(text, /Handoff Points/u);
     assert.match(text, /Consensus Points/u);
@@ -353,6 +355,13 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Watch refresh checklist/u);
     assert.match(text, /Replay split checklist/u);
     assert.match(text, /Hold readiness checklist/u);
+    assert.match(text, /Flow standby/u);
+    assert.match(text, /Flow replay/u);
+    assert.match(text, /Flow execute/u);
+    assert.match(text, /Flow stage/u);
+    assert.match(text, /Flow probe/u);
+    assert.match(text, /Flow watch/u);
+    assert.match(text, /Flow active/u);
     assert.match(text, /avg swing/u);
     assert.match(text, /Rising \+/u);
     assert.match(text, /Falling -/u);
@@ -574,6 +583,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /duel-signal-consensus-protocol-script-inline/u);
     assert.match(text, /duel-signal-consensus-protocol-script-lane-inline/u);
     assert.match(text, /duel-signal-consensus-protocol-script-checklist-inline/u);
+    assert.match(text, /duel-signal-consensus-protocol-flow-inline/u);
     assert.match(text, /duel-signal-consensus-protocol-chart-inline/u);
     assert.match(text, /duel-signal-consensus-chart-inline/u);
     assert.match(text, /duel-signal-handoff-chart-inline/u);
