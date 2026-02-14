@@ -170,11 +170,13 @@ const queueNudgeCopySignalHandoffLabel = "Copy Signal Handoff";
 const queueNudgeCopySignalConsensusLabel = "Copy Signal Consensus";
 const queueNudgeCopySignalCommandLabel = "Copy Signal Command (Alt+Shift+L)";
 const queueNudgeCopySignalScriptLabel = "Copy Signal Script";
+const queueNudgeCopySignalChecklistLabel = "Copy Signal Checklist";
 const queueNudgeCopySignalProtocolLabel = "Copy Signal Protocol (Alt+Shift+P)";
 const queueNudgeDownloadSignalHandoffLabel = "Download Signal Handoff";
 const queueNudgeDownloadSignalConsensusLabel = "Download Signal Consensus";
 const queueNudgeDownloadSignalCommandLabel = "Download Signal Command";
 const queueNudgeDownloadSignalScriptLabel = "Download Signal Script";
+const queueNudgeDownloadSignalChecklistLabel = "Download Signal Checklist";
 const queueNudgeDownloadSignalProtocolLabel = "Download Signal Protocol";
 const queueNudgeCopyDuelCallLabel = "Copy Duel Call (Alt+C)";
 const queueNudgeCopyDuelSignalsLabel = "Copy Duel Signals (Alt+S)";
@@ -4524,11 +4526,13 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_COPY_SIGNAL_CONSENSUS_LABEL = ${JSON.stringify(queueNudgeCopySignalConsensusLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_COMMAND_LABEL = ${JSON.stringify(queueNudgeCopySignalCommandLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_SCRIPT_LABEL = ${JSON.stringify(queueNudgeCopySignalScriptLabel)};
+      const QUEUE_NUDGE_COPY_SIGNAL_CHECKLIST_LABEL = ${JSON.stringify(queueNudgeCopySignalChecklistLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_PROTOCOL_LABEL = ${JSON.stringify(queueNudgeCopySignalProtocolLabel)};
       const QUEUE_NUDGE_DOWNLOAD_SIGNAL_HANDOFF_LABEL = ${JSON.stringify(queueNudgeDownloadSignalHandoffLabel)};
       const QUEUE_NUDGE_DOWNLOAD_SIGNAL_CONSENSUS_LABEL = ${JSON.stringify(queueNudgeDownloadSignalConsensusLabel)};
       const QUEUE_NUDGE_DOWNLOAD_SIGNAL_COMMAND_LABEL = ${JSON.stringify(queueNudgeDownloadSignalCommandLabel)};
       const QUEUE_NUDGE_DOWNLOAD_SIGNAL_SCRIPT_LABEL = ${JSON.stringify(queueNudgeDownloadSignalScriptLabel)};
+      const QUEUE_NUDGE_DOWNLOAD_SIGNAL_CHECKLIST_LABEL = ${JSON.stringify(queueNudgeDownloadSignalChecklistLabel)};
       const QUEUE_NUDGE_DOWNLOAD_SIGNAL_PROTOCOL_LABEL = ${JSON.stringify(queueNudgeDownloadSignalProtocolLabel)};
       const QUEUE_NUDGE_COPY_DUEL_CALL_LABEL = ${JSON.stringify(queueNudgeCopyDuelCallLabel)};
       const QUEUE_NUDGE_COPY_DUEL_SIGNALS_LABEL = ${JSON.stringify(queueNudgeCopyDuelSignalsLabel)};
@@ -8194,6 +8198,44 @@ const html = `<!doctype html>
         return lines.join("\\n");
       }
 
+      function ahaDuelSignalConsensusChecklistText(poolItems) {
+        const ranked = sortedAhaItems(poolItems);
+        if (ranked.length < 2) return "";
+        const trigger = ahaDuelSignalConsensusTriggerMeta(ranked);
+        const protocol = ahaDuelSignalConsensusProtocolMeta(ranked);
+        const cadence = ahaDuelSignalConsensusProtocolCadenceMeta();
+        const pressure = ahaDuelSignalConsensusProtocolPressureMeta();
+        const command = ahaDuelSignalConsensusProtocolCommandMeta(ranked, trigger, protocol, cadence, pressure);
+        const script = ahaDuelSignalConsensusProtocolScriptMeta(ranked, command, cadence, pressure);
+        const scriptLane = ahaDuelSignalConsensusProtocolScriptLaneMeta(ranked, script, command);
+        const scriptChecklist = ahaDuelSignalConsensusProtocolScriptChecklistMeta(ranked, script, scriptLane, command);
+        if (!scriptChecklist || !script || !command || !trigger || !protocol) return "";
+        const lines = [
+          "Aha Duel Signal Checklist",
+          QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_CHECKLIST_LABEL +
+            ": " +
+            scriptChecklist.label +
+            " · " +
+            scriptChecklist.hint,
+          QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_LABEL + ": " + script.label + " · " + script.hint,
+          QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_COMMAND_LABEL + ": " + command.label + " · " + command.hint,
+          QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_TRIGGER_LABEL + ": " + trigger.label + " · " + trigger.hint,
+          QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_LABEL + ": " + protocol.label + " · " + protocol.hint,
+        ];
+        if (scriptLane) {
+          lines.push(
+            QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_LANE_LABEL + ": " + scriptLane.label + " · " + scriptLane.hint,
+          );
+        }
+        if (cadence) {
+          lines.push(QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_CADENCE_LABEL + ": " + cadence.label + " · " + cadence.hint);
+        }
+        if (pressure) {
+          lines.push(QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_PRESSURE_LABEL + ": " + pressure.label + " · " + pressure.hint);
+        }
+        return lines.join("\\n");
+      }
+
       function ahaDuelSnapshotText(poolItems) {
         const ranked = sortedAhaItems(poolItems);
         if (ranked.length < 2) return "";
@@ -10669,6 +10711,14 @@ const html = `<!doctype html>
                 await runCopyAhaDuelSignalScriptAction(copySignalScriptBtn);
               });
               actionsEl.appendChild(copySignalScriptBtn);
+              const copySignalChecklistBtn = document.createElement("button");
+              copySignalChecklistBtn.type = "button";
+              copySignalChecklistBtn.className = "secondary";
+              copySignalChecklistBtn.textContent = QUEUE_NUDGE_COPY_SIGNAL_CHECKLIST_LABEL;
+              copySignalChecklistBtn.addEventListener("click", async () => {
+                await runCopyAhaDuelSignalChecklistAction(copySignalChecklistBtn);
+              });
+              actionsEl.appendChild(copySignalChecklistBtn);
               const downloadSignalHandoffBtn = document.createElement("button");
               downloadSignalHandoffBtn.type = "button";
               downloadSignalHandoffBtn.className = "secondary";
@@ -10709,6 +10759,14 @@ const html = `<!doctype html>
                 await runDownloadAhaDuelSignalScriptAction(downloadSignalScriptBtn);
               });
               actionsEl.appendChild(downloadSignalScriptBtn);
+              const downloadSignalChecklistBtn = document.createElement("button");
+              downloadSignalChecklistBtn.type = "button";
+              downloadSignalChecklistBtn.className = "secondary";
+              downloadSignalChecklistBtn.textContent = QUEUE_NUDGE_DOWNLOAD_SIGNAL_CHECKLIST_LABEL;
+              downloadSignalChecklistBtn.addEventListener("click", async () => {
+                await runDownloadAhaDuelSignalChecklistAction(downloadSignalChecklistBtn);
+              });
+              actionsEl.appendChild(downloadSignalChecklistBtn);
               const copyDuelSnapshotBtn = document.createElement("button");
               copyDuelSnapshotBtn.type = "button";
               copyDuelSnapshotBtn.className = "secondary";
@@ -12170,6 +12228,14 @@ const html = `<!doctype html>
             await runCopyAhaDuelSignalScriptAction(copySignalScriptBtn);
           });
           actionsEl.appendChild(copySignalScriptBtn);
+          const copySignalChecklistBtn = document.createElement("button");
+          copySignalChecklistBtn.type = "button";
+          copySignalChecklistBtn.className = "secondary";
+          copySignalChecklistBtn.textContent = QUEUE_NUDGE_COPY_SIGNAL_CHECKLIST_LABEL;
+          copySignalChecklistBtn.addEventListener("click", async () => {
+            await runCopyAhaDuelSignalChecklistAction(copySignalChecklistBtn);
+          });
+          actionsEl.appendChild(copySignalChecklistBtn);
           const downloadSignalHandoffBtn = document.createElement("button");
           downloadSignalHandoffBtn.type = "button";
           downloadSignalHandoffBtn.className = "secondary";
@@ -12210,6 +12276,14 @@ const html = `<!doctype html>
             await runDownloadAhaDuelSignalScriptAction(downloadSignalScriptBtn);
           });
           actionsEl.appendChild(downloadSignalScriptBtn);
+          const downloadSignalChecklistBtn = document.createElement("button");
+          downloadSignalChecklistBtn.type = "button";
+          downloadSignalChecklistBtn.className = "secondary";
+          downloadSignalChecklistBtn.textContent = QUEUE_NUDGE_DOWNLOAD_SIGNAL_CHECKLIST_LABEL;
+          downloadSignalChecklistBtn.addEventListener("click", async () => {
+            await runDownloadAhaDuelSignalChecklistAction(downloadSignalChecklistBtn);
+          });
+          actionsEl.appendChild(downloadSignalChecklistBtn);
           const copyDuelSnapshotBtn = document.createElement("button");
           copyDuelSnapshotBtn.type = "button";
           copyDuelSnapshotBtn.className = "secondary";
@@ -13540,6 +13614,32 @@ const html = `<!doctype html>
         );
       }
 
+      async function runCopyAhaDuelSignalChecklistAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_copy_aha_duel_signal_checklist",
+            label: "Copy Signal Checklist",
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const pool = visibleItems.length ? visibleItems : allItems;
+              const text = ahaDuelSignalConsensusChecklistText(pool);
+              if (!text) {
+                errorEl.textContent = "Duel signal checklist is unavailable under current filters.";
+                return;
+              }
+              const copied = await copyTextToClipboard(text, {
+                success: "Copied duel signal checklist.",
+                failure: "Copy duel signal checklist failed.",
+              });
+              if (!copied) {
+                throw new Error("Copy duel signal checklist failed.");
+              }
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
       async function runDownloadAhaDuelSignalHandoffAction(button = null) {
         await runActionWithFeedback(
           {
@@ -13684,6 +13784,36 @@ const html = `<!doctype html>
               document.body.removeChild(anchor);
               URL.revokeObjectURL(url);
               errorEl.textContent = "Downloaded duel signal script.";
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
+      async function runDownloadAhaDuelSignalChecklistAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_download_aha_duel_signal_checklist",
+            label: "Download Signal Checklist",
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const pool = visibleItems.length ? visibleItems : allItems;
+              const text = ahaDuelSignalConsensusChecklistText(pool);
+              if (!text) {
+                errorEl.textContent = "Duel signal checklist is unavailable under current filters.";
+                return;
+              }
+              const fileName = "aha_signal_checklist_" + new Date().toISOString().replace(/[:.]/g, "-") + ".txt";
+              const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+              const url = URL.createObjectURL(blob);
+              const anchor = document.createElement("a");
+              anchor.href = url;
+              anchor.download = fileName;
+              document.body.appendChild(anchor);
+              anchor.click();
+              document.body.removeChild(anchor);
+              URL.revokeObjectURL(url);
+              errorEl.textContent = "Downloaded duel signal checklist.";
             },
           },
           { button, localFeedbackEl: queueActionBannerEl },
