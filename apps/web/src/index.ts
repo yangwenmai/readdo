@@ -107,6 +107,7 @@ const queueNudgeRunRivalLabel = "Run Rival Action (Alt+E)";
 const queueNudgeCopyBriefLabel = "Copy Decision Brief (Shift+D)";
 const queueNudgeDownloadBriefLabel = "Download Decision Brief (Alt+D)";
 const queueNudgeBriefLabel = "Decision Brief Preview";
+const queueNudgeBriefContextLabel = "Brief Context";
 const queueLeadGapLabelPrefix = "Lead Gap";
 const queueDuelRoleLabelPrefix = "Duel Role";
 const detailStoryLabel = "Queue Storyline";
@@ -2141,6 +2142,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_COPY_BRIEF_LABEL = ${JSON.stringify(queueNudgeCopyBriefLabel)};
       const QUEUE_NUDGE_DOWNLOAD_BRIEF_LABEL = ${JSON.stringify(queueNudgeDownloadBriefLabel)};
       const QUEUE_NUDGE_BRIEF_LABEL = ${JSON.stringify(queueNudgeBriefLabel)};
+      const QUEUE_NUDGE_BRIEF_CONTEXT_LABEL = ${JSON.stringify(queueNudgeBriefContextLabel)};
       const QUEUE_LEAD_GAP_LABEL_PREFIX = ${JSON.stringify(queueLeadGapLabelPrefix)};
       const QUEUE_DUEL_ROLE_LABEL_PREFIX = ${JSON.stringify(queueDuelRoleLabelPrefix)};
       const DETAIL_STORY_LABEL = ${JSON.stringify(detailStoryLabel)};
@@ -2938,6 +2940,23 @@ const html = `<!doctype html>
           .join("");
       }
 
+      function decisionBriefContextSummary() {
+        const statusLabel = statusFilter.value || "all";
+        const retryableLabel = retryableFilter.value || "all";
+        const stepLabel = failureStepFilter.value || "all";
+        const queryLabel = queryInput.value.trim() || "all";
+        return (
+          "status=" +
+          statusLabel +
+          " · retryable=" +
+          retryableLabel +
+          " · step=" +
+          stepLabel +
+          " · q=" +
+          queryLabel
+        );
+      }
+
       function ahaDecisionBriefText(poolItems) {
         const ranked = sortedAhaItems(poolItems);
         if (!ranked.length) return "";
@@ -2946,7 +2965,7 @@ const html = `<!doctype html>
         const duelGap = ahaDuelGapMeta(ranked);
         const duelEdge = ahaDuelEdgeMeta(ranked);
         const duelTrend = ahaDuelGapTrendMeta();
-        const lines = ["Aha Decision Brief", story || "Storyline unavailable."];
+        const lines = ["Aha Decision Brief", QUEUE_NUDGE_BRIEF_CONTEXT_LABEL + ": " + decisionBriefContextSummary(), story || "Storyline unavailable."];
         if (duel) {
           lines.push(duel);
         }
@@ -5061,7 +5080,16 @@ const html = `<!doctype html>
               if (briefPreview) {
                 const briefEl = document.createElement("div");
                 briefEl.className = "nudge-brief";
-                briefEl.innerHTML = '<span class="label">' + QUEUE_NUDGE_BRIEF_LABEL + '</span><span class="body">' + briefPreview + "</span>";
+                briefEl.innerHTML =
+                  '<span class="label">' +
+                  QUEUE_NUDGE_BRIEF_LABEL +
+                  '</span><span class="muted">' +
+                  QUEUE_NUDGE_BRIEF_CONTEXT_LABEL +
+                  ": " +
+                  decisionBriefContextSummary() +
+                  '</span><span class="body">' +
+                  briefPreview +
+                  "</span>";
                 duelEl.appendChild(briefEl);
               }
               const actionsEl = document.createElement("div");
@@ -5907,7 +5935,7 @@ const html = `<!doctype html>
         if (briefPreview) {
           const briefEl = document.createElement("div");
           briefEl.className = "hero-brief";
-          briefEl.textContent = briefPreview;
+          briefEl.textContent = QUEUE_NUDGE_BRIEF_CONTEXT_LABEL + ": " + decisionBriefContextSummary() + "\n" + briefPreview;
           storyHost.appendChild(briefEl);
         }
         const actionsEl = document.createElement("div");
