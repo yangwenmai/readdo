@@ -147,6 +147,7 @@ const queueNudgeDuelSignalConsensusProtocolCadenceLabel = "Duel Signal Protocol 
 const queueNudgeDuelSignalConsensusProtocolPressureLabel = "Duel Signal Protocol Pressure";
 const queueNudgeDuelSignalConsensusProtocolCommandLabel = "Duel Signal Protocol Command";
 const queueNudgeDuelSignalConsensusProtocolScriptLabel = "Duel Signal Protocol Script";
+const queueNudgeDuelSignalConsensusProtocolScriptLaneLabel = "Duel Signal Script Lane";
 const queueNudgeDuelSnapshotLabel = "Duel Snapshot";
 const queueNudgeDuelTrendLabel = "Duel Gap Trend";
 const queueNudgeDuelSeriesLabel = "Lead-Rival";
@@ -1917,6 +1918,34 @@ const html = `<!doctype html>
         background: #fff1f2;
         color: #9f1239;
       }
+      .hero-story .duel-signal-consensus-protocol-script-lane-inline {
+        margin-top: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        border: 1px dashed #cbd5e1;
+        background: linear-gradient(90deg, #f8fafc 0%, #f1f5f9 100%);
+        color: #334155;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 8px;
+      }
+      .hero-story .duel-signal-consensus-protocol-script-lane-inline.call-lead {
+        border-color: #86efac;
+        background: linear-gradient(90deg, #ecfdf5 0%, #dcfce7 100%);
+        color: #166534;
+      }
+      .hero-story .duel-signal-consensus-protocol-script-lane-inline.call-rival {
+        border-color: #bfdbfe;
+        background: linear-gradient(90deg, #eff6ff 0%, #dbeafe 100%);
+        color: #1d4ed8;
+      }
+      .hero-story .duel-signal-consensus-protocol-script-lane-inline.call-hold {
+        border-color: #fecaca;
+        background: linear-gradient(90deg, #fff1f2 0%, #ffe4e6 100%);
+        color: #9f1239;
+      }
       .hero-story .duel-signal-consensus-protocol-chart-inline {
         margin-top: 6px;
         display: grid;
@@ -3681,6 +3710,33 @@ const html = `<!doctype html>
         background: #fff1f2;
         color: #9f1239;
       }
+      .aha-nudge .nudge-duel-signal-consensus-protocol-script-lane {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        border: 1px dashed #cbd5e1;
+        background: linear-gradient(90deg, #f8fafc 0%, #f1f5f9 100%);
+        color: #334155;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 9px;
+      }
+      .aha-nudge .nudge-duel-signal-consensus-protocol-script-lane.call-lead {
+        border-color: #86efac;
+        background: linear-gradient(90deg, #ecfdf5 0%, #dcfce7 100%);
+        color: #166534;
+      }
+      .aha-nudge .nudge-duel-signal-consensus-protocol-script-lane.call-rival {
+        border-color: #bfdbfe;
+        background: linear-gradient(90deg, #eff6ff 0%, #dbeafe 100%);
+        color: #1d4ed8;
+      }
+      .aha-nudge .nudge-duel-signal-consensus-protocol-script-lane.call-hold {
+        border-color: #fecaca;
+        background: linear-gradient(90deg, #fff1f2 0%, #ffe4e6 100%);
+        color: #9f1239;
+      }
       .aha-nudge .nudge-duel-signal-consensus-protocol-chart {
         margin-top: 6px;
         display: grid;
@@ -4389,6 +4445,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_PRESSURE_LABEL = ${JSON.stringify(queueNudgeDuelSignalConsensusProtocolPressureLabel)};
       const QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_COMMAND_LABEL = ${JSON.stringify(queueNudgeDuelSignalConsensusProtocolCommandLabel)};
       const QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_LABEL = ${JSON.stringify(queueNudgeDuelSignalConsensusProtocolScriptLabel)};
+      const QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_LANE_LABEL = ${JSON.stringify(queueNudgeDuelSignalConsensusProtocolScriptLaneLabel)};
       const QUEUE_NUDGE_DUEL_SNAPSHOT_LABEL = ${JSON.stringify(queueNudgeDuelSnapshotLabel)};
       const QUEUE_NUDGE_DUEL_TREND_LABEL = ${JSON.stringify(queueNudgeDuelTrendLabel)};
       const QUEUE_NUDGE_DUEL_SERIES_LABEL = ${JSON.stringify(queueNudgeDuelSeriesLabel)};
@@ -5904,6 +5961,41 @@ const html = `<!doctype html>
         return { label: "Hold and wait script", tone: "call-hold", hint: resolvedCommand.label + " · " + resolvedPressure.label };
       }
 
+      function ahaDuelSignalConsensusProtocolScriptLaneMeta(
+        poolItems = null,
+        script = null,
+        command = null,
+      ) {
+        const ranked =
+          Array.isArray(poolItems) && poolItems.length
+            ? sortedAhaItems(poolItems)
+            : (() => {
+                const visibleItems = visibleQueueItems();
+                const pool = visibleItems.length ? visibleItems : allItems;
+                return sortedAhaItems(pool);
+              })();
+        const resolvedCommand = command || ahaDuelSignalConsensusProtocolCommandMeta(ranked);
+        const resolvedScript = script || ahaDuelSignalConsensusProtocolScriptMeta(ranked, resolvedCommand);
+        if (!resolvedScript || !resolvedCommand) return null;
+        const scriptLabel = String(resolvedScript.label || "").toLowerCase();
+        if (scriptLabel.includes("execute")) {
+          return { label: "Execute lane", tone: "call-lead", hint: resolvedScript.label + " · " + resolvedCommand.label };
+        }
+        if (scriptLabel.includes("stage")) {
+          return { label: "Checkpoint lane", tone: "call-lead", hint: resolvedScript.label + " · " + resolvedCommand.label };
+        }
+        if (scriptLabel.includes("probe")) {
+          return { label: "Probe lane", tone: "call-rival", hint: resolvedScript.label + " · " + resolvedCommand.label };
+        }
+        if (scriptLabel.includes("watch")) {
+          return { label: "Watch lane", tone: "call-rival", hint: resolvedScript.label + " · " + resolvedCommand.label };
+        }
+        if (scriptLabel.includes("split")) {
+          return { label: "Replay lane", tone: "call-rival", hint: resolvedScript.label + " · " + resolvedCommand.label };
+        }
+        return { label: "Hold lane", tone: "call-hold", hint: resolvedScript.label + " · " + resolvedCommand.label };
+      }
+
       function ahaDuelSignalConsensusProtocolBarsHtml(points = ahaDuelSignalConsensusProtocolConfidencePoints()) {
         if (!points.length) return "";
         const values = points.map((point) => Number(point?.score || 0));
@@ -6509,6 +6601,7 @@ const html = `<!doctype html>
         const duelSignalConsensusProtocolPressure = ahaDuelSignalConsensusProtocolPressureMeta();
         const duelSignalConsensusProtocolCommand = ahaDuelSignalConsensusProtocolCommandMeta();
         const duelSignalConsensusProtocolScript = ahaDuelSignalConsensusProtocolScriptMeta();
+        const duelSignalConsensusProtocolScriptLane = ahaDuelSignalConsensusProtocolScriptLaneMeta();
         const duelTrend = ahaDuelGapTrendMeta();
         const lines = ["Aha Decision Brief", QUEUE_NUDGE_BRIEF_CONTEXT_LABEL + ": " + decisionBriefContextSummary(), story || "Storyline unavailable."];
         if (duel) {
@@ -6727,6 +6820,15 @@ const html = `<!doctype html>
               duelSignalConsensusProtocolScript.label +
               " · " +
               duelSignalConsensusProtocolScript.hint,
+          );
+        }
+        if (duelSignalConsensusProtocolScriptLane) {
+          lines.push(
+            QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_LANE_LABEL +
+              ": " +
+              duelSignalConsensusProtocolScriptLane.label +
+              " · " +
+              duelSignalConsensusProtocolScriptLane.hint,
           );
         }
         if (duelTrend) {
@@ -7841,6 +7943,7 @@ const html = `<!doctype html>
         const pressure = ahaDuelSignalConsensusProtocolPressureMeta();
         const command = ahaDuelSignalConsensusProtocolCommandMeta(ranked, trigger, protocol, cadence, pressure);
         const script = ahaDuelSignalConsensusProtocolScriptMeta(ranked, command, cadence, pressure);
+        const scriptLane = ahaDuelSignalConsensusProtocolScriptLaneMeta(ranked, script, command);
         if (!consensus || !protocol) return "";
         const lines = [
           "Aha Duel Signal Protocol",
@@ -7883,6 +7986,11 @@ const html = `<!doctype html>
         if (script) {
           lines.push(QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_LABEL + ": " + script.label + " · " + script.hint);
         }
+        if (scriptLane) {
+          lines.push(
+            QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_LANE_LABEL + ": " + scriptLane.label + " · " + scriptLane.hint,
+          );
+        }
         return lines.join("\\n");
       }
 
@@ -7895,6 +8003,7 @@ const html = `<!doctype html>
         const pressure = ahaDuelSignalConsensusProtocolPressureMeta();
         const command = ahaDuelSignalConsensusProtocolCommandMeta(ranked, trigger, protocol, cadence, pressure);
         const script = ahaDuelSignalConsensusProtocolScriptMeta(ranked, command, cadence, pressure);
+        const scriptLane = ahaDuelSignalConsensusProtocolScriptLaneMeta(ranked, script, command);
         if (!command || !trigger || !protocol) return "";
         const lines = [
           "Aha Duel Signal Command",
@@ -7911,6 +8020,11 @@ const html = `<!doctype html>
         if (script) {
           lines.push(QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_LABEL + ": " + script.label + " · " + script.hint);
         }
+        if (scriptLane) {
+          lines.push(
+            QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_LANE_LABEL + ": " + scriptLane.label + " · " + scriptLane.hint,
+          );
+        }
         return lines.join("\\n");
       }
 
@@ -7923,6 +8037,7 @@ const html = `<!doctype html>
         const pressure = ahaDuelSignalConsensusProtocolPressureMeta();
         const command = ahaDuelSignalConsensusProtocolCommandMeta(ranked, trigger, protocol, cadence, pressure);
         const script = ahaDuelSignalConsensusProtocolScriptMeta(ranked, command, cadence, pressure);
+        const scriptLane = ahaDuelSignalConsensusProtocolScriptLaneMeta(ranked, script, command);
         if (!script || !command || !trigger || !protocol) return "";
         const lines = [
           "Aha Duel Signal Script",
@@ -7936,6 +8051,11 @@ const html = `<!doctype html>
         }
         if (pressure) {
           lines.push(QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_PRESSURE_LABEL + ": " + pressure.label + " · " + pressure.hint);
+        }
+        if (scriptLane) {
+          lines.push(
+            QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_LANE_LABEL + ": " + scriptLane.label + " · " + scriptLane.hint,
+          );
         }
         return lines.join("\\n");
       }
@@ -10225,6 +10345,11 @@ const html = `<!doctype html>
                 duelSignalConsensusProtocolCadence,
                 duelSignalConsensusProtocolPressure,
               );
+              const duelSignalConsensusProtocolScriptLane = ahaDuelSignalConsensusProtocolScriptLaneMeta(
+                ahaPool,
+                duelSignalConsensusProtocolScript,
+                duelSignalConsensusProtocolCommand,
+              );
               if (duelSignalConsensusProtocolScript) {
                 const signalConsensusProtocolScriptEl = document.createElement("span");
                 signalConsensusProtocolScriptEl.className =
@@ -10236,6 +10361,18 @@ const html = `<!doctype html>
                   " · " +
                   duelSignalConsensusProtocolScript.hint;
                 duelEl.appendChild(signalConsensusProtocolScriptEl);
+              }
+              if (duelSignalConsensusProtocolScriptLane) {
+                const signalConsensusProtocolScriptLaneEl = document.createElement("span");
+                signalConsensusProtocolScriptLaneEl.className =
+                  "nudge-duel-signal-consensus-protocol-script-lane " + duelSignalConsensusProtocolScriptLane.tone;
+                signalConsensusProtocolScriptLaneEl.textContent =
+                  QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_LANE_LABEL +
+                  ": " +
+                  duelSignalConsensusProtocolScriptLane.label +
+                  " · " +
+                  duelSignalConsensusProtocolScriptLane.hint;
+                duelEl.appendChild(signalConsensusProtocolScriptLaneEl);
               }
               const duelSnapshot = ahaDuelSnapshotText(ahaPool);
               if (duelSnapshot) {
@@ -11311,6 +11448,11 @@ const html = `<!doctype html>
           duelSignalConsensusProtocolCadence,
           duelSignalConsensusProtocolPressure,
         );
+        const duelSignalConsensusProtocolScriptLane = ahaDuelSignalConsensusProtocolScriptLaneMeta(
+          rankedPool,
+          duelSignalConsensusProtocolScript,
+          duelSignalConsensusProtocolCommand,
+        );
         const duelSnapshot = ahaDuelSnapshotText(rankedPool);
         const duelPlan = ahaDuelActionPlanMeta(rankedPool);
         const duelTrend = ahaDuelGapTrendMeta();
@@ -11727,6 +11869,18 @@ const html = `<!doctype html>
               " · " +
               duelSignalConsensusProtocolScript.hint;
             storyHost.appendChild(duelSignalConsensusProtocolScriptEl);
+          }
+          if (duelSignalConsensusProtocolScriptLane) {
+            const duelSignalConsensusProtocolScriptLaneEl = document.createElement("span");
+            duelSignalConsensusProtocolScriptLaneEl.className =
+              "duel-signal-consensus-protocol-script-lane-inline " + duelSignalConsensusProtocolScriptLane.tone;
+            duelSignalConsensusProtocolScriptLaneEl.textContent =
+              QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_LANE_LABEL +
+              ": " +
+              duelSignalConsensusProtocolScriptLane.label +
+              " · " +
+              duelSignalConsensusProtocolScriptLane.hint;
+            storyHost.appendChild(duelSignalConsensusProtocolScriptLaneEl);
           }
           if (duelSnapshot) {
             const duelSnapshotEl = document.createElement("div");
@@ -13865,6 +14019,7 @@ const html = `<!doctype html>
         const protocolPressure = ahaDuelSignalConsensusProtocolPressureMeta();
         const protocolCommand = ahaDuelSignalConsensusProtocolCommandMeta(pool, trigger, protocol, protocolCadence, protocolPressure);
         const protocolScript = ahaDuelSignalConsensusProtocolScriptMeta(pool, protocolCommand, protocolCadence, protocolPressure);
+        const protocolScriptLane = ahaDuelSignalConsensusProtocolScriptLaneMeta(pool, protocolScript, protocolCommand);
         if (!trigger || !protocol) {
           errorEl.textContent = "No duel signal protocol available under current filters.";
           return;
@@ -13881,6 +14036,7 @@ const html = `<!doctype html>
             (protocolPressure ? " · " + protocolPressure.label + " · " + protocolPressure.hint : "") +
             (protocolCommand ? " · " + protocolCommand.label + " · " + protocolCommand.hint : "") +
             (protocolScript ? " · " + protocolScript.label + " · " + protocolScript.hint : "") +
+            (protocolScriptLane ? " · " + protocolScriptLane.label + " · " + protocolScriptLane.hint : "") +
             ".";
           return;
         }
@@ -13897,6 +14053,7 @@ const html = `<!doctype html>
             (protocolPressure ? " · " + protocolPressure.label + " · " + protocolPressure.hint : "") +
             (protocolCommand ? " · " + protocolCommand.label + " · " + protocolCommand.hint : "") +
             (protocolScript ? " · " + protocolScript.label + " · " + protocolScript.hint : "") +
+            (protocolScriptLane ? " · " + protocolScriptLane.label + " · " + protocolScriptLane.hint : "") +
             ".";
         }
       }
@@ -13910,6 +14067,7 @@ const html = `<!doctype html>
         const pressure = ahaDuelSignalConsensusProtocolPressureMeta();
         const command = ahaDuelSignalConsensusProtocolCommandMeta(pool, trigger, protocol, cadence, pressure);
         const script = ahaDuelSignalConsensusProtocolScriptMeta(pool, command, cadence, pressure);
+        const scriptLane = ahaDuelSignalConsensusProtocolScriptLaneMeta(pool, script, command);
         if (!command || !trigger || !protocol) {
           errorEl.textContent = "No duel signal command available under current filters.";
           return;
@@ -13919,6 +14077,7 @@ const html = `<!doctype html>
             "Signal command hold: " +
             command.hint +
             (script ? " · " + script.label + " · " + script.hint : "") +
+            (scriptLane ? " · " + scriptLane.label + " · " + scriptLane.hint : "") +
             " · " +
             trigger.label +
             ".";
@@ -13930,7 +14089,15 @@ const html = `<!doctype html>
           await runDuelSignalProtocolAction(button);
         }
         const base = errorEl.textContent ? errorEl.textContent.replace(/\.$/, "") : "Signal command executed";
-        errorEl.textContent = base + " · " + command.label + " · " + command.hint + (script ? " · " + script.label + " · " + script.hint : "") + ".";
+        errorEl.textContent =
+          base +
+          " · " +
+          command.label +
+          " · " +
+          command.hint +
+          (script ? " · " + script.label + " · " + script.hint : "") +
+          (scriptLane ? " · " + scriptLane.label + " · " + scriptLane.hint : "") +
+          ".";
       }
 
       async function runDuelSignalScriptAction(button = null) {
@@ -13942,12 +14109,19 @@ const html = `<!doctype html>
         const pressure = ahaDuelSignalConsensusProtocolPressureMeta();
         const command = ahaDuelSignalConsensusProtocolCommandMeta(pool, trigger, protocol, cadence, pressure);
         const script = ahaDuelSignalConsensusProtocolScriptMeta(pool, command, cadence, pressure);
+        const scriptLane = ahaDuelSignalConsensusProtocolScriptLaneMeta(pool, script, command);
         if (!script || !command) {
           errorEl.textContent = "No duel signal script available under current filters.";
           return;
         }
         if (script.label === "Hold and wait script" || script.label === "Watch refresh script") {
-          errorEl.textContent = "Signal script standby: " + script.hint + " · " + command.label + ".";
+          errorEl.textContent =
+            "Signal script standby: " +
+            script.hint +
+            " · " +
+            command.label +
+            (scriptLane ? " · " + scriptLane.label + " · " + scriptLane.hint : "") +
+            ".";
           return;
         }
         if (script.label === "Split replay script") {
@@ -13956,7 +14130,16 @@ const html = `<!doctype html>
           await runDuelSignalProtocolAction(button);
         }
         const base = errorEl.textContent ? errorEl.textContent.replace(/\.$/, "") : "Signal script executed";
-        errorEl.textContent = base + " · " + script.label + " · " + script.hint + " · " + command.label + ".";
+        errorEl.textContent =
+          base +
+          " · " +
+          script.label +
+          " · " +
+          script.hint +
+          " · " +
+          command.label +
+          (scriptLane ? " · " + scriptLane.label + " · " + scriptLane.hint : "") +
+          ".";
       }
 
       async function runDownloadAhaSnapshotAction(button = null) {
