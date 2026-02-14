@@ -38,6 +38,8 @@ const shortcutGuideItems = [
   { key: "Alt+Y", label: "Run Signal Flow" },
   { key: "Alt+Shift+L", label: "Copy Signal Command" },
   { key: "Alt+Shift+K", label: "Copy Signal Checklist" },
+  { key: "Alt+Shift+Y", label: "Copy Signal Flow" },
+  { key: "Alt+Shift+F", label: "Download Signal Flow" },
   { key: "Alt+Shift+J", label: "Download Signal Checklist" },
   { key: "Alt+Shift+P", label: "Copy Signal Protocol" },
   { key: "E", label: "Open Aha Rival" },
@@ -177,14 +179,14 @@ const queueNudgeCopySignalConsensusLabel = "Copy Signal Consensus";
 const queueNudgeCopySignalCommandLabel = "Copy Signal Command (Alt+Shift+L)";
 const queueNudgeCopySignalScriptLabel = "Copy Signal Script";
 const queueNudgeCopySignalChecklistLabel = "Copy Signal Checklist (Alt+Shift+K)";
-const queueNudgeCopySignalFlowLabel = "Copy Signal Flow";
+const queueNudgeCopySignalFlowLabel = "Copy Signal Flow (Alt+Shift+Y)";
 const queueNudgeCopySignalProtocolLabel = "Copy Signal Protocol (Alt+Shift+P)";
 const queueNudgeDownloadSignalHandoffLabel = "Download Signal Handoff";
 const queueNudgeDownloadSignalConsensusLabel = "Download Signal Consensus";
 const queueNudgeDownloadSignalCommandLabel = "Download Signal Command";
 const queueNudgeDownloadSignalScriptLabel = "Download Signal Script";
 const queueNudgeDownloadSignalChecklistLabel = "Download Signal Checklist (Alt+Shift+J)";
-const queueNudgeDownloadSignalFlowLabel = "Download Signal Flow";
+const queueNudgeDownloadSignalFlowLabel = "Download Signal Flow (Alt+Shift+F)";
 const queueNudgeDownloadSignalProtocolLabel = "Download Signal Protocol";
 const queueNudgeCopyDuelCallLabel = "Copy Duel Call (Alt+C)";
 const queueNudgeCopyDuelSignalsLabel = "Copy Duel Signals (Alt+S)";
@@ -16093,6 +16095,8 @@ const html = `<!doctype html>
         const key = event.key.toLowerCase();
         if (event.altKey && event.shiftKey && key === "l") return "alt+shift+l";
         if (event.altKey && event.shiftKey && key === "k") return "alt+shift+k";
+        if (event.altKey && event.shiftKey && key === "y") return "alt+shift+y";
+        if (event.altKey && event.shiftKey && key === "f") return "alt+shift+f";
         if (event.altKey && event.shiftKey && key === "j") return "alt+shift+j";
         if (event.altKey && event.shiftKey && key === "p") return "alt+shift+p";
         if (event.altKey && (key === "1" || key === "2" || key === "3")) {
@@ -16220,6 +16224,12 @@ const html = `<!doctype html>
         },
         "alt+shift+k": () => {
           void runCopyAhaDuelSignalChecklistAction();
+        },
+        "alt+shift+y": () => {
+          void runCopyAhaDuelSignalFlowAction();
+        },
+        "alt+shift+f": () => {
+          void runDownloadAhaDuelSignalFlowAction();
         },
         "alt+shift+j": () => {
           void runDownloadAhaDuelSignalChecklistAction();
