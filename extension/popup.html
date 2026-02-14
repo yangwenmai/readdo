@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Read→Do</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- Capture View -->
+  <div id="capture-view">
+    <header class="header">
+      <span class="logo">◆ Read→Do</span>
+    </header>
+
+    <div class="page-info">
+      <div id="page-title" class="page-title">Loading...</div>
+      <div id="page-domain" class="page-domain"></div>
+    </div>
+
+    <div class="intent-section">
+      <label class="intent-label" for="intent-input">Why save this?</label>
+      <textarea
+        id="intent-input"
+        class="intent-input"
+        placeholder='e.g. "想了解他们的架构设计"'
+        rows="2"
+      ></textarea>
+    </div>
+
+    <button id="save-btn" class="save-btn">
+      <span id="save-text">💾 Save</span>
+      <span id="save-spinner" class="spinner hidden"></span>
+    </button>
+
+    <div id="error-toast" class="error-toast hidden">
+      <span id="error-msg"></span>
+      <button id="retry-btn" class="retry-btn">Retry</button>
+    </div>
+  </div>
+
+  <!-- Success View -->
+  <div id="success-view" class="hidden">
+    <div class="success-content">
+      <div class="success-icon">✓</div>
+      <div class="success-title">Captured!</div>
+      <div class="success-subtitle">Safe to close this tab.</div>
+      <a id="open-inbox" class="open-inbox" href="#" target="_blank">Open Inbox →</a>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
