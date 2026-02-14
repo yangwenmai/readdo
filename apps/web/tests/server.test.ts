@@ -168,6 +168,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /nudge-duel-signal-outlook/u);
     assert.match(text, /nudge-duel-signal-regime/u);
     assert.match(text, /nudge-duel-signal-conviction/u);
+    assert.match(text, /nudge-duel-signal-handoff/u);
     assert.match(text, /nudge-duel-signal-chart/u);
     assert.match(text, /nudge-duel-snapshot/u);
     assert.match(text, /nudge-duel-plan/u);
@@ -186,6 +187,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Duel Signal Outlook/u);
     assert.match(text, /Duel Signal Regime/u);
     assert.match(text, /Duel Signal Conviction/u);
+    assert.match(text, /Duel Signal Handoff/u);
     assert.match(text, /Signal Points/u);
     assert.match(text, /Duel Snapshot/u);
     assert.match(text, /Duel Action Plan/u);
@@ -230,6 +232,11 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Prime /u);
     assert.match(text, /Ready /u);
     assert.match(text, /Fragile /u);
+    assert.match(text, /Lead sprint/u);
+    assert.match(text, /Lead push/u);
+    assert.match(text, /Rival probe/u);
+    assert.match(text, /Hold & scan/u);
+    assert.match(text, /Split test/u);
     assert.match(text, /Open Rival/u);
     assert.match(text, /Copy Duel/u);
     assert.match(text, /Copy Duel Call \(Alt\+C\)/u);
@@ -355,6 +362,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /duel-signal-outlook-inline/u);
     assert.match(text, /duel-signal-regime-inline/u);
     assert.match(text, /duel-signal-conviction-inline/u);
+    assert.match(text, /duel-signal-handoff-inline/u);
     assert.match(text, /duel-signal-chart-inline/u);
     assert.match(text, /duel-snapshot-inline/u);
     assert.match(text, /duel-plan-inline/u);
