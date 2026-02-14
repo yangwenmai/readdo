@@ -133,6 +133,7 @@ const queueNudgeToggleDuelLabel = "Toggle Duel Pair (Alt+Z)";
 const queueNudgeRunDuelLabel = "Run Duel Pair (Alt+Q)";
 const queueNudgeRunDuelCallLabel = "Run Duel Call (Alt+M)";
 const queueNudgeRunSignalHandoffLabel = "Run Signal Handoff";
+const queueNudgeCopySignalHandoffLabel = "Copy Signal Handoff";
 const queueNudgeCopyDuelCallLabel = "Copy Duel Call (Alt+C)";
 const queueNudgeCopyDuelSignalsLabel = "Copy Duel Signals (Alt+S)";
 const queueNudgeCopyBriefLabel = "Copy Decision Brief (Shift+D)";
@@ -3058,6 +3059,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_RUN_DUEL_LABEL = ${JSON.stringify(queueNudgeRunDuelLabel)};
       const QUEUE_NUDGE_RUN_DUEL_CALL_LABEL = ${JSON.stringify(queueNudgeRunDuelCallLabel)};
       const QUEUE_NUDGE_RUN_SIGNAL_HANDOFF_LABEL = ${JSON.stringify(queueNudgeRunSignalHandoffLabel)};
+      const QUEUE_NUDGE_COPY_SIGNAL_HANDOFF_LABEL = ${JSON.stringify(queueNudgeCopySignalHandoffLabel)};
       const QUEUE_NUDGE_COPY_DUEL_CALL_LABEL = ${JSON.stringify(queueNudgeCopyDuelCallLabel)};
       const QUEUE_NUDGE_COPY_DUEL_SIGNALS_LABEL = ${JSON.stringify(queueNudgeCopyDuelSignalsLabel)};
       const QUEUE_NUDGE_COPY_BRIEF_LABEL = ${JSON.stringify(queueNudgeCopyBriefLabel)};
@@ -4836,6 +4838,27 @@ const html = `<!doctype html>
         }
         if (signalHandoff) {
           lines.push(QUEUE_NUDGE_DUEL_SIGNAL_HANDOFF_LABEL + ": " + signalHandoff.label + " · " + signalHandoff.hint);
+        }
+        return lines.join("\n");
+      }
+
+      function ahaDuelSignalHandoffText(poolItems) {
+        const ranked = sortedAhaItems(poolItems);
+        if (ranked.length < 2) return "";
+        const handoff = ahaDuelSignalHandoffMeta(ranked);
+        const conviction = ahaDuelSignalConvictionMeta(ranked);
+        const outlook = ahaDuelSignalOutlookMeta(ranked);
+        const call = ahaDuelCallMeta(ranked);
+        if (!handoff) return "";
+        const lines = ["Aha Duel Signal Handoff", QUEUE_NUDGE_DUEL_SIGNAL_HANDOFF_LABEL + ": " + handoff.label + " · " + handoff.hint];
+        if (conviction) {
+          lines.push(QUEUE_NUDGE_DUEL_SIGNAL_CONVICTION_LABEL + ": " + conviction.label + " · " + conviction.hint);
+        }
+        if (outlook) {
+          lines.push(QUEUE_NUDGE_DUEL_SIGNAL_OUTLOOK_LABEL + ": " + outlook.label + " · " + outlook.hint);
+        }
+        if (call) {
+          lines.push(QUEUE_NUDGE_DUEL_CALL_LABEL + ": " + call.label + " · " + call.hint);
         }
         return lines.join("\n");
       }
@@ -6913,6 +6936,14 @@ const html = `<!doctype html>
                 await runCopyAhaDuelSignalsAction(copyDuelSignalsBtn);
               });
               actionsEl.appendChild(copyDuelSignalsBtn);
+              const copySignalHandoffBtn = document.createElement("button");
+              copySignalHandoffBtn.type = "button";
+              copySignalHandoffBtn.className = "secondary";
+              copySignalHandoffBtn.textContent = QUEUE_NUDGE_COPY_SIGNAL_HANDOFF_LABEL;
+              copySignalHandoffBtn.addEventListener("click", async () => {
+                await runCopyAhaDuelSignalHandoffAction(copySignalHandoffBtn);
+              });
+              actionsEl.appendChild(copySignalHandoffBtn);
               const copyDuelSnapshotBtn = document.createElement("button");
               copyDuelSnapshotBtn.type = "button";
               copyDuelSnapshotBtn.className = "secondary";
@@ -7977,6 +8008,14 @@ const html = `<!doctype html>
             await runCopyAhaDuelSignalsAction(copyDuelSignalsBtn);
           });
           actionsEl.appendChild(copyDuelSignalsBtn);
+          const copySignalHandoffBtn = document.createElement("button");
+          copySignalHandoffBtn.type = "button";
+          copySignalHandoffBtn.className = "secondary";
+          copySignalHandoffBtn.textContent = QUEUE_NUDGE_COPY_SIGNAL_HANDOFF_LABEL;
+          copySignalHandoffBtn.addEventListener("click", async () => {
+            await runCopyAhaDuelSignalHandoffAction(copySignalHandoffBtn);
+          });
+          actionsEl.appendChild(copySignalHandoffBtn);
           const copyDuelSnapshotBtn = document.createElement("button");
           copyDuelSnapshotBtn.type = "button";
           copyDuelSnapshotBtn.className = "secondary";
@@ -9138,6 +9177,32 @@ const html = `<!doctype html>
               });
               if (!copied) {
                 throw new Error("Copy duel signals failed.");
+              }
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
+      async function runCopyAhaDuelSignalHandoffAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_copy_aha_duel_signal_handoff",
+            label: "Copy Signal Handoff",
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const pool = visibleItems.length ? visibleItems : allItems;
+              const text = ahaDuelSignalHandoffText(pool);
+              if (!text) {
+                errorEl.textContent = "Duel signal handoff is unavailable under current filters.";
+                return;
+              }
+              const copied = await copyTextToClipboard(text, {
+                success: "Copied duel signal handoff.",
+                failure: "Copy duel signal handoff failed.",
+              });
+              if (!copied) {
+                throw new Error("Copy duel signal handoff failed.");
               }
             },
           },

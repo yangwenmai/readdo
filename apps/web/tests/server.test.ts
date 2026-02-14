@@ -242,6 +242,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Copy Duel Call \(Alt\+C\)/u);
     assert.match(text, /Copy Duel Snapshot \(Shift\+S\)/u);
     assert.match(text, /Copy Duel Signals \(Alt\+S\)/u);
+    assert.match(text, /Copy Signal Handoff/u);
     assert.match(text, /Copy Duel Plan \(Shift\+Q\)/u);
     assert.match(text, /Copy Decision Brief/u);
     assert.match(text, /Download Decision Brief \(Alt\+D\)/u);
@@ -376,6 +377,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Copy Duel Call \(Alt\+C\)/u);
     assert.match(text, /Copy Duel Snapshot \(Shift\+S\)/u);
     assert.match(text, /Copy Duel Signals \(Alt\+S\)/u);
+    assert.match(text, /Copy Signal Handoff/u);
     assert.match(text, /Copy Duel Plan \(Shift\+Q\)/u);
     assert.match(text, /Copy Decision Brief/u);
     assert.match(text, /Download Decision Brief \(Alt\+D\)/u);
