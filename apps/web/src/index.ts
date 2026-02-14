@@ -129,6 +129,7 @@ const queueNudgeDuelSignalConsensusSeriesLabel = "Consensus Points";
 const queueNudgeDuelSignalConsensusMomentumLabel = "Duel Signal Consensus Momentum";
 const queueNudgeDuelSignalConsensusRiskLabel = "Duel Signal Consensus Risk";
 const queueNudgeDuelSignalConsensusStabilityLabel = "Duel Signal Consensus Stability";
+const queueNudgeDuelSignalConsensusReadinessLabel = "Duel Signal Consensus Readiness";
 const queueNudgeDuelSnapshotLabel = "Duel Snapshot";
 const queueNudgeDuelTrendLabel = "Duel Gap Trend";
 const queueNudgeDuelSeriesLabel = "Lead-Rival";
@@ -1526,6 +1527,34 @@ const html = `<!doctype html>
         background: #fff1f2;
         color: #9f1239;
       }
+      .hero-story .duel-signal-consensus-readiness-inline {
+        margin-top: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 8px;
+      }
+      .hero-story .duel-signal-consensus-readiness-inline.call-lead {
+        border-color: #86efac;
+        background: #ecfdf5;
+        color: #166534;
+      }
+      .hero-story .duel-signal-consensus-readiness-inline.call-rival {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .hero-story .duel-signal-consensus-readiness-inline.call-hold {
+        border-color: #fecaca;
+        background: #fff1f2;
+        color: #9f1239;
+      }
       .hero-story .duel-signal-consensus-chart-inline {
         margin-top: 6px;
         display: grid;
@@ -2909,6 +2938,33 @@ const html = `<!doctype html>
         background: #fff1f2;
         color: #9f1239;
       }
+      .aha-nudge .nudge-duel-signal-consensus-readiness {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 9px;
+      }
+      .aha-nudge .nudge-duel-signal-consensus-readiness.call-lead {
+        border-color: #86efac;
+        background: #ecfdf5;
+        color: #166534;
+      }
+      .aha-nudge .nudge-duel-signal-consensus-readiness.call-rival {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .aha-nudge .nudge-duel-signal-consensus-readiness.call-hold {
+        border-color: #fecaca;
+        background: #fff1f2;
+        color: #9f1239;
+      }
       .aha-nudge .nudge-duel-signal-consensus-chart {
         margin-top: 6px;
         display: grid;
@@ -3573,6 +3629,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_MOMENTUM_LABEL = ${JSON.stringify(queueNudgeDuelSignalConsensusMomentumLabel)};
       const QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_RISK_LABEL = ${JSON.stringify(queueNudgeDuelSignalConsensusRiskLabel)};
       const QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_STABILITY_LABEL = ${JSON.stringify(queueNudgeDuelSignalConsensusStabilityLabel)};
+      const QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_READINESS_LABEL = ${JSON.stringify(queueNudgeDuelSignalConsensusReadinessLabel)};
       const QUEUE_NUDGE_DUEL_SNAPSHOT_LABEL = ${JSON.stringify(queueNudgeDuelSnapshotLabel)};
       const QUEUE_NUDGE_DUEL_TREND_LABEL = ${JSON.stringify(queueNudgeDuelTrendLabel)};
       const QUEUE_NUDGE_DUEL_SERIES_LABEL = ${JSON.stringify(queueNudgeDuelSeriesLabel)};
@@ -4586,6 +4643,47 @@ const html = `<!doctype html>
         return { label: "Volatile " + stability + "%", tone: "call-hold", hint: shifts + "/" + windows + " shifts" };
       }
 
+      function ahaDuelSignalConsensusReadinessMeta(poolItems = null) {
+        const ranked =
+          Array.isArray(poolItems) && poolItems.length
+            ? sortedAhaItems(poolItems)
+            : (() => {
+                const visibleItems = visibleQueueItems();
+                const pool = visibleItems.length ? visibleItems : allItems;
+                return sortedAhaItems(pool);
+              })();
+        const consensus = ahaDuelSignalConsensusMeta(ranked);
+        if (!consensus) return null;
+        const role = normalizeConsensusRole(consensus.role);
+        const risk = ahaDuelSignalConsensusRiskMeta();
+        const stability = ahaDuelSignalConsensusStabilityMeta();
+        const momentum = ahaDuelSignalConsensusMomentumMeta();
+        const riskLabel = String(risk?.label || "").toLowerCase();
+        const stabilityLabel = String(stability?.label || "").toLowerCase();
+        const momentumLabel = String(momentum?.label || "").toLowerCase();
+        const roleTone = role === "lead" ? "call-lead" : role === "rival" ? "call-rival" : "call-hold";
+
+        if (role === "hold" || role === "mixed" || role === "conflict") {
+          return { label: "Hold confirmation", tone: "call-hold", hint: "Consensus unresolved · " + consensus.hint };
+        }
+        if (role === "split") {
+          return { label: "Split test ready", tone: "call-rival", hint: "Run lead and rival in parallel" };
+        }
+        if (riskLabel.includes("high") || stabilityLabel.includes("volatile")) {
+          return { label: "Delay execution", tone: "call-hold", hint: "Risk high or stability volatile" };
+        }
+        if (momentumLabel.includes("drifting")) {
+          return { label: "Probe before commit", tone: "call-rival", hint: "Consensus momentum is drifting" };
+        }
+        if (riskLabel.includes("low") && stabilityLabel.includes("steady") && momentumLabel.includes("strengthening")) {
+          return { label: "Execute now", tone: roleTone, hint: "Low risk + steady + strengthening" };
+        }
+        if (riskLabel.includes("low") && stabilityLabel.includes("steady")) {
+          return { label: "Ready with guardrails", tone: roleTone, hint: "Stable lane, monitor momentum" };
+        }
+        return { label: "Cautious go", tone: roleTone, hint: "Run with tight follow-up checks" };
+      }
+
       function ahaDuelSignalHandoffMomentumMeta(points = ahaDuelSignalHandoffTrendSeries()) {
         if (!points.length) return { label: "No momentum", tone: "call-hold", hint: "Need handoff points" };
         const first = Number(points[0] || 0);
@@ -5154,6 +5252,7 @@ const html = `<!doctype html>
         const duelSignalConsensusMomentum = ahaDuelSignalConsensusMomentumMeta();
         const duelSignalConsensusRisk = ahaDuelSignalConsensusRiskMeta();
         const duelSignalConsensusStability = ahaDuelSignalConsensusStabilityMeta();
+        const duelSignalConsensusReadiness = ahaDuelSignalConsensusReadinessMeta(ranked);
         const duelTrend = ahaDuelGapTrendMeta();
         const lines = ["Aha Decision Brief", QUEUE_NUDGE_BRIEF_CONTEXT_LABEL + ": " + decisionBriefContextSummary(), story || "Storyline unavailable."];
         if (duel) {
@@ -5255,6 +5354,15 @@ const html = `<!doctype html>
               duelSignalConsensusStability.label +
               " · " +
               duelSignalConsensusStability.hint,
+          );
+        }
+        if (duelSignalConsensusReadiness) {
+          lines.push(
+            QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_READINESS_LABEL +
+              ": " +
+              duelSignalConsensusReadiness.label +
+              " · " +
+              duelSignalConsensusReadiness.hint,
           );
         }
         if (duelTrend) {
@@ -5635,6 +5743,7 @@ const html = `<!doctype html>
         const signalConsensusMomentum = ahaDuelSignalConsensusMomentumMeta();
         const signalConsensusRisk = ahaDuelSignalConsensusRiskMeta();
         const signalConsensusStability = ahaDuelSignalConsensusStabilityMeta();
+        const signalConsensusReadiness = ahaDuelSignalConsensusReadinessMeta(ranked);
         const plan = ahaDuelActionPlanMeta(ranked);
         if (!duel || !plan) return "";
         return (
@@ -5692,6 +5801,14 @@ const html = `<!doctype html>
                 signalConsensusStability.hint +
                 "\n"
             : "") +
+          (signalConsensusReadiness
+            ? QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_READINESS_LABEL +
+                ": " +
+                signalConsensusReadiness.label +
+                " · " +
+                signalConsensusReadiness.hint +
+                "\n"
+            : "") +
           QUEUE_NUDGE_DUEL_PLAN_LABEL +
           ": " +
           plan.summary +
@@ -5723,6 +5840,7 @@ const html = `<!doctype html>
         const signalConsensusMomentum = ahaDuelSignalConsensusMomentumMeta();
         const signalConsensusRisk = ahaDuelSignalConsensusRiskMeta();
         const signalConsensusStability = ahaDuelSignalConsensusStabilityMeta();
+        const signalConsensusReadiness = ahaDuelSignalConsensusReadinessMeta(ranked);
         if (!duel || !call) return "";
         return (
           "Aha Duel Call\n" +
@@ -5773,6 +5891,9 @@ const html = `<!doctype html>
           + (signalConsensusStability
             ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_STABILITY_LABEL + ": " + signalConsensusStability.label + " · " + signalConsensusStability.hint
             : "")
+          + (signalConsensusReadiness
+            ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_READINESS_LABEL + ": " + signalConsensusReadiness.label + " · " + signalConsensusReadiness.hint
+            : "")
         );
       }
 
@@ -5800,6 +5921,7 @@ const html = `<!doctype html>
         const signalConsensusMomentum = ahaDuelSignalConsensusMomentumMeta();
         const signalConsensusRisk = ahaDuelSignalConsensusRiskMeta();
         const signalConsensusStability = ahaDuelSignalConsensusStabilityMeta();
+        const signalConsensusReadiness = ahaDuelSignalConsensusReadinessMeta(ranked);
         if (call) lines.push(QUEUE_NUDGE_DUEL_CALL_LABEL + ": " + call.label + " · " + call.hint);
         if (callTrend) lines.push(QUEUE_NUDGE_DUEL_CALL_TREND_LABEL + ": " + callTrend.label);
         if (callConfidence) lines.push(QUEUE_NUDGE_DUEL_CALL_CONFIDENCE_LABEL + ": " + callConfidence.label + " · " + callConfidence.hint);
@@ -5852,6 +5974,15 @@ const html = `<!doctype html>
               signalConsensusStability.hint,
           );
         }
+        if (signalConsensusReadiness) {
+          lines.push(
+            QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_READINESS_LABEL +
+              ": " +
+              signalConsensusReadiness.label +
+              " · " +
+              signalConsensusReadiness.hint,
+          );
+        }
         return lines.join("\n");
       }
 
@@ -5869,6 +6000,7 @@ const html = `<!doctype html>
         const consensusMomentum = ahaDuelSignalConsensusMomentumMeta();
         const consensusRisk = ahaDuelSignalConsensusRiskMeta();
         const consensusStability = ahaDuelSignalConsensusStabilityMeta();
+        const consensusReadiness = ahaDuelSignalConsensusReadinessMeta(ranked);
         if (!handoff) return "";
         const lines = ["Aha Duel Signal Handoff", QUEUE_NUDGE_DUEL_SIGNAL_HANDOFF_LABEL + ": " + handoff.label + " · " + handoff.hint];
         if (conviction) {
@@ -5901,6 +6033,9 @@ const html = `<!doctype html>
         if (consensusStability) {
           lines.push(QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_STABILITY_LABEL + ": " + consensusStability.label + " · " + consensusStability.hint);
         }
+        if (consensusReadiness) {
+          lines.push(QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_READINESS_LABEL + ": " + consensusReadiness.label + " · " + consensusReadiness.hint);
+        }
         return lines.join("\n");
       }
 
@@ -5914,6 +6049,7 @@ const html = `<!doctype html>
         const momentum = ahaDuelSignalConsensusMomentumMeta();
         const risk = ahaDuelSignalConsensusRiskMeta();
         const stability = ahaDuelSignalConsensusStabilityMeta();
+        const readiness = ahaDuelSignalConsensusReadinessMeta(ranked);
         if (!consensus) return "";
         const lines = ["Aha Duel Signal Consensus", QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_LABEL + ": " + consensus.label + " · " + consensus.hint];
         if (handoff) {
@@ -5930,6 +6066,9 @@ const html = `<!doctype html>
         }
         if (stability) {
           lines.push(QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_STABILITY_LABEL + ": " + stability.label + " · " + stability.hint);
+        }
+        if (readiness) {
+          lines.push(QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_READINESS_LABEL + ": " + readiness.label + " · " + readiness.hint);
         }
         if (call) {
           lines.push(QUEUE_NUDGE_DUEL_CALL_LABEL + ": " + call.label + " · " + call.hint);
@@ -5955,6 +6094,7 @@ const html = `<!doctype html>
         const consensusMomentum = ahaDuelSignalConsensusMomentumMeta();
         const consensusRisk = ahaDuelSignalConsensusRiskMeta();
         const consensusStability = ahaDuelSignalConsensusStabilityMeta();
+        const consensusReadiness = ahaDuelSignalConsensusReadinessMeta(ranked);
         const sequence = ahaDuelCallSequenceMeta();
         const risk = ahaDuelCallRiskMeta();
         const parts = ["Aha Duel Snapshot"];
@@ -5973,6 +6113,7 @@ const html = `<!doctype html>
         if (consensusMomentum) parts.push("consensusMomentum " + consensusMomentum.label);
         if (consensusRisk) parts.push("consensusRisk " + consensusRisk.label);
         if (consensusStability) parts.push("consensusStability " + consensusStability.label);
+        if (consensusReadiness) parts.push("consensusReadiness " + consensusReadiness.label);
         if (risk) parts.push(risk.label);
         if (sequence) parts.push(sequence.label);
         return parts.join(" · ");
@@ -8025,6 +8166,18 @@ const html = `<!doctype html>
                   duelSignalConsensusStability.hint;
                 duelEl.appendChild(signalConsensusStabilityEl);
               }
+              const duelSignalConsensusReadiness = ahaDuelSignalConsensusReadinessMeta(ahaPool);
+              if (duelSignalConsensusReadiness) {
+                const signalConsensusReadinessEl = document.createElement("span");
+                signalConsensusReadinessEl.className = "nudge-duel-signal-consensus-readiness " + duelSignalConsensusReadiness.tone;
+                signalConsensusReadinessEl.textContent =
+                  QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_READINESS_LABEL +
+                  ": " +
+                  duelSignalConsensusReadiness.label +
+                  " · " +
+                  duelSignalConsensusReadiness.hint;
+                duelEl.appendChild(signalConsensusReadinessEl);
+              }
               const duelSnapshot = ahaDuelSnapshotText(ahaPool);
               if (duelSnapshot) {
                 const snapshotEl = document.createElement("div");
@@ -9008,6 +9161,7 @@ const html = `<!doctype html>
         const duelSignalConsensusMomentum = ahaDuelSignalConsensusMomentumMeta();
         const duelSignalConsensusRisk = ahaDuelSignalConsensusRiskMeta();
         const duelSignalConsensusStability = ahaDuelSignalConsensusStabilityMeta();
+        const duelSignalConsensusReadiness = ahaDuelSignalConsensusReadinessMeta(rankedPool);
         const duelSnapshot = ahaDuelSnapshotText(rankedPool);
         const duelPlan = ahaDuelActionPlanMeta(rankedPool);
         const duelTrend = ahaDuelGapTrendMeta();
@@ -9259,6 +9413,17 @@ const html = `<!doctype html>
               " · " +
               duelSignalConsensusStability.hint;
             storyHost.appendChild(duelSignalConsensusStabilityEl);
+          }
+          if (duelSignalConsensusReadiness) {
+            const duelSignalConsensusReadinessEl = document.createElement("span");
+            duelSignalConsensusReadinessEl.className = "duel-signal-consensus-readiness-inline " + duelSignalConsensusReadiness.tone;
+            duelSignalConsensusReadinessEl.textContent =
+              QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_READINESS_LABEL +
+              ": " +
+              duelSignalConsensusReadiness.label +
+              " · " +
+              duelSignalConsensusReadiness.hint;
+            storyHost.appendChild(duelSignalConsensusReadinessEl);
           }
           if (duelSnapshot) {
             const duelSnapshotEl = document.createElement("div");
@@ -11049,12 +11214,21 @@ const html = `<!doctype html>
                 errorEl.textContent = "No duel signal consensus available under current filters.";
                 return;
               }
+              const readiness = ahaDuelSignalConsensusReadinessMeta(pool);
               const consensusRole = String(consensus.role || "conflict");
               const ranked = sortedAhaItems(pool);
               const lead = ranked[0] || null;
               const rival = ranked[1] || null;
               if (consensusRole === "hold" || consensusRole === "mixed" || consensusRole === "conflict") {
-                errorEl.textContent = "Signal consensus suggests hold: " + consensus.hint + ".";
+                errorEl.textContent =
+                  "Signal consensus suggests hold: " +
+                  consensus.hint +
+                  (readiness ? " · " + readiness.label + " · " + readiness.hint : "") +
+                  ".";
+                return;
+              }
+              if (readiness && readiness.label === "Delay execution") {
+                errorEl.textContent = "Signal consensus paused: " + readiness.hint + ".";
                 return;
               }
               if (consensusRole === "split") {
@@ -11074,7 +11248,10 @@ const html = `<!doctype html>
                   await primary.action();
                   outcomes.push((index === 0 ? "Lead" : "Rival") + " #" + item.id + ": " + primary.label);
                 }
-                errorEl.textContent = "Signal consensus executed → Split consensus · " + outcomes.join(" · ");
+                errorEl.textContent =
+                  "Signal consensus executed → Split consensus · " +
+                  outcomes.join(" · ") +
+                  (readiness ? " · " + readiness.label : "");
                 return;
               }
               const target = consensusRole === "rival" ? rival : lead;
@@ -11103,6 +11280,7 @@ const html = `<!doctype html>
                 meta.value +
                 ") · " +
                 primary.label +
+                (readiness ? " · " + readiness.label : "") +
                 ".";
             },
           },
