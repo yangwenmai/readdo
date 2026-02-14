@@ -7332,6 +7332,17 @@ const html = `<!doctype html>
         const signalConsensusProtocolPressure = ahaDuelSignalConsensusProtocolPressureMeta();
         const signalConsensusProtocolCommand = ahaDuelSignalConsensusProtocolCommandMeta(ranked);
         const signalConsensusProtocolScript = ahaDuelSignalConsensusProtocolScriptMeta(ranked, signalConsensusProtocolCommand, signalConsensusProtocolCadence, signalConsensusProtocolPressure);
+        const signalConsensusProtocolScriptLane = ahaDuelSignalConsensusProtocolScriptLaneMeta(
+          ranked,
+          signalConsensusProtocolScript,
+          signalConsensusProtocolCommand,
+        );
+        const signalConsensusProtocolScriptChecklist = ahaDuelSignalConsensusProtocolScriptChecklistMeta(
+          ranked,
+          signalConsensusProtocolScript,
+          signalConsensusProtocolScriptLane,
+          signalConsensusProtocolCommand,
+        );
         const plan = ahaDuelActionPlanMeta(ranked);
         if (!duel || !plan) return "";
         return (
@@ -7493,6 +7504,22 @@ const html = `<!doctype html>
                 signalConsensusProtocolScript.hint +
                 "\\n"
             : "") +
+          (signalConsensusProtocolScriptLane
+            ? QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_LANE_LABEL +
+                ": " +
+                signalConsensusProtocolScriptLane.label +
+                " · " +
+                signalConsensusProtocolScriptLane.hint +
+                "\\n"
+            : "") +
+          (signalConsensusProtocolScriptChecklist
+            ? QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_CHECKLIST_LABEL +
+                ": " +
+                signalConsensusProtocolScriptChecklist.label +
+                " · " +
+                signalConsensusProtocolScriptChecklist.hint +
+                "\\n"
+            : "") +
           QUEUE_NUDGE_DUEL_PLAN_LABEL +
           ": " +
           plan.summary +
@@ -7537,6 +7564,17 @@ const html = `<!doctype html>
         const signalConsensusProtocolPressure = ahaDuelSignalConsensusProtocolPressureMeta();
         const signalConsensusProtocolCommand = ahaDuelSignalConsensusProtocolCommandMeta(ranked);
         const signalConsensusProtocolScript = ahaDuelSignalConsensusProtocolScriptMeta(ranked, signalConsensusProtocolCommand, signalConsensusProtocolCadence, signalConsensusProtocolPressure);
+        const signalConsensusProtocolScriptLane = ahaDuelSignalConsensusProtocolScriptLaneMeta(
+          ranked,
+          signalConsensusProtocolScript,
+          signalConsensusProtocolCommand,
+        );
+        const signalConsensusProtocolScriptChecklist = ahaDuelSignalConsensusProtocolScriptChecklistMeta(
+          ranked,
+          signalConsensusProtocolScript,
+          signalConsensusProtocolScriptLane,
+          signalConsensusProtocolCommand,
+        );
         if (!duel || !call) return "";
         return (
           "Aha Duel Call\\n" +
@@ -7625,6 +7663,12 @@ const html = `<!doctype html>
             : "")
           + (signalConsensusProtocolScript
             ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_LABEL + ": " + signalConsensusProtocolScript.label + " · " + signalConsensusProtocolScript.hint
+            : "")
+          + (signalConsensusProtocolScriptLane
+            ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_LANE_LABEL + ": " + signalConsensusProtocolScriptLane.label + " · " + signalConsensusProtocolScriptLane.hint
+            : "")
+          + (signalConsensusProtocolScriptChecklist
+            ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_CHECKLIST_LABEL + ": " + signalConsensusProtocolScriptChecklist.label + " · " + signalConsensusProtocolScriptChecklist.hint
             : "")
         );
       }
@@ -7835,6 +7879,24 @@ const html = `<!doctype html>
               signalConsensusProtocolScript.hint,
           );
         }
+        if (signalConsensusProtocolScriptLane) {
+          lines.push(
+            QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_LANE_LABEL +
+              ": " +
+              signalConsensusProtocolScriptLane.label +
+              " · " +
+              signalConsensusProtocolScriptLane.hint,
+          );
+        }
+        if (signalConsensusProtocolScriptChecklist) {
+          lines.push(
+            QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_CHECKLIST_LABEL +
+              ": " +
+              signalConsensusProtocolScriptChecklist.label +
+              " · " +
+              signalConsensusProtocolScriptChecklist.hint,
+          );
+        }
         return lines.join("\\n");
       }
 
@@ -7865,6 +7927,17 @@ const html = `<!doctype html>
         const consensusProtocolPressure = ahaDuelSignalConsensusProtocolPressureMeta();
         const consensusProtocolCommand = ahaDuelSignalConsensusProtocolCommandMeta(ranked);
         const consensusProtocolScript = ahaDuelSignalConsensusProtocolScriptMeta(ranked, consensusProtocolCommand, consensusProtocolCadence, consensusProtocolPressure);
+        const consensusProtocolScriptLane = ahaDuelSignalConsensusProtocolScriptLaneMeta(
+          ranked,
+          consensusProtocolScript,
+          consensusProtocolCommand,
+        );
+        const consensusProtocolScriptChecklist = ahaDuelSignalConsensusProtocolScriptChecklistMeta(
+          ranked,
+          consensusProtocolScript,
+          consensusProtocolScriptLane,
+          consensusProtocolCommand,
+        );
         if (!handoff) return "";
         const lines = ["Aha Duel Signal Handoff", QUEUE_NUDGE_DUEL_SIGNAL_HANDOFF_LABEL + ": " + handoff.label + " · " + handoff.hint];
         if (conviction) {
@@ -7941,6 +8014,24 @@ const html = `<!doctype html>
         }
         if (consensusProtocolScript) {
           lines.push(QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_LABEL + ": " + consensusProtocolScript.label + " · " + consensusProtocolScript.hint);
+        }
+        if (consensusProtocolScriptLane) {
+          lines.push(
+            QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_LANE_LABEL +
+              ": " +
+              consensusProtocolScriptLane.label +
+              " · " +
+              consensusProtocolScriptLane.hint,
+          );
+        }
+        if (consensusProtocolScriptChecklist) {
+          lines.push(
+            QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_CHECKLIST_LABEL +
+              ": " +
+              consensusProtocolScriptChecklist.label +
+              " · " +
+              consensusProtocolScriptChecklist.hint,
+          );
         }
         return lines.join("\\n");
       }
@@ -8029,6 +8120,24 @@ const html = `<!doctype html>
         }
         if (consensusProtocolScript) {
           lines.push(QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_LABEL + ": " + consensusProtocolScript.label + " · " + consensusProtocolScript.hint);
+        }
+        if (consensusProtocolScriptLane) {
+          lines.push(
+            QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_LANE_LABEL +
+              ": " +
+              consensusProtocolScriptLane.label +
+              " · " +
+              consensusProtocolScriptLane.hint,
+          );
+        }
+        if (consensusProtocolScriptChecklist) {
+          lines.push(
+            QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_SCRIPT_CHECKLIST_LABEL +
+              ": " +
+              consensusProtocolScriptChecklist.label +
+              " · " +
+              consensusProtocolScriptChecklist.hint,
+          );
         }
         if (call) {
           lines.push(QUEUE_NUDGE_DUEL_CALL_LABEL + ": " + call.label + " · " + call.hint);
@@ -8300,6 +8409,8 @@ const html = `<!doctype html>
         if (consensusProtocolPressure) parts.push("consensusProtocolPressure " + consensusProtocolPressure.label);
         if (consensusProtocolCommand) parts.push("consensusProtocolCommand " + consensusProtocolCommand.label);
         if (consensusProtocolScript) parts.push("consensusProtocolScript " + consensusProtocolScript.label);
+        if (consensusProtocolScriptLane) parts.push("consensusProtocolScriptLane " + consensusProtocolScriptLane.label);
+        if (consensusProtocolScriptChecklist) parts.push("consensusProtocolScriptChecklist " + consensusProtocolScriptChecklist.label);
         if (risk) parts.push(risk.label);
         if (sequence) parts.push(sequence.label);
         return parts.join(" · ");
