@@ -29,6 +29,7 @@ const shortcutGuideItems = [
   { key: "Alt+Q", label: "Run Duel Pair Actions" },
   { key: "Shift+Q", label: "Copy Duel Action Plan" },
   { key: "Alt+C", label: "Copy Duel Call" },
+  { key: "Alt+M", label: "Run Duel Call" },
   { key: "E", label: "Open Aha Rival" },
   { key: "Shift+E", label: "Copy Aha Duel" },
   { key: "Alt+E", label: "Run Rival Action" },
@@ -113,7 +114,7 @@ const queueNudgeCopyDuelPlanLabel = "Copy Duel Plan (Shift+Q)";
 const queueNudgeRunRivalLabel = "Run Rival Action (Alt+E)";
 const queueNudgeToggleDuelLabel = "Toggle Duel Pair (Alt+Z)";
 const queueNudgeRunDuelLabel = "Run Duel Pair (Alt+Q)";
-const queueNudgeRunDuelCallLabel = "Run Duel Call";
+const queueNudgeRunDuelCallLabel = "Run Duel Call (Alt+M)";
 const queueNudgeCopyDuelCallLabel = "Copy Duel Call (Alt+C)";
 const queueNudgeCopyBriefLabel = "Copy Decision Brief (Shift+D)";
 const queueNudgeDownloadBriefLabel = "Download Decision Brief (Alt+D)";
@@ -9001,6 +9002,7 @@ const html = `<!doctype html>
         if (event.altKey && key === "e") return "alt+e";
         if (event.altKey && key === "d") return "alt+d";
         if (event.altKey && key === "c") return "alt+c";
+        if (event.altKey && key === "m") return "alt+m";
         if (event.shiftKey && key === "q") return "shift+q";
         if (event.shiftKey && key === "d") return "shift+d";
         if (event.shiftKey && key === "e") return "shift+e";
@@ -9086,6 +9088,9 @@ const html = `<!doctype html>
         },
         "alt+c": () => {
           void runCopyAhaDuelCallAction();
+        },
+        "alt+m": () => {
+          void runDuelCallAction();
         },
         "shift+q": () => {
           void runCopyAhaDuelPlanAction();
