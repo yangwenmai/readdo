@@ -34,7 +34,9 @@ const shortcutGuideItems = [
   { key: "Alt+M", label: "Run Duel Call" },
   { key: "Alt+P", label: "Run Signal Protocol" },
   { key: "Alt+L", label: "Run Signal Command" },
+  { key: "Alt+K", label: "Run Signal Checklist" },
   { key: "Alt+Shift+L", label: "Copy Signal Command" },
+  { key: "Alt+Shift+K", label: "Copy Signal Checklist" },
   { key: "Alt+Shift+P", label: "Copy Signal Protocol" },
   { key: "E", label: "Open Aha Rival" },
   { key: "Shift+E", label: "Copy Aha Duel" },
@@ -166,12 +168,12 @@ const queueNudgeRunSignalConsensusLabel = "Run Signal Consensus";
 const queueNudgeRunSignalProtocolLabel = "Run Signal Protocol (Alt+P)";
 const queueNudgeRunSignalCommandLabel = "Run Signal Command (Alt+L)";
 const queueNudgeRunSignalScriptLabel = "Run Signal Script";
-const queueNudgeRunSignalChecklistLabel = "Run Signal Checklist";
+const queueNudgeRunSignalChecklistLabel = "Run Signal Checklist (Alt+K)";
 const queueNudgeCopySignalHandoffLabel = "Copy Signal Handoff";
 const queueNudgeCopySignalConsensusLabel = "Copy Signal Consensus";
 const queueNudgeCopySignalCommandLabel = "Copy Signal Command (Alt+Shift+L)";
 const queueNudgeCopySignalScriptLabel = "Copy Signal Script";
-const queueNudgeCopySignalChecklistLabel = "Copy Signal Checklist";
+const queueNudgeCopySignalChecklistLabel = "Copy Signal Checklist (Alt+Shift+K)";
 const queueNudgeCopySignalProtocolLabel = "Copy Signal Protocol (Alt+Shift+P)";
 const queueNudgeDownloadSignalHandoffLabel = "Download Signal Handoff";
 const queueNudgeDownloadSignalConsensusLabel = "Download Signal Consensus";
@@ -15893,6 +15895,7 @@ const html = `<!doctype html>
       function shortcutChordByEvent(event) {
         const key = event.key.toLowerCase();
         if (event.altKey && event.shiftKey && key === "l") return "alt+shift+l";
+        if (event.altKey && event.shiftKey && key === "k") return "alt+shift+k";
         if (event.altKey && event.shiftKey && key === "p") return "alt+shift+p";
         if (event.altKey && (key === "1" || key === "2" || key === "3")) {
           return "alt+" + key;
@@ -15907,6 +15910,7 @@ const html = `<!doctype html>
         if (event.altKey && key === "m") return "alt+m";
         if (event.altKey && key === "p") return "alt+p";
         if (event.altKey && key === "l") return "alt+l";
+        if (event.altKey && key === "k") return "alt+k";
         if (event.shiftKey && key === "q") return "shift+q";
         if (event.shiftKey && key === "s") return "shift+s";
         if (event.shiftKey && key === "d") return "shift+d";
@@ -16006,8 +16010,14 @@ const html = `<!doctype html>
         "alt+l": () => {
           void runDuelSignalCommandAction();
         },
+        "alt+k": () => {
+          void runDuelSignalChecklistAction();
+        },
         "alt+shift+l": () => {
           void runCopyAhaDuelSignalCommandAction();
+        },
+        "alt+shift+k": () => {
+          void runCopyAhaDuelSignalChecklistAction();
         },
         "alt+shift+p": () => {
           void runCopyAhaDuelSignalProtocolAction();
