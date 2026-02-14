@@ -109,6 +109,7 @@ const queueNudgeDuelCallTrendLabel = "Duel Call Trend";
 const queueNudgeDuelCallConfidenceLabel = "Duel Call Confidence";
 const queueNudgeDuelCallStabilityLabel = "Duel Call Stability";
 const queueNudgeDuelCallRiskLabel = "Duel Call Shift Risk";
+const queueNudgeDuelCallSequenceLabel = "Duel Call Sequence";
 const queueNudgeDuelTrendLabel = "Duel Gap Trend";
 const queueNudgeDuelSeriesLabel = "Lead-Rival";
 const queueNudgeDuelPlanLabel = "Duel Action Plan";
@@ -1077,6 +1078,34 @@ const html = `<!doctype html>
         background: #fff1f2;
         color: #9f1239;
       }
+      .hero-story .duel-call-sequence-inline {
+        margin-top: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 8px;
+      }
+      .hero-story .duel-call-sequence-inline.call-lead {
+        border-color: #86efac;
+        background: #ecfdf5;
+        color: #166534;
+      }
+      .hero-story .duel-call-sequence-inline.call-rival {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .hero-story .duel-call-sequence-inline.call-hold {
+        border-color: #fecaca;
+        background: #fff1f2;
+        color: #9f1239;
+      }
       .hero-story .duel-trend-inline {
         margin-top: 6px;
         display: inline-flex;
@@ -1955,6 +1984,33 @@ const html = `<!doctype html>
         background: #fff1f2;
         color: #9f1239;
       }
+      .aha-nudge .nudge-duel-call-sequence {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 9px;
+      }
+      .aha-nudge .nudge-duel-call-sequence.call-lead {
+        border-color: #86efac;
+        background: #ecfdf5;
+        color: #166534;
+      }
+      .aha-nudge .nudge-duel-call-sequence.call-rival {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .aha-nudge .nudge-duel-call-sequence.call-hold {
+        border-color: #fecaca;
+        background: #fff1f2;
+        color: #9f1239;
+      }
       .aha-nudge .nudge-duel-plan {
         margin-top: 4px;
         border-radius: 10px;
@@ -2494,6 +2550,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_DUEL_CALL_CONFIDENCE_LABEL = ${JSON.stringify(queueNudgeDuelCallConfidenceLabel)};
       const QUEUE_NUDGE_DUEL_CALL_STABILITY_LABEL = ${JSON.stringify(queueNudgeDuelCallStabilityLabel)};
       const QUEUE_NUDGE_DUEL_CALL_RISK_LABEL = ${JSON.stringify(queueNudgeDuelCallRiskLabel)};
+      const QUEUE_NUDGE_DUEL_CALL_SEQUENCE_LABEL = ${JSON.stringify(queueNudgeDuelCallSequenceLabel)};
       const QUEUE_NUDGE_DUEL_TREND_LABEL = ${JSON.stringify(queueNudgeDuelTrendLabel)};
       const QUEUE_NUDGE_DUEL_SERIES_LABEL = ${JSON.stringify(queueNudgeDuelSeriesLabel)};
       const QUEUE_NUDGE_DUEL_PLAN_LABEL = ${JSON.stringify(queueNudgeDuelPlanLabel)};
@@ -3387,6 +3444,34 @@ const html = `<!doctype html>
         return { label: "High shift risk", tone: "call-hold", hint: shifts + "/" + windows + " shifts" };
       }
 
+      function duelCallRoleSymbol(role) {
+        const value = String(role || "hold").toLowerCase();
+        if (value === "lead") return "L";
+        if (value === "rival") return "R";
+        return "H";
+      }
+
+      function duelCallRoleTone(role) {
+        const value = String(role || "hold").toLowerCase();
+        if (value === "lead") return "call-lead";
+        if (value === "rival") return "call-rival";
+        return "call-hold";
+      }
+
+      function ahaDuelCallSequenceMeta(points = ahaDuelCallTrendPoints(), limit = 6) {
+        if (!points.length) {
+          return { label: "No sequence", tone: "call-hold", hint: "Awaiting duel calls" };
+        }
+        const recent = points.slice(-Math.max(2, Number(limit) || 2));
+        const label = recent.map((point) => duelCallRoleSymbol(point?.role)).join(" → ");
+        const lastRole = String(recent[recent.length - 1]?.role || "hold");
+        return {
+          label,
+          tone: duelCallRoleTone(lastRole),
+          hint: "Last " + recent.length + " calls",
+        };
+      }
+
       function ahaDuelGapTrendMeta(points = ahaDuelGapTrendPoints()) {
         if (!points.length) return { label: "No trend", tone: "edge-mid" };
         if (points.length < 2) return { label: "Baseline", tone: "edge-mid" };
@@ -3452,6 +3537,7 @@ const html = `<!doctype html>
         const duelCallConfidence = ahaDuelCallConfidenceMeta();
         const duelCallStability = ahaDuelCallStabilityMeta();
         const duelCallRisk = ahaDuelCallRiskMeta();
+        const duelCallSequence = ahaDuelCallSequenceMeta();
         const duelTrend = ahaDuelGapTrendMeta();
         const lines = ["Aha Decision Brief", QUEUE_NUDGE_BRIEF_CONTEXT_LABEL + ": " + decisionBriefContextSummary(), story || "Storyline unavailable."];
         if (duel) {
@@ -3477,6 +3563,9 @@ const html = `<!doctype html>
         }
         if (duelCallRisk) {
           lines.push(QUEUE_NUDGE_DUEL_CALL_RISK_LABEL + ": " + duelCallRisk.label + " · " + duelCallRisk.hint);
+        }
+        if (duelCallSequence) {
+          lines.push(QUEUE_NUDGE_DUEL_CALL_SEQUENCE_LABEL + ": " + duelCallSequence.label + " · " + duelCallSequence.hint);
         }
         if (duelTrend) {
           lines.push(QUEUE_NUDGE_DUEL_TREND_LABEL + ": " + duelTrend.label);
@@ -3841,6 +3930,7 @@ const html = `<!doctype html>
         const callConfidence = ahaDuelCallConfidenceMeta();
         const callStability = ahaDuelCallStabilityMeta();
         const callRisk = ahaDuelCallRiskMeta();
+        const callSequence = ahaDuelCallSequenceMeta();
         const plan = ahaDuelActionPlanMeta(ranked);
         if (!duel || !plan) return "";
         return (
@@ -3852,6 +3942,7 @@ const html = `<!doctype html>
           (callConfidence ? QUEUE_NUDGE_DUEL_CALL_CONFIDENCE_LABEL + ": " + callConfidence.label + " · " + callConfidence.hint + "\n" : "") +
           (callStability ? QUEUE_NUDGE_DUEL_CALL_STABILITY_LABEL + ": " + callStability.label + " · " + callStability.hint + "\n" : "") +
           (callRisk ? QUEUE_NUDGE_DUEL_CALL_RISK_LABEL + ": " + callRisk.label + " · " + callRisk.hint + "\n" : "") +
+          (callSequence ? QUEUE_NUDGE_DUEL_CALL_SEQUENCE_LABEL + ": " + callSequence.label + " · " + callSequence.hint + "\n" : "") +
           QUEUE_NUDGE_DUEL_PLAN_LABEL +
           ": " +
           plan.summary +
@@ -3868,6 +3959,7 @@ const html = `<!doctype html>
         const callConfidence = ahaDuelCallConfidenceMeta();
         const callStability = ahaDuelCallStabilityMeta();
         const callRisk = ahaDuelCallRiskMeta();
+        const callSequence = ahaDuelCallSequenceMeta();
         if (!duel || !call) return "";
         return (
           "Aha Duel Call\n" +
@@ -3881,7 +3973,8 @@ const html = `<!doctype html>
           (callTrend ? "\n" + QUEUE_NUDGE_DUEL_CALL_TREND_LABEL + ": " + callTrend.label : "") +
           (callConfidence ? "\n" + QUEUE_NUDGE_DUEL_CALL_CONFIDENCE_LABEL + ": " + callConfidence.label + " · " + callConfidence.hint : "") +
           (callStability ? "\n" + QUEUE_NUDGE_DUEL_CALL_STABILITY_LABEL + ": " + callStability.label + " · " + callStability.hint : "") +
-          (callRisk ? "\n" + QUEUE_NUDGE_DUEL_CALL_RISK_LABEL + ": " + callRisk.label + " · " + callRisk.hint : "")
+          (callRisk ? "\n" + QUEUE_NUDGE_DUEL_CALL_RISK_LABEL + ": " + callRisk.label + " · " + callRisk.hint : "") +
+          (callSequence ? "\n" + QUEUE_NUDGE_DUEL_CALL_SEQUENCE_LABEL + ": " + callSequence.label + " · " + callSequence.hint : "")
         );
       }
 
@@ -5743,6 +5836,14 @@ const html = `<!doctype html>
                 callRiskEl.textContent = QUEUE_NUDGE_DUEL_CALL_RISK_LABEL + ": " + duelCallRisk.label + " · " + duelCallRisk.hint;
                 duelEl.appendChild(callRiskEl);
               }
+              const duelCallSequence = ahaDuelCallSequenceMeta();
+              if (duelCallSequence) {
+                const callSequenceEl = document.createElement("span");
+                callSequenceEl.className = "nudge-duel-call-sequence " + duelCallSequence.tone;
+                callSequenceEl.textContent =
+                  QUEUE_NUDGE_DUEL_CALL_SEQUENCE_LABEL + ": " + duelCallSequence.label + " · " + duelCallSequence.hint;
+                duelEl.appendChild(callSequenceEl);
+              }
               const duelPlan = ahaDuelActionPlanMeta(ahaPool);
               if (duelPlan) {
                 const planEl = document.createElement("div");
@@ -6633,6 +6734,7 @@ const html = `<!doctype html>
         const duelCallConfidence = ahaDuelCallConfidenceMeta();
         const duelCallStability = ahaDuelCallStabilityMeta();
         const duelCallRisk = ahaDuelCallRiskMeta();
+        const duelCallSequence = ahaDuelCallSequenceMeta();
         const duelPlan = ahaDuelActionPlanMeta(rankedPool);
         const duelTrend = ahaDuelGapTrendMeta();
         const briefPreview = ahaDecisionBriefPreview(rankedPool, 4);
@@ -6709,6 +6811,13 @@ const html = `<!doctype html>
             duelCallRiskEl.className = "duel-call-risk-inline " + duelCallRisk.tone;
             duelCallRiskEl.textContent = QUEUE_NUDGE_DUEL_CALL_RISK_LABEL + ": " + duelCallRisk.label + " · " + duelCallRisk.hint;
             storyHost.appendChild(duelCallRiskEl);
+          }
+          if (duelCallSequence) {
+            const duelCallSequenceEl = document.createElement("span");
+            duelCallSequenceEl.className = "duel-call-sequence-inline " + duelCallSequence.tone;
+            duelCallSequenceEl.textContent =
+              QUEUE_NUDGE_DUEL_CALL_SEQUENCE_LABEL + ": " + duelCallSequence.label + " · " + duelCallSequence.hint;
+            storyHost.appendChild(duelCallSequenceEl);
           }
           if (duelTrend) {
             const duelTrendEl = document.createElement("span");
