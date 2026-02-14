@@ -1,8 +1,0 @@
-{
-    "id": "case_003",
-    "title": "Technical blog about web content extraction",
-    "source_type": "web",
-    "intent_text": "I want a reliable extraction approach for MVP, with a clear fallback when parsing fails.",
-    "extracted_text": "The post compares lightweight readability-based extraction with headless browser rendering. It argues that for MVP, a readability parser plus careful normalization is usually enough, while headless browsers add complexity. It recommends storing the normalized text and a hash for reproducibility. When extraction fails, it suggests a user-facing fallback: allow pasting the article text manually. The author also stresses instrumenting extraction failures with error codes and retryability flags."
-  }
-  

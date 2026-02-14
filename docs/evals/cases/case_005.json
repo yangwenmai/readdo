@@ -1,8 +1,0 @@
-{
-    "id": "case_005",
-    "title": "Article with low relevance to intent",
-    "source_type": "web",
-    "intent_text": "I want practical guidance for building Read→Do: architecture, schemas, state machine, and evals.",
-    "extracted_text": "This piece is a travelogue describing a weekend hike and the author's feelings about nature. It contains reflections on scenery, weather, and personal memories. There are no frameworks, checklists, or practical system design guidance. The writing is poetic and does not propose actionable steps or technical details."
-  }
-  
