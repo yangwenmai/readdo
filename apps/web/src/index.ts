@@ -34,6 +34,7 @@ const shortcutGuideItems = [
   { key: "Alt+M", label: "Run Duel Call" },
   { key: "Alt+P", label: "Run Signal Protocol" },
   { key: "Alt+L", label: "Run Signal Command" },
+  { key: "Alt+Shift+L", label: "Copy Signal Command" },
   { key: "Alt+Shift+P", label: "Copy Signal Protocol" },
   { key: "E", label: "Open Aha Rival" },
   { key: "Shift+E", label: "Copy Aha Duel" },
@@ -163,9 +164,11 @@ const queueNudgeRunSignalProtocolLabel = "Run Signal Protocol (Alt+P)";
 const queueNudgeRunSignalCommandLabel = "Run Signal Command (Alt+L)";
 const queueNudgeCopySignalHandoffLabel = "Copy Signal Handoff";
 const queueNudgeCopySignalConsensusLabel = "Copy Signal Consensus";
+const queueNudgeCopySignalCommandLabel = "Copy Signal Command (Alt+Shift+L)";
 const queueNudgeCopySignalProtocolLabel = "Copy Signal Protocol (Alt+Shift+P)";
 const queueNudgeDownloadSignalHandoffLabel = "Download Signal Handoff";
 const queueNudgeDownloadSignalConsensusLabel = "Download Signal Consensus";
+const queueNudgeDownloadSignalCommandLabel = "Download Signal Command";
 const queueNudgeDownloadSignalProtocolLabel = "Download Signal Protocol";
 const queueNudgeCopyDuelCallLabel = "Copy Duel Call (Alt+C)";
 const queueNudgeCopyDuelSignalsLabel = "Copy Duel Signals (Alt+S)";
@@ -4344,9 +4347,11 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_RUN_SIGNAL_COMMAND_LABEL = ${JSON.stringify(queueNudgeRunSignalCommandLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_HANDOFF_LABEL = ${JSON.stringify(queueNudgeCopySignalHandoffLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_CONSENSUS_LABEL = ${JSON.stringify(queueNudgeCopySignalConsensusLabel)};
+      const QUEUE_NUDGE_COPY_SIGNAL_COMMAND_LABEL = ${JSON.stringify(queueNudgeCopySignalCommandLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_PROTOCOL_LABEL = ${JSON.stringify(queueNudgeCopySignalProtocolLabel)};
       const QUEUE_NUDGE_DOWNLOAD_SIGNAL_HANDOFF_LABEL = ${JSON.stringify(queueNudgeDownloadSignalHandoffLabel)};
       const QUEUE_NUDGE_DOWNLOAD_SIGNAL_CONSENSUS_LABEL = ${JSON.stringify(queueNudgeDownloadSignalConsensusLabel)};
+      const QUEUE_NUDGE_DOWNLOAD_SIGNAL_COMMAND_LABEL = ${JSON.stringify(queueNudgeDownloadSignalCommandLabel)};
       const QUEUE_NUDGE_DOWNLOAD_SIGNAL_PROTOCOL_LABEL = ${JSON.stringify(queueNudgeDownloadSignalProtocolLabel)};
       const QUEUE_NUDGE_COPY_DUEL_CALL_LABEL = ${JSON.stringify(queueNudgeCopyDuelCallLabel)};
       const QUEUE_NUDGE_COPY_DUEL_SIGNALS_LABEL = ${JSON.stringify(queueNudgeCopyDuelSignalsLabel)};
@@ -7728,6 +7733,30 @@ const html = `<!doctype html>
         return lines.join("\\n");
       }
 
+      function ahaDuelSignalConsensusCommandText(poolItems) {
+        const ranked = sortedAhaItems(poolItems);
+        if (ranked.length < 2) return "";
+        const trigger = ahaDuelSignalConsensusTriggerMeta(ranked);
+        const protocol = ahaDuelSignalConsensusProtocolMeta(ranked);
+        const cadence = ahaDuelSignalConsensusProtocolCadenceMeta();
+        const pressure = ahaDuelSignalConsensusProtocolPressureMeta();
+        const command = ahaDuelSignalConsensusProtocolCommandMeta(ranked, trigger, protocol, cadence, pressure);
+        if (!command || !trigger || !protocol) return "";
+        const lines = [
+          "Aha Duel Signal Command",
+          QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_COMMAND_LABEL + ": " + command.label + " · " + command.hint,
+          QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_TRIGGER_LABEL + ": " + trigger.label + " · " + trigger.hint,
+          QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_LABEL + ": " + protocol.label + " · " + protocol.hint,
+        ];
+        if (cadence) {
+          lines.push(QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_CADENCE_LABEL + ": " + cadence.label + " · " + cadence.hint);
+        }
+        if (pressure) {
+          lines.push(QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_PRESSURE_LABEL + ": " + pressure.label + " · " + pressure.hint);
+        }
+        return lines.join("\\n");
+      }
+
       function ahaDuelSnapshotText(poolItems) {
         const ranked = sortedAhaItems(poolItems);
         if (ranked.length < 2) return "";
@@ -10132,6 +10161,14 @@ const html = `<!doctype html>
                 await runCopyAhaDuelSignalProtocolAction(copySignalProtocolBtn);
               });
               actionsEl.appendChild(copySignalProtocolBtn);
+              const copySignalCommandBtn = document.createElement("button");
+              copySignalCommandBtn.type = "button";
+              copySignalCommandBtn.className = "secondary";
+              copySignalCommandBtn.textContent = QUEUE_NUDGE_COPY_SIGNAL_COMMAND_LABEL;
+              copySignalCommandBtn.addEventListener("click", async () => {
+                await runCopyAhaDuelSignalCommandAction(copySignalCommandBtn);
+              });
+              actionsEl.appendChild(copySignalCommandBtn);
               const downloadSignalHandoffBtn = document.createElement("button");
               downloadSignalHandoffBtn.type = "button";
               downloadSignalHandoffBtn.className = "secondary";
@@ -10156,6 +10193,14 @@ const html = `<!doctype html>
                 await runDownloadAhaDuelSignalProtocolAction(downloadSignalProtocolBtn);
               });
               actionsEl.appendChild(downloadSignalProtocolBtn);
+              const downloadSignalCommandBtn = document.createElement("button");
+              downloadSignalCommandBtn.type = "button";
+              downloadSignalCommandBtn.className = "secondary";
+              downloadSignalCommandBtn.textContent = QUEUE_NUDGE_DOWNLOAD_SIGNAL_COMMAND_LABEL;
+              downloadSignalCommandBtn.addEventListener("click", async () => {
+                await runDownloadAhaDuelSignalCommandAction(downloadSignalCommandBtn);
+              });
+              actionsEl.appendChild(downloadSignalCommandBtn);
               const copyDuelSnapshotBtn = document.createElement("button");
               copyDuelSnapshotBtn.type = "button";
               copyDuelSnapshotBtn.className = "secondary";
@@ -11540,6 +11585,14 @@ const html = `<!doctype html>
             await runCopyAhaDuelSignalProtocolAction(copySignalProtocolBtn);
           });
           actionsEl.appendChild(copySignalProtocolBtn);
+          const copySignalCommandBtn = document.createElement("button");
+          copySignalCommandBtn.type = "button";
+          copySignalCommandBtn.className = "secondary";
+          copySignalCommandBtn.textContent = QUEUE_NUDGE_COPY_SIGNAL_COMMAND_LABEL;
+          copySignalCommandBtn.addEventListener("click", async () => {
+            await runCopyAhaDuelSignalCommandAction(copySignalCommandBtn);
+          });
+          actionsEl.appendChild(copySignalCommandBtn);
           const downloadSignalHandoffBtn = document.createElement("button");
           downloadSignalHandoffBtn.type = "button";
           downloadSignalHandoffBtn.className = "secondary";
@@ -11564,6 +11617,14 @@ const html = `<!doctype html>
             await runDownloadAhaDuelSignalProtocolAction(downloadSignalProtocolBtn);
           });
           actionsEl.appendChild(downloadSignalProtocolBtn);
+          const downloadSignalCommandBtn = document.createElement("button");
+          downloadSignalCommandBtn.type = "button";
+          downloadSignalCommandBtn.className = "secondary";
+          downloadSignalCommandBtn.textContent = QUEUE_NUDGE_DOWNLOAD_SIGNAL_COMMAND_LABEL;
+          downloadSignalCommandBtn.addEventListener("click", async () => {
+            await runDownloadAhaDuelSignalCommandAction(downloadSignalCommandBtn);
+          });
+          actionsEl.appendChild(downloadSignalCommandBtn);
           const copyDuelSnapshotBtn = document.createElement("button");
           copyDuelSnapshotBtn.type = "button";
           copyDuelSnapshotBtn.className = "secondary";
@@ -12834,6 +12895,32 @@ const html = `<!doctype html>
         );
       }
 
+      async function runCopyAhaDuelSignalCommandAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_copy_aha_duel_signal_command",
+            label: "Copy Signal Command",
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const pool = visibleItems.length ? visibleItems : allItems;
+              const text = ahaDuelSignalConsensusCommandText(pool);
+              if (!text) {
+                errorEl.textContent = "Duel signal command is unavailable under current filters.";
+                return;
+              }
+              const copied = await copyTextToClipboard(text, {
+                success: "Copied duel signal command.",
+                failure: "Copy duel signal command failed.",
+              });
+              if (!copied) {
+                throw new Error("Copy duel signal command failed.");
+              }
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
       async function runDownloadAhaDuelSignalHandoffAction(button = null) {
         await runActionWithFeedback(
           {
@@ -12918,6 +13005,36 @@ const html = `<!doctype html>
               document.body.removeChild(anchor);
               URL.revokeObjectURL(url);
               errorEl.textContent = "Downloaded duel signal protocol.";
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
+      async function runDownloadAhaDuelSignalCommandAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_download_aha_duel_signal_command",
+            label: "Download Signal Command",
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const pool = visibleItems.length ? visibleItems : allItems;
+              const text = ahaDuelSignalConsensusCommandText(pool);
+              if (!text) {
+                errorEl.textContent = "Duel signal command is unavailable under current filters.";
+                return;
+              }
+              const fileName = "aha_signal_command_" + new Date().toISOString().replace(/[:.]/g, "-") + ".txt";
+              const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+              const url = URL.createObjectURL(blob);
+              const anchor = document.createElement("a");
+              anchor.href = url;
+              anchor.download = fileName;
+              document.body.appendChild(anchor);
+              anchor.click();
+              document.body.removeChild(anchor);
+              URL.revokeObjectURL(url);
+              errorEl.textContent = "Downloaded duel signal command.";
             },
           },
           { button, localFeedbackEl: queueActionBannerEl },
@@ -14743,6 +14860,7 @@ const html = `<!doctype html>
 
       function shortcutChordByEvent(event) {
         const key = event.key.toLowerCase();
+        if (event.altKey && event.shiftKey && key === "l") return "alt+shift+l";
         if (event.altKey && event.shiftKey && key === "p") return "alt+shift+p";
         if (event.altKey && (key === "1" || key === "2" || key === "3")) {
           return "alt+" + key;
@@ -14855,6 +14973,9 @@ const html = `<!doctype html>
         },
         "alt+l": () => {
           void runDuelSignalCommandAction();
+        },
+        "alt+shift+l": () => {
+          void runCopyAhaDuelSignalCommandAction();
         },
         "alt+shift+p": () => {
           void runCopyAhaDuelSignalProtocolAction();
