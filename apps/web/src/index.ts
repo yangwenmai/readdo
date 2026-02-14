@@ -137,6 +137,7 @@ const queueNudgeToggleDuelLabel = "Toggle Duel Pair (Alt+Z)";
 const queueNudgeRunDuelLabel = "Run Duel Pair (Alt+Q)";
 const queueNudgeRunDuelCallLabel = "Run Duel Call (Alt+M)";
 const queueNudgeRunSignalHandoffLabel = "Run Signal Handoff";
+const queueNudgeRunSignalConsensusLabel = "Run Signal Consensus";
 const queueNudgeCopySignalHandoffLabel = "Copy Signal Handoff";
 const queueNudgeDownloadSignalHandoffLabel = "Download Signal Handoff";
 const queueNudgeCopyDuelCallLabel = "Copy Duel Call (Alt+C)";
@@ -3293,6 +3294,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_RUN_DUEL_LABEL = ${JSON.stringify(queueNudgeRunDuelLabel)};
       const QUEUE_NUDGE_RUN_DUEL_CALL_LABEL = ${JSON.stringify(queueNudgeRunDuelCallLabel)};
       const QUEUE_NUDGE_RUN_SIGNAL_HANDOFF_LABEL = ${JSON.stringify(queueNudgeRunSignalHandoffLabel)};
+      const QUEUE_NUDGE_RUN_SIGNAL_CONSENSUS_LABEL = ${JSON.stringify(queueNudgeRunSignalConsensusLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_HANDOFF_LABEL = ${JSON.stringify(queueNudgeCopySignalHandoffLabel)};
       const QUEUE_NUDGE_DOWNLOAD_SIGNAL_HANDOFF_LABEL = ${JSON.stringify(queueNudgeDownloadSignalHandoffLabel)};
       const QUEUE_NUDGE_COPY_DUEL_CALL_LABEL = ${JSON.stringify(queueNudgeCopyDuelCallLabel)};
@@ -4574,21 +4576,21 @@ const html = `<!doctype html>
         const handoffRole = normalizeHandoffRole(handoff.role);
         const trendLabel = String(trend.label || "").toLowerCase();
         if (trendLabel.includes("mixed handoff")) {
-          return { label: "Mixed consensus", tone: "call-rival", hint: "Handoff roles are rotating across recent samples" };
+          return { role: "mixed", label: "Mixed consensus", tone: "call-rival", hint: "Handoff roles are rotating across recent samples" };
         }
         if (callRole === "hold" || handoffRole === "hold") {
-          return { label: "Hold consensus", tone: "call-hold", hint: "Call and handoff both prefer risk control" };
+          return { role: "hold", label: "Hold consensus", tone: "call-hold", hint: "Call and handoff both prefer risk control" };
         }
         if (callRole === handoffRole && handoffRole === "lead") {
-          return { label: "Aligned Lead", tone: "call-lead", hint: "Call and handoff both back the lead path" };
+          return { role: "lead", label: "Aligned Lead", tone: "call-lead", hint: "Call and handoff both back the lead path" };
         }
         if (callRole === handoffRole && handoffRole === "rival") {
-          return { label: "Aligned Rival", tone: "call-rival", hint: "Call and handoff both back the rival path" };
+          return { role: "rival", label: "Aligned Rival", tone: "call-rival", hint: "Call and handoff both back the rival path" };
         }
         if (handoffRole === "split") {
-          return { label: "Split consensus", tone: "call-rival", hint: "Call is singular but handoff suggests split execution" };
+          return { role: "split", label: "Split consensus", tone: "call-rival", hint: "Call is singular but handoff suggests split execution" };
         }
-        return { label: "Conflict", tone: "call-hold", hint: "Call and handoff disagree, re-check confidence before running" };
+        return { role: "conflict", label: "Conflict", tone: "call-hold", hint: "Call and handoff disagree, re-check confidence before running" };
       }
 
       function ahaDuelSignalPulseBarsHtml(points = ahaDuelSignalPulsePoints()) {
@@ -7537,6 +7539,14 @@ const html = `<!doctype html>
                 await runDuelSignalHandoffAction(runSignalHandoffBtn);
               });
               actionsEl.appendChild(runSignalHandoffBtn);
+              const runSignalConsensusBtn = document.createElement("button");
+              runSignalConsensusBtn.type = "button";
+              runSignalConsensusBtn.className = "secondary";
+              runSignalConsensusBtn.textContent = QUEUE_NUDGE_RUN_SIGNAL_CONSENSUS_LABEL;
+              runSignalConsensusBtn.addEventListener("click", async () => {
+                await runDuelSignalConsensusAction(runSignalConsensusBtn);
+              });
+              actionsEl.appendChild(runSignalConsensusBtn);
               duelEl.appendChild(actionsEl);
               ahaNudgeEl.appendChild(duelEl);
             }
@@ -8664,6 +8674,14 @@ const html = `<!doctype html>
             await runDuelSignalHandoffAction(runSignalHandoffBtn);
           });
           actionsEl.appendChild(runSignalHandoffBtn);
+          const runSignalConsensusBtn = document.createElement("button");
+          runSignalConsensusBtn.type = "button";
+          runSignalConsensusBtn.className = "secondary";
+          runSignalConsensusBtn.textContent = QUEUE_NUDGE_RUN_SIGNAL_CONSENSUS_LABEL;
+          runSignalConsensusBtn.addEventListener("click", async () => {
+            await runDuelSignalConsensusAction(runSignalConsensusBtn);
+          });
+          actionsEl.appendChild(runSignalConsensusBtn);
         }
         if (String(top?.id) !== String(item?.id)) {
           const leadBtn = document.createElement("button");
@@ -10189,6 +10207,80 @@ const html = `<!doctype html>
                 handoff.label +
                 " · " +
                 role +
+                " #" +
+                target.id +
+                " (" +
+                meta.value +
+                ") · " +
+                primary.label +
+                ".";
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
+      async function runDuelSignalConsensusAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_run_duel_signal_consensus",
+            label: "Run Duel Signal Consensus",
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const pool = visibleItems.length ? visibleItems : allItems;
+              const consensus = ahaDuelSignalConsensusMeta(pool);
+              if (!consensus) {
+                errorEl.textContent = "No duel signal consensus available under current filters.";
+                return;
+              }
+              const consensusRole = String(consensus.role || "conflict");
+              const ranked = sortedAhaItems(pool);
+              const lead = ranked[0] || null;
+              const rival = ranked[1] || null;
+              if (consensusRole === "hold" || consensusRole === "mixed" || consensusRole === "conflict") {
+                errorEl.textContent = "Signal consensus suggests hold: " + consensus.hint + ".";
+                return;
+              }
+              if (consensusRole === "split") {
+                if (!lead || !rival) {
+                  errorEl.textContent = "Signal consensus split execution requires both lead and rival candidates.";
+                  return;
+                }
+                const outcomes = [];
+                for (const [index, item] of [lead, rival].entries()) {
+                  await selectItem(item.id);
+                  focusQueueItemCard(item.id, { revealCollapsed: true });
+                  const primary = primaryActionForItem(item);
+                  if (!primary || primary.disabled) {
+                    outcomes.push((index === 0 ? "Lead" : "Rival") + " #" + item.id + ": no runnable action");
+                    continue;
+                  }
+                  await primary.action();
+                  outcomes.push((index === 0 ? "Lead" : "Rival") + " #" + item.id + ": " + primary.label);
+                }
+                errorEl.textContent = "Signal consensus executed → Split consensus · " + outcomes.join(" · ");
+                return;
+              }
+              const target = consensusRole === "rival" ? rival : lead;
+              const roleLabel = consensusRole === "rival" ? "Rival" : "Lead";
+              if (!target) {
+                errorEl.textContent = "Signal consensus target is unavailable under current filters.";
+                return;
+              }
+              await selectItem(target.id);
+              focusQueueItemCard(target.id, { revealCollapsed: true });
+              const primary = primaryActionForItem(target);
+              if (!primary || primary.disabled) {
+                errorEl.textContent = "Signal consensus target #" + target.id + " has no runnable action.";
+                return;
+              }
+              await primary.action();
+              const meta = ahaIndexMetaForItem(target);
+              errorEl.textContent =
+                "Signal consensus executed → " +
+                consensus.label +
+                " · " +
+                roleLabel +
                 " #" +
                 target.id +
                 " (" +
