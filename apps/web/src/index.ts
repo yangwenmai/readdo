@@ -33,6 +33,7 @@ const shortcutGuideItems = [
   { key: "Alt+S", label: "Copy Duel Signals" },
   { key: "Alt+M", label: "Run Duel Call" },
   { key: "Alt+P", label: "Run Signal Protocol" },
+  { key: "Alt+L", label: "Run Signal Command" },
   { key: "Alt+Shift+P", label: "Copy Signal Protocol" },
   { key: "E", label: "Open Aha Rival" },
   { key: "Shift+E", label: "Copy Aha Duel" },
@@ -159,6 +160,7 @@ const queueNudgeRunDuelCallLabel = "Run Duel Call (Alt+M)";
 const queueNudgeRunSignalHandoffLabel = "Run Signal Handoff";
 const queueNudgeRunSignalConsensusLabel = "Run Signal Consensus";
 const queueNudgeRunSignalProtocolLabel = "Run Signal Protocol (Alt+P)";
+const queueNudgeRunSignalCommandLabel = "Run Signal Command (Alt+L)";
 const queueNudgeCopySignalHandoffLabel = "Copy Signal Handoff";
 const queueNudgeCopySignalConsensusLabel = "Copy Signal Consensus";
 const queueNudgeCopySignalProtocolLabel = "Copy Signal Protocol (Alt+Shift+P)";
@@ -4339,6 +4341,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_RUN_SIGNAL_HANDOFF_LABEL = ${JSON.stringify(queueNudgeRunSignalHandoffLabel)};
       const QUEUE_NUDGE_RUN_SIGNAL_CONSENSUS_LABEL = ${JSON.stringify(queueNudgeRunSignalConsensusLabel)};
       const QUEUE_NUDGE_RUN_SIGNAL_PROTOCOL_LABEL = ${JSON.stringify(queueNudgeRunSignalProtocolLabel)};
+      const QUEUE_NUDGE_RUN_SIGNAL_COMMAND_LABEL = ${JSON.stringify(queueNudgeRunSignalCommandLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_HANDOFF_LABEL = ${JSON.stringify(queueNudgeCopySignalHandoffLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_CONSENSUS_LABEL = ${JSON.stringify(queueNudgeCopySignalConsensusLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_PROTOCOL_LABEL = ${JSON.stringify(queueNudgeCopySignalProtocolLabel)};
@@ -7313,6 +7316,7 @@ const html = `<!doctype html>
         const signalConsensusProtocolRegime = ahaDuelSignalConsensusProtocolRegimeMeta();
         const signalConsensusProtocolCadence = ahaDuelSignalConsensusProtocolCadenceMeta();
         const signalConsensusProtocolPressure = ahaDuelSignalConsensusProtocolPressureMeta();
+        const signalConsensusProtocolCommand = ahaDuelSignalConsensusProtocolCommandMeta(ranked);
         if (call) lines.push(QUEUE_NUDGE_DUEL_CALL_LABEL + ": " + call.label + " · " + call.hint);
         if (callTrend) lines.push(QUEUE_NUDGE_DUEL_CALL_TREND_LABEL + ": " + callTrend.label);
         if (callConfidence) lines.push(QUEUE_NUDGE_DUEL_CALL_CONFIDENCE_LABEL + ": " + callConfidence.label + " · " + callConfidence.hint);
@@ -10232,6 +10236,14 @@ const html = `<!doctype html>
                 await runDuelSignalProtocolAction(runSignalProtocolBtn);
               });
               actionsEl.appendChild(runSignalProtocolBtn);
+              const runSignalCommandBtn = document.createElement("button");
+              runSignalCommandBtn.type = "button";
+              runSignalCommandBtn.className = "secondary";
+              runSignalCommandBtn.textContent = QUEUE_NUDGE_RUN_SIGNAL_COMMAND_LABEL;
+              runSignalCommandBtn.addEventListener("click", async () => {
+                await runDuelSignalCommandAction(runSignalCommandBtn);
+              });
+              actionsEl.appendChild(runSignalCommandBtn);
               duelEl.appendChild(actionsEl);
               ahaNudgeEl.appendChild(duelEl);
             }
@@ -11632,6 +11644,14 @@ const html = `<!doctype html>
             await runDuelSignalProtocolAction(runSignalProtocolBtn);
           });
           actionsEl.appendChild(runSignalProtocolBtn);
+          const runSignalCommandBtn = document.createElement("button");
+          runSignalCommandBtn.type = "button";
+          runSignalCommandBtn.className = "secondary";
+          runSignalCommandBtn.textContent = QUEUE_NUDGE_RUN_SIGNAL_COMMAND_LABEL;
+          runSignalCommandBtn.addEventListener("click", async () => {
+            await runDuelSignalCommandAction(runSignalCommandBtn);
+          });
+          actionsEl.appendChild(runSignalCommandBtn);
         }
         if (String(top?.id) !== String(item?.id)) {
           const leadBtn = document.createElement("button");
@@ -13436,6 +13456,31 @@ const html = `<!doctype html>
         }
       }
 
+      async function runDuelSignalCommandAction(button = null) {
+        const visibleItems = visibleQueueItems();
+        const pool = visibleItems.length ? visibleItems : allItems;
+        const trigger = ahaDuelSignalConsensusTriggerMeta(pool);
+        const protocol = ahaDuelSignalConsensusProtocolMeta(pool);
+        const cadence = ahaDuelSignalConsensusProtocolCadenceMeta();
+        const pressure = ahaDuelSignalConsensusProtocolPressureMeta();
+        const command = ahaDuelSignalConsensusProtocolCommandMeta(pool, trigger, protocol, cadence, pressure);
+        if (!command || !trigger || !protocol) {
+          errorEl.textContent = "No duel signal command available under current filters.";
+          return;
+        }
+        if (command.label === "Hold command") {
+          errorEl.textContent = "Signal command hold: " + command.hint + " · " + trigger.label + ".";
+          return;
+        }
+        if (command.label === "Split command") {
+          await runDuelSignalConsensusAction(button);
+        } else {
+          await runDuelSignalProtocolAction(button);
+        }
+        const base = errorEl.textContent ? errorEl.textContent.replace(/\.$/, "") : "Signal command executed";
+        errorEl.textContent = base + " · " + command.label + " · " + command.hint + ".";
+      }
+
       async function runDownloadAhaSnapshotAction(button = null) {
         await runActionWithFeedback(
           {
@@ -14711,6 +14756,7 @@ const html = `<!doctype html>
         if (event.altKey && key === "s") return "alt+s";
         if (event.altKey && key === "m") return "alt+m";
         if (event.altKey && key === "p") return "alt+p";
+        if (event.altKey && key === "l") return "alt+l";
         if (event.shiftKey && key === "q") return "shift+q";
         if (event.shiftKey && key === "s") return "shift+s";
         if (event.shiftKey && key === "d") return "shift+d";
@@ -14806,6 +14852,9 @@ const html = `<!doctype html>
         },
         "alt+p": () => {
           void runDuelSignalProtocolAction();
+        },
+        "alt+l": () => {
+          void runDuelSignalCommandAction();
         },
         "alt+shift+p": () => {
           void runCopyAhaDuelSignalProtocolAction();
