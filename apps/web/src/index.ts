@@ -148,6 +148,7 @@ const queueNudgeRunDuelLabel = "Run Duel Pair (Alt+Q)";
 const queueNudgeRunDuelCallLabel = "Run Duel Call (Alt+M)";
 const queueNudgeRunSignalHandoffLabel = "Run Signal Handoff";
 const queueNudgeRunSignalConsensusLabel = "Run Signal Consensus";
+const queueNudgeRunSignalProtocolLabel = "Run Signal Protocol";
 const queueNudgeCopySignalHandoffLabel = "Copy Signal Handoff";
 const queueNudgeCopySignalConsensusLabel = "Copy Signal Consensus";
 const queueNudgeCopySignalProtocolLabel = "Copy Signal Protocol";
@@ -3874,6 +3875,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_RUN_DUEL_CALL_LABEL = ${JSON.stringify(queueNudgeRunDuelCallLabel)};
       const QUEUE_NUDGE_RUN_SIGNAL_HANDOFF_LABEL = ${JSON.stringify(queueNudgeRunSignalHandoffLabel)};
       const QUEUE_NUDGE_RUN_SIGNAL_CONSENSUS_LABEL = ${JSON.stringify(queueNudgeRunSignalConsensusLabel)};
+      const QUEUE_NUDGE_RUN_SIGNAL_PROTOCOL_LABEL = ${JSON.stringify(queueNudgeRunSignalProtocolLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_HANDOFF_LABEL = ${JSON.stringify(queueNudgeCopySignalHandoffLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_CONSENSUS_LABEL = ${JSON.stringify(queueNudgeCopySignalConsensusLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_PROTOCOL_LABEL = ${JSON.stringify(queueNudgeCopySignalProtocolLabel)};
@@ -9015,6 +9017,14 @@ const html = `<!doctype html>
                 await runDuelSignalConsensusAction(runSignalConsensusBtn);
               });
               actionsEl.appendChild(runSignalConsensusBtn);
+              const runSignalProtocolBtn = document.createElement("button");
+              runSignalProtocolBtn.type = "button";
+              runSignalProtocolBtn.className = "secondary";
+              runSignalProtocolBtn.textContent = QUEUE_NUDGE_RUN_SIGNAL_PROTOCOL_LABEL;
+              runSignalProtocolBtn.addEventListener("click", async () => {
+                await runDuelSignalProtocolAction(runSignalProtocolBtn);
+              });
+              actionsEl.appendChild(runSignalProtocolBtn);
               duelEl.appendChild(actionsEl);
               ahaNudgeEl.appendChild(duelEl);
             }
@@ -10301,6 +10311,14 @@ const html = `<!doctype html>
             await runDuelSignalConsensusAction(runSignalConsensusBtn);
           });
           actionsEl.appendChild(runSignalConsensusBtn);
+          const runSignalProtocolBtn = document.createElement("button");
+          runSignalProtocolBtn.type = "button";
+          runSignalProtocolBtn.className = "secondary";
+          runSignalProtocolBtn.textContent = QUEUE_NUDGE_RUN_SIGNAL_PROTOCOL_LABEL;
+          runSignalProtocolBtn.addEventListener("click", async () => {
+            await runDuelSignalProtocolAction(runSignalProtocolBtn);
+          });
+          actionsEl.appendChild(runSignalProtocolBtn);
         }
         if (String(top?.id) !== String(item?.id)) {
           const leadBtn = document.createElement("button");
@@ -12059,6 +12077,26 @@ const html = `<!doctype html>
           },
           { button, localFeedbackEl: queueActionBannerEl },
         );
+      }
+
+      async function runDuelSignalProtocolAction(button = null) {
+        const visibleItems = visibleQueueItems();
+        const pool = visibleItems.length ? visibleItems : allItems;
+        const trigger = ahaDuelSignalConsensusTriggerMeta(pool);
+        const protocol = ahaDuelSignalConsensusProtocolMeta(pool);
+        if (!trigger || !protocol) {
+          errorEl.textContent = "No duel signal protocol available under current filters.";
+          return;
+        }
+        if (trigger.label === "No trigger") {
+          errorEl.textContent = "Signal protocol pending: " + trigger.hint + " · " + protocol.label + ".";
+          return;
+        }
+        await runDuelSignalConsensusAction(button);
+        if (errorEl.textContent) {
+          const base = errorEl.textContent.replace(/\.$/, "");
+          errorEl.textContent = base + " · " + protocol.label + ".";
+        }
       }
 
       async function runDownloadAhaSnapshotAction(button = null) {
