@@ -114,6 +114,7 @@ const queueNudgeDuelCallRiskLabel = "Duel Call Shift Risk";
 const queueNudgeDuelCallSequenceLabel = "Duel Call Sequence";
 const queueNudgeDuelSignalLabel = "Duel Signal Index";
 const queueNudgeDuelSignalPulseLabel = "Duel Signal Pulse";
+const queueNudgeDuelSnapshotLabel = "Duel Snapshot";
 const queueNudgeDuelTrendLabel = "Duel Gap Trend";
 const queueNudgeDuelSeriesLabel = "Lead-Rival";
 const queueNudgeDuelPlanLabel = "Duel Action Plan";
@@ -1168,6 +1169,16 @@ const html = `<!doctype html>
         background: #fff1f2;
         color: #9f1239;
       }
+      .hero-story .duel-snapshot-inline {
+        margin-top: 6px;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 11px;
+        line-height: 1.42;
+        padding: 6px 8px;
+      }
       .hero-story .duel-trend-inline {
         margin-top: 6px;
         display: inline-flex;
@@ -2127,6 +2138,23 @@ const html = `<!doctype html>
         background: #fff1f2;
         color: #9f1239;
       }
+      .aha-nudge .nudge-duel-snapshot {
+        margin-top: 6px;
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        padding: 6px 8px;
+        display: grid;
+        gap: 2px;
+      }
+      .aha-nudge .nudge-duel-snapshot .label {
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .aha-nudge .nudge-duel-snapshot .body {
+        font-size: 12px;
+        line-height: 1.4;
+      }
       .aha-nudge .nudge-duel-plan {
         margin-top: 4px;
         border-radius: 10px;
@@ -2669,6 +2697,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_DUEL_CALL_SEQUENCE_LABEL = ${JSON.stringify(queueNudgeDuelCallSequenceLabel)};
       const QUEUE_NUDGE_DUEL_SIGNAL_LABEL = ${JSON.stringify(queueNudgeDuelSignalLabel)};
       const QUEUE_NUDGE_DUEL_SIGNAL_PULSE_LABEL = ${JSON.stringify(queueNudgeDuelSignalPulseLabel)};
+      const QUEUE_NUDGE_DUEL_SNAPSHOT_LABEL = ${JSON.stringify(queueNudgeDuelSnapshotLabel)};
       const QUEUE_NUDGE_DUEL_TREND_LABEL = ${JSON.stringify(queueNudgeDuelTrendLabel)};
       const QUEUE_NUDGE_DUEL_SERIES_LABEL = ${JSON.stringify(queueNudgeDuelSeriesLabel)};
       const QUEUE_NUDGE_DUEL_PLAN_LABEL = ${JSON.stringify(queueNudgeDuelPlanLabel)};
@@ -6104,6 +6133,18 @@ const html = `<!doctype html>
                   QUEUE_NUDGE_DUEL_SIGNAL_PULSE_LABEL + ": " + duelSignalPulse.label + " · " + duelSignalPulse.hint;
                 duelEl.appendChild(signalPulseEl);
               }
+              const duelSnapshot = ahaDuelSnapshotText(ahaPool);
+              if (duelSnapshot) {
+                const snapshotEl = document.createElement("div");
+                snapshotEl.className = "nudge-duel-snapshot";
+                snapshotEl.innerHTML =
+                  '<span class="label">' +
+                  QUEUE_NUDGE_DUEL_SNAPSHOT_LABEL +
+                  '</span><span class="body">' +
+                  duelSnapshot +
+                  "</span>";
+                duelEl.appendChild(snapshotEl);
+              }
               const duelPlan = ahaDuelActionPlanMeta(ahaPool);
               if (duelPlan) {
                 const planEl = document.createElement("div");
@@ -7013,6 +7054,7 @@ const html = `<!doctype html>
         const duelCallSequence = ahaDuelCallSequenceMeta();
         const duelSignal = ahaDuelSignalMeta(rankedPool);
         const duelSignalPulse = ahaDuelSignalPulseMeta();
+        const duelSnapshot = ahaDuelSnapshotText(rankedPool);
         const duelPlan = ahaDuelActionPlanMeta(rankedPool);
         const duelTrend = ahaDuelGapTrendMeta();
         const briefPreview = ahaDecisionBriefPreview(rankedPool, 4);
@@ -7109,6 +7151,12 @@ const html = `<!doctype html>
             duelSignalPulseEl.textContent =
               QUEUE_NUDGE_DUEL_SIGNAL_PULSE_LABEL + ": " + duelSignalPulse.label + " · " + duelSignalPulse.hint;
             storyHost.appendChild(duelSignalPulseEl);
+          }
+          if (duelSnapshot) {
+            const duelSnapshotEl = document.createElement("div");
+            duelSnapshotEl.className = "duel-snapshot-inline";
+            duelSnapshotEl.textContent = QUEUE_NUDGE_DUEL_SNAPSHOT_LABEL + ": " + duelSnapshot;
+            storyHost.appendChild(duelSnapshotEl);
           }
           if (duelTrend) {
             const duelTrendEl = document.createElement("span");
