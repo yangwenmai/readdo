@@ -134,6 +134,7 @@ const queueNudgeRunDuelLabel = "Run Duel Pair (Alt+Q)";
 const queueNudgeRunDuelCallLabel = "Run Duel Call (Alt+M)";
 const queueNudgeRunSignalHandoffLabel = "Run Signal Handoff";
 const queueNudgeCopySignalHandoffLabel = "Copy Signal Handoff";
+const queueNudgeDownloadSignalHandoffLabel = "Download Signal Handoff";
 const queueNudgeCopyDuelCallLabel = "Copy Duel Call (Alt+C)";
 const queueNudgeCopyDuelSignalsLabel = "Copy Duel Signals (Alt+S)";
 const queueNudgeCopyBriefLabel = "Copy Decision Brief (Shift+D)";
@@ -3060,6 +3061,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_RUN_DUEL_CALL_LABEL = ${JSON.stringify(queueNudgeRunDuelCallLabel)};
       const QUEUE_NUDGE_RUN_SIGNAL_HANDOFF_LABEL = ${JSON.stringify(queueNudgeRunSignalHandoffLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_HANDOFF_LABEL = ${JSON.stringify(queueNudgeCopySignalHandoffLabel)};
+      const QUEUE_NUDGE_DOWNLOAD_SIGNAL_HANDOFF_LABEL = ${JSON.stringify(queueNudgeDownloadSignalHandoffLabel)};
       const QUEUE_NUDGE_COPY_DUEL_CALL_LABEL = ${JSON.stringify(queueNudgeCopyDuelCallLabel)};
       const QUEUE_NUDGE_COPY_DUEL_SIGNALS_LABEL = ${JSON.stringify(queueNudgeCopyDuelSignalsLabel)};
       const QUEUE_NUDGE_COPY_BRIEF_LABEL = ${JSON.stringify(queueNudgeCopyBriefLabel)};
@@ -6944,6 +6946,14 @@ const html = `<!doctype html>
                 await runCopyAhaDuelSignalHandoffAction(copySignalHandoffBtn);
               });
               actionsEl.appendChild(copySignalHandoffBtn);
+              const downloadSignalHandoffBtn = document.createElement("button");
+              downloadSignalHandoffBtn.type = "button";
+              downloadSignalHandoffBtn.className = "secondary";
+              downloadSignalHandoffBtn.textContent = QUEUE_NUDGE_DOWNLOAD_SIGNAL_HANDOFF_LABEL;
+              downloadSignalHandoffBtn.addEventListener("click", async () => {
+                await runDownloadAhaDuelSignalHandoffAction(downloadSignalHandoffBtn);
+              });
+              actionsEl.appendChild(downloadSignalHandoffBtn);
               const copyDuelSnapshotBtn = document.createElement("button");
               copyDuelSnapshotBtn.type = "button";
               copyDuelSnapshotBtn.className = "secondary";
@@ -8016,6 +8026,14 @@ const html = `<!doctype html>
             await runCopyAhaDuelSignalHandoffAction(copySignalHandoffBtn);
           });
           actionsEl.appendChild(copySignalHandoffBtn);
+          const downloadSignalHandoffBtn = document.createElement("button");
+          downloadSignalHandoffBtn.type = "button";
+          downloadSignalHandoffBtn.className = "secondary";
+          downloadSignalHandoffBtn.textContent = QUEUE_NUDGE_DOWNLOAD_SIGNAL_HANDOFF_LABEL;
+          downloadSignalHandoffBtn.addEventListener("click", async () => {
+            await runDownloadAhaDuelSignalHandoffAction(downloadSignalHandoffBtn);
+          });
+          actionsEl.appendChild(downloadSignalHandoffBtn);
           const copyDuelSnapshotBtn = document.createElement("button");
           copyDuelSnapshotBtn.type = "button";
           copyDuelSnapshotBtn.className = "secondary";
@@ -9204,6 +9222,36 @@ const html = `<!doctype html>
               if (!copied) {
                 throw new Error("Copy duel signal handoff failed.");
               }
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
+      async function runDownloadAhaDuelSignalHandoffAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_download_aha_duel_signal_handoff",
+            label: "Download Signal Handoff",
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const pool = visibleItems.length ? visibleItems : allItems;
+              const text = ahaDuelSignalHandoffText(pool);
+              if (!text) {
+                errorEl.textContent = "Duel signal handoff is unavailable under current filters.";
+                return;
+              }
+              const fileName = "aha_signal_handoff_" + new Date().toISOString().replace(/[:.]/g, "-") + ".txt";
+              const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+              const url = URL.createObjectURL(blob);
+              const anchor = document.createElement("a");
+              anchor.href = url;
+              anchor.download = fileName;
+              document.body.appendChild(anchor);
+              anchor.click();
+              document.body.removeChild(anchor);
+              URL.revokeObjectURL(url);
+              errorEl.textContent = "Downloaded duel signal handoff.";
             },
           },
           { button, localFeedbackEl: queueActionBannerEl },
