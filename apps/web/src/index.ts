@@ -35,6 +35,7 @@ const shortcutGuideItems = [
   { key: "Alt+P", label: "Run Signal Protocol" },
   { key: "Alt+L", label: "Run Signal Command" },
   { key: "Alt+K", label: "Run Signal Checklist" },
+  { key: "Alt+Y", label: "Run Signal Flow" },
   { key: "Alt+Shift+L", label: "Copy Signal Command" },
   { key: "Alt+Shift+K", label: "Copy Signal Checklist" },
   { key: "Alt+Shift+J", label: "Download Signal Checklist" },
@@ -170,6 +171,7 @@ const queueNudgeRunSignalProtocolLabel = "Run Signal Protocol (Alt+P)";
 const queueNudgeRunSignalCommandLabel = "Run Signal Command (Alt+L)";
 const queueNudgeRunSignalScriptLabel = "Run Signal Script";
 const queueNudgeRunSignalChecklistLabel = "Run Signal Checklist (Alt+K)";
+const queueNudgeRunSignalFlowLabel = "Run Signal Flow (Alt+Y)";
 const queueNudgeCopySignalHandoffLabel = "Copy Signal Handoff";
 const queueNudgeCopySignalConsensusLabel = "Copy Signal Consensus";
 const queueNudgeCopySignalCommandLabel = "Copy Signal Command (Alt+Shift+L)";
@@ -4527,6 +4529,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_RUN_SIGNAL_COMMAND_LABEL = ${JSON.stringify(queueNudgeRunSignalCommandLabel)};
       const QUEUE_NUDGE_RUN_SIGNAL_SCRIPT_LABEL = ${JSON.stringify(queueNudgeRunSignalScriptLabel)};
       const QUEUE_NUDGE_RUN_SIGNAL_CHECKLIST_LABEL = ${JSON.stringify(queueNudgeRunSignalChecklistLabel)};
+      const QUEUE_NUDGE_RUN_SIGNAL_FLOW_LABEL = ${JSON.stringify(queueNudgeRunSignalFlowLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_HANDOFF_LABEL = ${JSON.stringify(queueNudgeCopySignalHandoffLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_CONSENSUS_LABEL = ${JSON.stringify(queueNudgeCopySignalConsensusLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_COMMAND_LABEL = ${JSON.stringify(queueNudgeCopySignalCommandLabel)};
@@ -10987,6 +10990,14 @@ const html = `<!doctype html>
                 await runDuelSignalChecklistAction(runSignalChecklistBtn);
               });
               actionsEl.appendChild(runSignalChecklistBtn);
+              const runSignalFlowBtn = document.createElement("button");
+              runSignalFlowBtn.type = "button";
+              runSignalFlowBtn.className = "secondary";
+              runSignalFlowBtn.textContent = QUEUE_NUDGE_RUN_SIGNAL_FLOW_LABEL;
+              runSignalFlowBtn.addEventListener("click", async () => {
+                await runDuelSignalFlowAction(runSignalFlowBtn);
+              });
+              actionsEl.appendChild(runSignalFlowBtn);
               duelEl.appendChild(actionsEl);
               ahaNudgeEl.appendChild(duelEl);
             }
@@ -12512,6 +12523,14 @@ const html = `<!doctype html>
             await runDuelSignalChecklistAction(runSignalChecklistBtn);
           });
           actionsEl.appendChild(runSignalChecklistBtn);
+          const runSignalFlowBtn = document.createElement("button");
+          runSignalFlowBtn.type = "button";
+          runSignalFlowBtn.className = "secondary";
+          runSignalFlowBtn.textContent = QUEUE_NUDGE_RUN_SIGNAL_FLOW_LABEL;
+          runSignalFlowBtn.addEventListener("click", async () => {
+            await runDuelSignalFlowAction(runSignalFlowBtn);
+          });
+          actionsEl.appendChild(runSignalFlowBtn);
         }
         if (String(top?.id) !== String(item?.id)) {
           const leadBtn = document.createElement("button");
@@ -14633,6 +14652,52 @@ const html = `<!doctype html>
           ".";
       }
 
+      async function runDuelSignalFlowAction(button = null) {
+        const visibleItems = visibleQueueItems();
+        const pool = visibleItems.length ? visibleItems : allItems;
+        const trigger = ahaDuelSignalConsensusTriggerMeta(pool);
+        const protocol = ahaDuelSignalConsensusProtocolMeta(pool);
+        const cadence = ahaDuelSignalConsensusProtocolCadenceMeta();
+        const pressure = ahaDuelSignalConsensusProtocolPressureMeta();
+        const command = ahaDuelSignalConsensusProtocolCommandMeta(pool, trigger, protocol, cadence, pressure);
+        const script = ahaDuelSignalConsensusProtocolScriptMeta(pool, command, cadence, pressure);
+        const scriptLane = ahaDuelSignalConsensusProtocolScriptLaneMeta(pool, script, command);
+        const scriptChecklist = ahaDuelSignalConsensusProtocolScriptChecklistMeta(pool, script, scriptLane, command);
+        const checklistLabel = String(scriptChecklist?.label || "").toLowerCase();
+        if (!trigger || !protocol || !command || !script || !scriptChecklist) {
+          errorEl.textContent = "No duel signal flow available under current filters.";
+          return;
+        }
+        if (trigger.label === "No trigger" || command.label === "Hold command" || checklistLabel.includes("hold") || checklistLabel.includes("watch")) {
+          errorEl.textContent =
+            "Signal flow standby: " +
+            trigger.hint +
+            " · " +
+            command.label +
+            " · " +
+            script.label +
+            " · " +
+            scriptChecklist.label +
+            ".";
+          return;
+        }
+        await runDuelSignalChecklistAction(button);
+        const base = errorEl.textContent ? errorEl.textContent.replace(/\.$/, "") : "Signal flow executed";
+        errorEl.textContent =
+          base +
+          " · Flow protocol → command → script → checklist" +
+          " · " +
+          protocol.label +
+          " · " +
+          command.label +
+          " · " +
+          script.label +
+          " · " +
+          scriptChecklist.label +
+          (scriptLane ? " · " + scriptLane.label : "") +
+          ".";
+      }
+
       async function runDownloadAhaSnapshotAction(button = null) {
         await runActionWithFeedback(
           {
@@ -15913,6 +15978,7 @@ const html = `<!doctype html>
         if (event.altKey && key === "p") return "alt+p";
         if (event.altKey && key === "l") return "alt+l";
         if (event.altKey && key === "k") return "alt+k";
+        if (event.altKey && key === "y") return "alt+y";
         if (event.shiftKey && key === "q") return "shift+q";
         if (event.shiftKey && key === "s") return "shift+s";
         if (event.shiftKey && key === "d") return "shift+d";
@@ -16014,6 +16080,9 @@ const html = `<!doctype html>
         },
         "alt+k": () => {
           void runDuelSignalChecklistAction();
+        },
+        "alt+y": () => {
+          void runDuelSignalFlowAction();
         },
         "alt+shift+l": () => {
           void runCopyAhaDuelSignalCommandAction();
