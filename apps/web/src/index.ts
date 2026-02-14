@@ -28,6 +28,7 @@ const shortcutGuideItems = [
   { key: "Q", label: "Run Top Aha Action" },
   { key: "Alt+Q", label: "Run Duel Pair Actions" },
   { key: "Shift+Q", label: "Copy Duel Action Plan" },
+  { key: "Shift+S", label: "Copy Duel Snapshot" },
   { key: "Alt+C", label: "Copy Duel Call" },
   { key: "Alt+S", label: "Copy Duel Signals" },
   { key: "Alt+M", label: "Run Duel Call" },
@@ -119,6 +120,7 @@ const queueNudgeDuelPlanLabel = "Duel Action Plan";
 const queueNudgeOpenRivalLabel = "Open Rival";
 const queueNudgeCopyDuelLabel = "Copy Duel";
 const queueNudgeCopyDuelPlanLabel = "Copy Duel Plan (Shift+Q)";
+const queueNudgeCopyDuelSnapshotLabel = "Copy Duel Snapshot (Shift+S)";
 const queueNudgeRunRivalLabel = "Run Rival Action (Alt+E)";
 const queueNudgeToggleDuelLabel = "Toggle Duel Pair (Alt+Z)";
 const queueNudgeRunDuelLabel = "Run Duel Pair (Alt+Q)";
@@ -2673,6 +2675,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_OPEN_RIVAL_LABEL = ${JSON.stringify(queueNudgeOpenRivalLabel)};
       const QUEUE_NUDGE_COPY_DUEL_LABEL = ${JSON.stringify(queueNudgeCopyDuelLabel)};
       const QUEUE_NUDGE_COPY_DUEL_PLAN_LABEL = ${JSON.stringify(queueNudgeCopyDuelPlanLabel)};
+      const QUEUE_NUDGE_COPY_DUEL_SNAPSHOT_LABEL = ${JSON.stringify(queueNudgeCopyDuelSnapshotLabel)};
       const QUEUE_NUDGE_RUN_RIVAL_LABEL = ${JSON.stringify(queueNudgeRunRivalLabel)};
       const QUEUE_NUDGE_TOGGLE_DUEL_LABEL = ${JSON.stringify(queueNudgeToggleDuelLabel)};
       const QUEUE_NUDGE_RUN_DUEL_LABEL = ${JSON.stringify(queueNudgeRunDuelLabel)};
@@ -4201,6 +4204,23 @@ const html = `<!doctype html>
         if (signal) lines.push(QUEUE_NUDGE_DUEL_SIGNAL_LABEL + ": " + signal.label + " · " + signal.hint);
         if (signalPulse) lines.push(QUEUE_NUDGE_DUEL_SIGNAL_PULSE_LABEL + ": " + signalPulse.label + " · " + signalPulse.hint);
         return lines.join("\n");
+      }
+
+      function ahaDuelSnapshotText(poolItems) {
+        const ranked = sortedAhaItems(poolItems);
+        if (ranked.length < 2) return "";
+        const call = ahaDuelCallMeta(ranked);
+        const signal = ahaDuelSignalMeta(ranked);
+        const pulse = ahaDuelSignalPulseMeta();
+        const sequence = ahaDuelCallSequenceMeta();
+        const risk = ahaDuelCallRiskMeta();
+        const parts = ["Aha Duel Snapshot"];
+        if (call) parts.push(call.label);
+        if (signal) parts.push("signal " + signal.label);
+        if (pulse) parts.push("pulse " + pulse.label);
+        if (risk) parts.push(risk.label);
+        if (sequence) parts.push(sequence.label);
+        return parts.join(" · ");
       }
 
       function ahaDuelRoleMeta(item, poolItems = null) {
@@ -6175,6 +6195,14 @@ const html = `<!doctype html>
                 await runCopyAhaDuelSignalsAction(copyDuelSignalsBtn);
               });
               actionsEl.appendChild(copyDuelSignalsBtn);
+              const copyDuelSnapshotBtn = document.createElement("button");
+              copyDuelSnapshotBtn.type = "button";
+              copyDuelSnapshotBtn.className = "secondary";
+              copyDuelSnapshotBtn.textContent = QUEUE_NUDGE_COPY_DUEL_SNAPSHOT_LABEL;
+              copyDuelSnapshotBtn.addEventListener("click", async () => {
+                await runCopyAhaDuelSnapshotAction(copyDuelSnapshotBtn);
+              });
+              actionsEl.appendChild(copyDuelSnapshotBtn);
               const copyDuelPlanBtn = document.createElement("button");
               copyDuelPlanBtn.type = "button";
               copyDuelPlanBtn.className = "secondary";
@@ -7154,6 +7182,14 @@ const html = `<!doctype html>
             await runCopyAhaDuelSignalsAction(copyDuelSignalsBtn);
           });
           actionsEl.appendChild(copyDuelSignalsBtn);
+          const copyDuelSnapshotBtn = document.createElement("button");
+          copyDuelSnapshotBtn.type = "button";
+          copyDuelSnapshotBtn.className = "secondary";
+          copyDuelSnapshotBtn.textContent = QUEUE_NUDGE_COPY_DUEL_SNAPSHOT_LABEL;
+          copyDuelSnapshotBtn.addEventListener("click", async () => {
+            await runCopyAhaDuelSnapshotAction(copyDuelSnapshotBtn);
+          });
+          actionsEl.appendChild(copyDuelSnapshotBtn);
           const copyDuelPlanBtn = document.createElement("button");
           copyDuelPlanBtn.type = "button";
           copyDuelPlanBtn.className = "secondary";
@@ -8299,6 +8335,32 @@ const html = `<!doctype html>
               });
               if (!copied) {
                 throw new Error("Copy duel signals failed.");
+              }
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
+      async function runCopyAhaDuelSnapshotAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_copy_aha_duel_snapshot",
+            label: "Copy Duel Snapshot",
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const pool = visibleItems.length ? visibleItems : allItems;
+              const text = ahaDuelSnapshotText(pool);
+              if (!text) {
+                errorEl.textContent = "Aha duel snapshot is unavailable under current filters.";
+                return;
+              }
+              const copied = await copyTextToClipboard(text, {
+                success: "Copied duel snapshot.",
+                failure: "Copy duel snapshot failed.",
+              });
+              if (!copied) {
+                throw new Error("Copy duel snapshot failed.");
               }
             },
           },
@@ -9858,6 +9920,7 @@ const html = `<!doctype html>
         if (event.altKey && key === "s") return "alt+s";
         if (event.altKey && key === "m") return "alt+m";
         if (event.shiftKey && key === "q") return "shift+q";
+        if (event.shiftKey && key === "s") return "shift+s";
         if (event.shiftKey && key === "d") return "shift+d";
         if (event.shiftKey && key === "e") return "shift+e";
         if (event.shiftKey && key === "u") return "shift+u";
@@ -9951,6 +10014,9 @@ const html = `<!doctype html>
         },
         "shift+q": () => {
           void runCopyAhaDuelPlanAction();
+        },
+        "shift+s": () => {
+          void runCopyAhaDuelSnapshotAction();
         },
         e: () => {
           void runOpenAhaRivalAction();
