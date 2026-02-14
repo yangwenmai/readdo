@@ -26,6 +26,7 @@ const shortcutGuideItems = [
   { key: "Shift+Z", label: "Focus 2nd Aha Candidate" },
   { key: "Alt+Z", label: "Toggle Duel Pair" },
   { key: "Q", label: "Run Top Aha Action" },
+  { key: "Alt+Q", label: "Run Duel Pair Actions" },
   { key: "E", label: "Open Aha Rival" },
   { key: "Shift+E", label: "Copy Aha Duel" },
   { key: "Alt+E", label: "Run Rival Action" },
@@ -106,6 +107,7 @@ const queueNudgeOpenRivalLabel = "Open Rival";
 const queueNudgeCopyDuelLabel = "Copy Duel";
 const queueNudgeRunRivalLabel = "Run Rival Action (Alt+E)";
 const queueNudgeToggleDuelLabel = "Toggle Duel Pair (Alt+Z)";
+const queueNudgeRunDuelLabel = "Run Duel Pair (Alt+Q)";
 const queueNudgeCopyBriefLabel = "Copy Decision Brief (Shift+D)";
 const queueNudgeDownloadBriefLabel = "Download Decision Brief (Alt+D)";
 const queueNudgeBriefLabel = "Decision Brief Preview";
@@ -2142,6 +2144,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_COPY_DUEL_LABEL = ${JSON.stringify(queueNudgeCopyDuelLabel)};
       const QUEUE_NUDGE_RUN_RIVAL_LABEL = ${JSON.stringify(queueNudgeRunRivalLabel)};
       const QUEUE_NUDGE_TOGGLE_DUEL_LABEL = ${JSON.stringify(queueNudgeToggleDuelLabel)};
+      const QUEUE_NUDGE_RUN_DUEL_LABEL = ${JSON.stringify(queueNudgeRunDuelLabel)};
       const QUEUE_NUDGE_COPY_BRIEF_LABEL = ${JSON.stringify(queueNudgeCopyBriefLabel)};
       const QUEUE_NUDGE_DOWNLOAD_BRIEF_LABEL = ${JSON.stringify(queueNudgeDownloadBriefLabel)};
       const QUEUE_NUDGE_BRIEF_LABEL = ${JSON.stringify(queueNudgeBriefLabel)};
@@ -5145,6 +5148,14 @@ const html = `<!doctype html>
                 await runRivalAhaPrimaryAction(runRivalBtn);
               });
               actionsEl.appendChild(runRivalBtn);
+              const runDuelBtn = document.createElement("button");
+              runDuelBtn.type = "button";
+              runDuelBtn.className = "secondary";
+              runDuelBtn.textContent = QUEUE_NUDGE_RUN_DUEL_LABEL;
+              runDuelBtn.addEventListener("click", async () => {
+                await runDuelPairPrimaryActions(runDuelBtn);
+              });
+              actionsEl.appendChild(runDuelBtn);
               duelEl.appendChild(actionsEl);
               ahaNudgeEl.appendChild(duelEl);
             }
@@ -6004,6 +6015,14 @@ const html = `<!doctype html>
             await runToggleAhaDuelPairAction(toggleDuelBtn);
           });
           actionsEl.appendChild(toggleDuelBtn);
+          const runDuelBtn = document.createElement("button");
+          runDuelBtn.type = "button";
+          runDuelBtn.className = "secondary";
+          runDuelBtn.textContent = QUEUE_NUDGE_RUN_DUEL_LABEL;
+          runDuelBtn.addEventListener("click", async () => {
+            await runDuelPairPrimaryActions(runDuelBtn);
+          });
+          actionsEl.appendChild(runDuelBtn);
         }
         if (String(top?.id) !== String(item?.id)) {
           const leadBtn = document.createElement("button");
@@ -7229,6 +7248,42 @@ const html = `<!doctype html>
               await primary.action();
               const meta = ahaIndexMetaForItem(rival);
               errorEl.textContent = "Ran rival action (" + primary.label + ") on #" + rival.id + " (" + meta.value + ").";
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
+      async function runDuelPairPrimaryActions(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_run_duel_pair",
+            label: "Run Duel Pair Actions",
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const pool = visibleItems.length ? visibleItems : allItems;
+              const pair = topAhaCandidates(pool, 2);
+              if (!pair.length) {
+                errorEl.textContent = "No Aha candidates available to run.";
+                return;
+              }
+              if (pair.length < 2) {
+                errorEl.textContent = "Need at least two Aha candidates for duel run.";
+                return;
+              }
+              const outcomes = [];
+              for (const [index, item] of pair.entries()) {
+                await selectItem(item.id);
+                focusQueueItemCard(item.id, { revealCollapsed: true });
+                const primary = primaryActionForItem(item);
+                if (!primary || primary.disabled) {
+                  outcomes.push((index === 0 ? "Lead" : "Rival") + " #" + item.id + ": no runnable action");
+                  continue;
+                }
+                await primary.action();
+                outcomes.push((index === 0 ? "Lead" : "Rival") + " #" + item.id + ": " + primary.label);
+              }
+              errorEl.textContent = "Duel run completed · " + outcomes.join(" · ");
             },
           },
           { button, localFeedbackEl: queueActionBannerEl },
@@ -8502,6 +8557,7 @@ const html = `<!doctype html>
         }
         if (event.altKey && key === "n") return "alt+n";
         if (event.altKey && key === "z") return "alt+z";
+        if (event.altKey && key === "q") return "alt+q";
         if (event.altKey && key === "e") return "alt+e";
         if (event.altKey && key === "d") return "alt+d";
         if (event.shiftKey && key === "d") return "shift+d";
@@ -8582,6 +8638,9 @@ const html = `<!doctype html>
         },
         q: () => {
           void runTopAhaPrimaryAction();
+        },
+        "alt+q": () => {
+          void runDuelPairPrimaryActions();
         },
         e: () => {
           void runOpenAhaRivalAction();
