@@ -117,6 +117,7 @@ const queueNudgeDuelSignalPulseLabel = "Duel Signal Pulse";
 const queueNudgeDuelSignalSeriesLabel = "Signal Points";
 const queueNudgeDuelSignalVolatilityLabel = "Duel Signal Volatility";
 const queueNudgeDuelSignalOutlookLabel = "Duel Signal Outlook";
+const queueNudgeDuelSignalRegimeLabel = "Duel Signal Regime";
 const queueNudgeDuelSnapshotLabel = "Duel Snapshot";
 const queueNudgeDuelTrendLabel = "Duel Gap Trend";
 const queueNudgeDuelSeriesLabel = "Lead-Rival";
@@ -1228,6 +1229,34 @@ const html = `<!doctype html>
         background: #fff1f2;
         color: #9f1239;
       }
+      .hero-story .duel-signal-regime-inline {
+        margin-top: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 8px;
+      }
+      .hero-story .duel-signal-regime-inline.call-lead {
+        border-color: #86efac;
+        background: #ecfdf5;
+        color: #166534;
+      }
+      .hero-story .duel-signal-regime-inline.call-rival {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .hero-story .duel-signal-regime-inline.call-hold {
+        border-color: #fecaca;
+        background: #fff1f2;
+        color: #9f1239;
+      }
       .hero-story .duel-signal-chart-inline {
         margin-top: 6px;
         display: grid;
@@ -2281,6 +2310,33 @@ const html = `<!doctype html>
         background: #fff1f2;
         color: #9f1239;
       }
+      .aha-nudge .nudge-duel-signal-regime {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 9px;
+      }
+      .aha-nudge .nudge-duel-signal-regime.call-lead {
+        border-color: #86efac;
+        background: #ecfdf5;
+        color: #166534;
+      }
+      .aha-nudge .nudge-duel-signal-regime.call-rival {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .aha-nudge .nudge-duel-signal-regime.call-hold {
+        border-color: #fecaca;
+        background: #fff1f2;
+        color: #9f1239;
+      }
       .aha-nudge .nudge-duel-signal-chart {
         margin-top: 6px;
         display: grid;
@@ -2873,6 +2929,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_DUEL_SIGNAL_SERIES_LABEL = ${JSON.stringify(queueNudgeDuelSignalSeriesLabel)};
       const QUEUE_NUDGE_DUEL_SIGNAL_VOLATILITY_LABEL = ${JSON.stringify(queueNudgeDuelSignalVolatilityLabel)};
       const QUEUE_NUDGE_DUEL_SIGNAL_OUTLOOK_LABEL = ${JSON.stringify(queueNudgeDuelSignalOutlookLabel)};
+      const QUEUE_NUDGE_DUEL_SIGNAL_REGIME_LABEL = ${JSON.stringify(queueNudgeDuelSignalRegimeLabel)};
       const QUEUE_NUDGE_DUEL_SNAPSHOT_LABEL = ${JSON.stringify(queueNudgeDuelSnapshotLabel)};
       const QUEUE_NUDGE_DUEL_TREND_LABEL = ${JSON.stringify(queueNudgeDuelTrendLabel)};
       const QUEUE_NUDGE_DUEL_SERIES_LABEL = ${JSON.stringify(queueNudgeDuelSeriesLabel)};
@@ -3918,6 +3975,36 @@ const html = `<!doctype html>
         return { label: "Watch", tone: "call-rival", hint: "Stable but undecided, monitor next pulse" };
       }
 
+      function ahaDuelSignalRegimeMeta(poolItems) {
+        const ranked = sortedAhaItems(poolItems);
+        if (ranked.length < 2) return null;
+        const signal = ahaDuelSignalMeta(ranked);
+        const pulse = ahaDuelSignalPulseMeta();
+        const volatility = ahaDuelSignalVolatilityMeta();
+        if (!signal || !pulse || !volatility) return null;
+        const signalValue = Number(signal.label || 0);
+        const pulseLabel = String(pulse.label || "").toLowerCase();
+        const volatilityLabel = String(volatility.label || "").toLowerCase();
+        const rising = pulseLabel.startsWith("rising");
+        const cooling = pulseLabel.startsWith("cooling");
+        const flat = pulseLabel.startsWith("flat") || pulseLabel.startsWith("baseline");
+        const calm = volatilityLabel.startsWith("calm");
+        const choppy = volatilityLabel.startsWith("choppy");
+        if (rising && signalValue >= 70 && !choppy) {
+          return { label: "Momentum breakout", tone: "call-lead", hint: "Signal is accelerating with manageable noise" };
+        }
+        if (flat && calm && signalValue >= 55) {
+          return { label: "Stable lane", tone: "call-lead", hint: "Signal is consistent and execution-friendly" };
+        }
+        if (cooling && choppy) {
+          return { label: "Whipsaw risk", tone: "call-hold", hint: "Direction and swings disagree, reduce commitment size" };
+        }
+        if (signalValue < 45 || choppy) {
+          return { label: "Transition zone", tone: "call-rival", hint: "Edge is weak or unstable, gather more evidence" };
+        }
+        return { label: "Rotation watch", tone: "call-rival", hint: "Signals are rotating, monitor next two pulses closely" };
+      }
+
       function ahaDuelSignalPulseBarsHtml(points = ahaDuelSignalPulsePoints()) {
         if (!points.length) return "";
         const values = points.map((point) => Number(point || 0));
@@ -4013,6 +4100,7 @@ const html = `<!doctype html>
         const duelSignalPulse = ahaDuelSignalPulseMeta();
         const duelSignalVolatility = ahaDuelSignalVolatilityMeta();
         const duelSignalOutlook = ahaDuelSignalOutlookMeta(ranked);
+        const duelSignalRegime = ahaDuelSignalRegimeMeta(ranked);
         const duelTrend = ahaDuelGapTrendMeta();
         const lines = ["Aha Decision Brief", QUEUE_NUDGE_BRIEF_CONTEXT_LABEL + ": " + decisionBriefContextSummary(), story || "Storyline unavailable."];
         if (duel) {
@@ -4055,6 +4143,9 @@ const html = `<!doctype html>
         }
         if (duelSignalOutlook) {
           lines.push(QUEUE_NUDGE_DUEL_SIGNAL_OUTLOOK_LABEL + ": " + duelSignalOutlook.label + " · " + duelSignalOutlook.hint);
+        }
+        if (duelSignalRegime) {
+          lines.push(QUEUE_NUDGE_DUEL_SIGNAL_REGIME_LABEL + ": " + duelSignalRegime.label + " · " + duelSignalRegime.hint);
         }
         if (duelTrend) {
           lines.push(QUEUE_NUDGE_DUEL_TREND_LABEL + ": " + duelTrend.label);
@@ -4424,6 +4515,7 @@ const html = `<!doctype html>
         const signalPulse = ahaDuelSignalPulseMeta();
         const signalVolatility = ahaDuelSignalVolatilityMeta();
         const signalOutlook = ahaDuelSignalOutlookMeta(ranked);
+        const signalRegime = ahaDuelSignalRegimeMeta(ranked);
         const plan = ahaDuelActionPlanMeta(ranked);
         if (!duel || !plan) return "";
         return (
@@ -4442,6 +4534,7 @@ const html = `<!doctype html>
             ? QUEUE_NUDGE_DUEL_SIGNAL_VOLATILITY_LABEL + ": " + signalVolatility.label + " · " + signalVolatility.hint + "\n"
             : "") +
           (signalOutlook ? QUEUE_NUDGE_DUEL_SIGNAL_OUTLOOK_LABEL + ": " + signalOutlook.label + " · " + signalOutlook.hint + "\n" : "") +
+          (signalRegime ? QUEUE_NUDGE_DUEL_SIGNAL_REGIME_LABEL + ": " + signalRegime.label + " · " + signalRegime.hint + "\n" : "") +
           QUEUE_NUDGE_DUEL_PLAN_LABEL +
           ": " +
           plan.summary +
@@ -4463,6 +4556,7 @@ const html = `<!doctype html>
         const signalPulse = ahaDuelSignalPulseMeta();
         const signalVolatility = ahaDuelSignalVolatilityMeta();
         const signalOutlook = ahaDuelSignalOutlookMeta(ranked);
+        const signalRegime = ahaDuelSignalRegimeMeta(ranked);
         if (!duel || !call) return "";
         return (
           "Aha Duel Call\n" +
@@ -4483,7 +4577,8 @@ const html = `<!doctype html>
           (signalVolatility
             ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_VOLATILITY_LABEL + ": " + signalVolatility.label + " · " + signalVolatility.hint
             : "") +
-          (signalOutlook ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_OUTLOOK_LABEL + ": " + signalOutlook.label + " · " + signalOutlook.hint : "")
+          (signalOutlook ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_OUTLOOK_LABEL + ": " + signalOutlook.label + " · " + signalOutlook.hint : "") +
+          (signalRegime ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_REGIME_LABEL + ": " + signalRegime.label + " · " + signalRegime.hint : "")
         );
       }
 
@@ -4501,6 +4596,7 @@ const html = `<!doctype html>
         const signalPulse = ahaDuelSignalPulseMeta();
         const signalVolatility = ahaDuelSignalVolatilityMeta();
         const signalOutlook = ahaDuelSignalOutlookMeta(ranked);
+        const signalRegime = ahaDuelSignalRegimeMeta(ranked);
         if (call) lines.push(QUEUE_NUDGE_DUEL_CALL_LABEL + ": " + call.label + " · " + call.hint);
         if (callTrend) lines.push(QUEUE_NUDGE_DUEL_CALL_TREND_LABEL + ": " + callTrend.label);
         if (callConfidence) lines.push(QUEUE_NUDGE_DUEL_CALL_CONFIDENCE_LABEL + ": " + callConfidence.label + " · " + callConfidence.hint);
@@ -4515,6 +4611,9 @@ const html = `<!doctype html>
         if (signalOutlook) {
           lines.push(QUEUE_NUDGE_DUEL_SIGNAL_OUTLOOK_LABEL + ": " + signalOutlook.label + " · " + signalOutlook.hint);
         }
+        if (signalRegime) {
+          lines.push(QUEUE_NUDGE_DUEL_SIGNAL_REGIME_LABEL + ": " + signalRegime.label + " · " + signalRegime.hint);
+        }
         return lines.join("\n");
       }
 
@@ -4526,6 +4625,7 @@ const html = `<!doctype html>
         const pulse = ahaDuelSignalPulseMeta();
         const volatility = ahaDuelSignalVolatilityMeta();
         const outlook = ahaDuelSignalOutlookMeta(ranked);
+        const regime = ahaDuelSignalRegimeMeta(ranked);
         const sequence = ahaDuelCallSequenceMeta();
         const risk = ahaDuelCallRiskMeta();
         const parts = ["Aha Duel Snapshot"];
@@ -4534,6 +4634,7 @@ const html = `<!doctype html>
         if (pulse) parts.push("pulse " + pulse.label);
         if (volatility) parts.push("volatility " + volatility.label);
         if (outlook) parts.push("outlook " + outlook.label);
+        if (regime) parts.push("regime " + regime.label);
         if (risk) parts.push(risk.label);
         if (sequence) parts.push(sequence.label);
         return parts.join(" · ");
@@ -6454,6 +6555,14 @@ const html = `<!doctype html>
                   QUEUE_NUDGE_DUEL_SIGNAL_OUTLOOK_LABEL + ": " + duelSignalOutlook.label + " · " + duelSignalOutlook.hint;
                 duelEl.appendChild(signalOutlookEl);
               }
+              const duelSignalRegime = ahaDuelSignalRegimeMeta(ahaPool);
+              if (duelSignalRegime) {
+                const signalRegimeEl = document.createElement("span");
+                signalRegimeEl.className = "nudge-duel-signal-regime " + duelSignalRegime.tone;
+                signalRegimeEl.textContent =
+                  QUEUE_NUDGE_DUEL_SIGNAL_REGIME_LABEL + ": " + duelSignalRegime.label + " · " + duelSignalRegime.hint;
+                duelEl.appendChild(signalRegimeEl);
+              }
               const duelSnapshot = ahaDuelSnapshotText(ahaPool);
               if (duelSnapshot) {
                 const snapshotEl = document.createElement("div");
@@ -7377,6 +7486,7 @@ const html = `<!doctype html>
         const duelSignalPulse = ahaDuelSignalPulseMeta();
         const duelSignalVolatility = ahaDuelSignalVolatilityMeta();
         const duelSignalOutlook = ahaDuelSignalOutlookMeta(rankedPool);
+        const duelSignalRegime = ahaDuelSignalRegimeMeta(rankedPool);
         const duelSnapshot = ahaDuelSnapshotText(rankedPool);
         const duelPlan = ahaDuelActionPlanMeta(rankedPool);
         const duelTrend = ahaDuelGapTrendMeta();
@@ -7506,6 +7616,13 @@ const html = `<!doctype html>
             duelSignalOutlookEl.textContent =
               QUEUE_NUDGE_DUEL_SIGNAL_OUTLOOK_LABEL + ": " + duelSignalOutlook.label + " · " + duelSignalOutlook.hint;
             storyHost.appendChild(duelSignalOutlookEl);
+          }
+          if (duelSignalRegime) {
+            const duelSignalRegimeEl = document.createElement("span");
+            duelSignalRegimeEl.className = "duel-signal-regime-inline " + duelSignalRegime.tone;
+            duelSignalRegimeEl.textContent =
+              QUEUE_NUDGE_DUEL_SIGNAL_REGIME_LABEL + ": " + duelSignalRegime.label + " · " + duelSignalRegime.hint;
+            storyHost.appendChild(duelSignalRegimeEl);
           }
           if (duelSnapshot) {
             const duelSnapshotEl = document.createElement("div");
