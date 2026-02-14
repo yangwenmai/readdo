@@ -4013,11 +4013,11 @@ const html = `<!doctype html>
         ahaDuelCallHistory = [...ahaDuelCallHistory, { role, tone }].slice(-AHA_DUEL_CALL_HISTORY_LIMIT);
       }
 
-      function handoffRoleFromLabel(label) {
-        const normalized = String(label || "").toLowerCase();
-        if (normalized.includes("lead")) return "lead";
-        if (normalized.includes("rival")) return "rival";
-        if (normalized.includes("split")) return "split";
+      function normalizeHandoffRole(role) {
+        const normalized = String(role || "hold").toLowerCase();
+        if (normalized === "lead" || normalized === "rival" || normalized === "split" || normalized === "hold") {
+          return normalized;
+        }
         return "hold";
       }
 
@@ -4031,7 +4031,7 @@ const html = `<!doctype html>
       function refreshAhaDuelSignalHandoffHistory(items) {
         const ranked = sortedAhaItems(items);
         const handoff = ahaDuelSignalHandoffMeta(ranked);
-        const role = handoffRoleFromLabel(handoff?.label);
+        const role = normalizeHandoffRole(handoff?.role);
         const tone = handoffToneFromRole(role);
         ahaDuelSignalHandoffHistory = [...ahaDuelSignalHandoffHistory, { role, tone }].slice(
           -AHA_DUEL_SIGNAL_HANDOFF_HISTORY_LIMIT,
@@ -4486,18 +4486,18 @@ const html = `<!doctype html>
         const convictionLabel = String(conviction.label || "").toLowerCase();
         const outlookLabel = String(outlook.label || "").toLowerCase();
         if (callRole === "hold" || convictionLabel.includes("fragile") || outlookLabel.includes("recheck")) {
-          return { label: "Hold & scan", tone: "call-hold", hint: "Wait for a cleaner pulse before committing" };
+          return { role: "hold", label: "Hold & scan", tone: "call-hold", hint: "Wait for a cleaner pulse before committing" };
         }
         if (callRole === "lead" && convictionLabel.includes("prime")) {
-          return { label: "Lead sprint", tone: "call-lead", hint: "Lead edge is strong, execute immediately" };
+          return { role: "lead", label: "Lead sprint", tone: "call-lead", hint: "Lead edge is strong, execute immediately" };
         }
         if (callRole === "lead" && (convictionLabel.includes("ready") || outlookLabel.includes("charge"))) {
-          return { label: "Lead push", tone: "call-lead", hint: "Lead setup is healthy, push next action" };
+          return { role: "lead", label: "Lead push", tone: "call-lead", hint: "Lead setup is healthy, push next action" };
         }
         if (callRole === "rival" || convictionLabel.includes("watch") || outlookLabel.includes("probe")) {
-          return { label: "Rival probe", tone: "call-rival", hint: "Run rival test before final commitment" };
+          return { role: "rival", label: "Rival probe", tone: "call-rival", hint: "Run rival test before final commitment" };
         }
-        return { label: "Split test", tone: "call-rival", hint: "Signals are mixed, split attention across both paths" };
+        return { role: "split", label: "Split test", tone: "call-rival", hint: "Signals are mixed, split attention across both paths" };
       }
 
       function ahaDuelSignalPulseBarsHtml(points = ahaDuelSignalPulsePoints()) {
@@ -10016,14 +10016,15 @@ const html = `<!doctype html>
                 errorEl.textContent = "No duel signal handoff available under current filters.";
                 return;
               }
+              const handoffRole = normalizeHandoffRole(handoff.role);
               const ranked = sortedAhaItems(pool);
               const lead = ranked[0] || null;
               const rival = ranked[1] || null;
-              if (handoff.label === "Hold & scan") {
+              if (handoffRole === "hold") {
                 errorEl.textContent = "Signal handoff suggests hold: " + handoff.hint + ".";
                 return;
               }
-              if (handoff.label === "Split test") {
+              if (handoffRole === "split") {
                 if (!lead || !rival) {
                   errorEl.textContent = "Signal handoff split test requires both lead and rival candidates.";
                   return;
@@ -10043,8 +10044,8 @@ const html = `<!doctype html>
                 errorEl.textContent = "Signal handoff executed → Split test · " + outcomes.join(" · ");
                 return;
               }
-              const role = handoff.label.startsWith("Rival") ? "Rival" : "Lead";
-              const target = role === "Rival" ? rival : lead;
+              const role = handoffRole === "rival" ? "Rival" : "Lead";
+              const target = handoffRole === "rival" ? rival : lead;
               if (!target) {
                 errorEl.textContent = "Signal handoff target is unavailable under current filters.";
                 return;
