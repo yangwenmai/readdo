@@ -29,6 +29,7 @@ const shortcutGuideItems = [
   { key: "Shift+E", label: "Copy Aha Duel" },
   { key: "Alt+E", label: "Run Rival Action" },
   { key: "Shift+D", label: "Copy Decision Brief" },
+  { key: "Alt+D", label: "Download Decision Brief" },
   { key: "M", label: "Run Primary Item Action" },
   { key: "O", label: "Open Selected Source" },
   { key: "Y", label: "Copy Selected Source" },
@@ -104,6 +105,7 @@ const queueNudgeOpenRivalLabel = "Open Rival";
 const queueNudgeCopyDuelLabel = "Copy Duel";
 const queueNudgeRunRivalLabel = "Run Rival Action (Alt+E)";
 const queueNudgeCopyBriefLabel = "Copy Decision Brief (Shift+D)";
+const queueNudgeDownloadBriefLabel = "Download Decision Brief (Alt+D)";
 const queueLeadGapLabelPrefix = "Lead Gap";
 const queueDuelRoleLabelPrefix = "Duel Role";
 const detailStoryLabel = "Queue Storyline";
@@ -2107,6 +2109,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_COPY_DUEL_LABEL = ${JSON.stringify(queueNudgeCopyDuelLabel)};
       const QUEUE_NUDGE_RUN_RIVAL_LABEL = ${JSON.stringify(queueNudgeRunRivalLabel)};
       const QUEUE_NUDGE_COPY_BRIEF_LABEL = ${JSON.stringify(queueNudgeCopyBriefLabel)};
+      const QUEUE_NUDGE_DOWNLOAD_BRIEF_LABEL = ${JSON.stringify(queueNudgeDownloadBriefLabel)};
       const QUEUE_LEAD_GAP_LABEL_PREFIX = ${JSON.stringify(queueLeadGapLabelPrefix)};
       const QUEUE_DUEL_ROLE_LABEL_PREFIX = ${JSON.stringify(queueDuelRoleLabelPrefix)};
       const DETAIL_STORY_LABEL = ${JSON.stringify(detailStoryLabel)};
@@ -5040,6 +5043,14 @@ const html = `<!doctype html>
                 await runCopyAhaDecisionBriefAction(copyBriefBtn);
               });
               actionsEl.appendChild(copyBriefBtn);
+              const downloadBriefBtn = document.createElement("button");
+              downloadBriefBtn.type = "button";
+              downloadBriefBtn.className = "secondary";
+              downloadBriefBtn.textContent = QUEUE_NUDGE_DOWNLOAD_BRIEF_LABEL;
+              downloadBriefBtn.addEventListener("click", async () => {
+                await runDownloadAhaDecisionBriefAction(downloadBriefBtn);
+              });
+              actionsEl.appendChild(downloadBriefBtn);
               const runRivalBtn = document.createElement("button");
               runRivalBtn.type = "button";
               runRivalBtn.className = "secondary";
@@ -5884,6 +5895,14 @@ const html = `<!doctype html>
             await runCopyAhaDecisionBriefAction(copyBriefBtn);
           });
           actionsEl.appendChild(copyBriefBtn);
+          const downloadBriefBtn = document.createElement("button");
+          downloadBriefBtn.type = "button";
+          downloadBriefBtn.className = "secondary";
+          downloadBriefBtn.textContent = QUEUE_NUDGE_DOWNLOAD_BRIEF_LABEL;
+          downloadBriefBtn.addEventListener("click", async () => {
+            await runDownloadAhaDecisionBriefAction(downloadBriefBtn);
+          });
+          actionsEl.appendChild(downloadBriefBtn);
         }
         if (String(top?.id) !== String(item?.id)) {
           const leadBtn = document.createElement("button");
@@ -6956,6 +6975,36 @@ const html = `<!doctype html>
               if (!copied) {
                 throw new Error("Copy decision brief failed.");
               }
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
+      async function runDownloadAhaDecisionBriefAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_download_aha_decision_brief",
+            label: "Download Decision Brief",
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const pool = visibleItems.length ? visibleItems : allItems;
+              const brief = ahaDecisionBriefText(pool);
+              if (!brief) {
+                errorEl.textContent = "Decision brief is unavailable under current filters.";
+                return;
+              }
+              const fileName = "aha_decision_brief_" + new Date().toISOString().replace(/[:.]/g, "-") + ".txt";
+              const blob = new Blob([brief], { type: "text/plain;charset=utf-8" });
+              const url = URL.createObjectURL(blob);
+              const anchor = document.createElement("a");
+              anchor.href = url;
+              anchor.download = fileName;
+              document.body.appendChild(anchor);
+              anchor.click();
+              document.body.removeChild(anchor);
+              URL.revokeObjectURL(url);
+              errorEl.textContent = "Downloaded decision brief.";
             },
           },
           { button, localFeedbackEl: queueActionBannerEl },
@@ -8318,6 +8367,7 @@ const html = `<!doctype html>
         }
         if (event.altKey && key === "n") return "alt+n";
         if (event.altKey && key === "e") return "alt+e";
+        if (event.altKey && key === "d") return "alt+d";
         if (event.shiftKey && key === "d") return "shift+d";
         if (event.shiftKey && key === "e") return "shift+e";
         if (event.shiftKey && key === "u") return "shift+u";
@@ -8408,6 +8458,9 @@ const html = `<!doctype html>
         },
         "shift+d": () => {
           void runCopyAhaDecisionBriefAction();
+        },
+        "alt+d": () => {
+          void runDownloadAhaDecisionBriefAction();
         },
         z: () => {
           void runFocusTopAhaQueueAction();
