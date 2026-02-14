@@ -4454,7 +4454,7 @@ const html = `<!doctype html>
           title +
           '</div><div class="detail-section-subtitle">' +
           subtitle +
-          "</div></div><span class=\"muted\">Expand</span></summary><div class=\"detail-section-body\"></div>";
+          '</div></div><span class="muted">Expand</span></summary><div class="detail-section-body"></div>';
         const body = wrapper.querySelector(".detail-section-body");
         body.appendChild(contentEl);
         detailEl.appendChild(wrapper);
@@ -6305,16 +6305,16 @@ const html = `<!doctype html>
         if (duelTrend) {
           lines.push(QUEUE_NUDGE_DUEL_TREND_LABEL + ": " + duelTrend.label);
         }
-        return lines.join("\n");
+        return lines.join("\\n");
       }
 
       function ahaDecisionBriefPreview(poolItems, lineLimit = 3) {
         const brief = ahaDecisionBriefText(poolItems);
         if (!brief) return "";
         return brief
-          .split("\n")
+          .split("\\n")
           .slice(0, Math.max(1, Number(lineLimit) || 1))
-          .join("\n");
+          .join("\\n");
       }
 
       function ahaHeatTrendPoints() {
@@ -6689,35 +6689,31 @@ const html = `<!doctype html>
         const signalConsensusProtocolTrend = ahaDuelSignalConsensusProtocolTrendMeta();
         const signalConsensusProtocolRisk = ahaDuelSignalConsensusProtocolRiskMeta();
         const signalConsensusProtocolRegime = ahaDuelSignalConsensusProtocolRegimeMeta();
-        const signalConsensusProtocolConfidence = ahaDuelSignalConsensusProtocolConfidenceMeta(ranked);
-        const signalConsensusProtocolTrend = ahaDuelSignalConsensusProtocolTrendMeta();
-        const signalConsensusProtocolRisk = ahaDuelSignalConsensusProtocolRiskMeta();
-        const signalConsensusProtocolRegime = ahaDuelSignalConsensusProtocolRegimeMeta();
         const plan = ahaDuelActionPlanMeta(ranked);
         if (!duel || !plan) return "";
         return (
-          "Aha Duel Plan\n" +
+          "Aha Duel Plan\\n" +
           duel +
-          "\n" +
-          (call ? QUEUE_NUDGE_DUEL_CALL_LABEL + ": " + call.label + " · " + call.hint + "\n" : "") +
-          (callTrend ? QUEUE_NUDGE_DUEL_CALL_TREND_LABEL + ": " + callTrend.label + "\n" : "") +
-          (callConfidence ? QUEUE_NUDGE_DUEL_CALL_CONFIDENCE_LABEL + ": " + callConfidence.label + " · " + callConfidence.hint + "\n" : "") +
-          (callStability ? QUEUE_NUDGE_DUEL_CALL_STABILITY_LABEL + ": " + callStability.label + " · " + callStability.hint + "\n" : "") +
-          (callRisk ? QUEUE_NUDGE_DUEL_CALL_RISK_LABEL + ": " + callRisk.label + " · " + callRisk.hint + "\n" : "") +
-          (callSequence ? QUEUE_NUDGE_DUEL_CALL_SEQUENCE_LABEL + ": " + callSequence.label + " · " + callSequence.hint + "\n" : "") +
-          (signal ? QUEUE_NUDGE_DUEL_SIGNAL_LABEL + ": " + signal.label + " · " + signal.hint + "\n" : "") +
-          (signalPulse ? QUEUE_NUDGE_DUEL_SIGNAL_PULSE_LABEL + ": " + signalPulse.label + " · " + signalPulse.hint + "\n" : "") +
+          "\\n" +
+          (call ? QUEUE_NUDGE_DUEL_CALL_LABEL + ": " + call.label + " · " + call.hint + "\\n" : "") +
+          (callTrend ? QUEUE_NUDGE_DUEL_CALL_TREND_LABEL + ": " + callTrend.label + "\\n" : "") +
+          (callConfidence ? QUEUE_NUDGE_DUEL_CALL_CONFIDENCE_LABEL + ": " + callConfidence.label + " · " + callConfidence.hint + "\\n" : "") +
+          (callStability ? QUEUE_NUDGE_DUEL_CALL_STABILITY_LABEL + ": " + callStability.label + " · " + callStability.hint + "\\n" : "") +
+          (callRisk ? QUEUE_NUDGE_DUEL_CALL_RISK_LABEL + ": " + callRisk.label + " · " + callRisk.hint + "\\n" : "") +
+          (callSequence ? QUEUE_NUDGE_DUEL_CALL_SEQUENCE_LABEL + ": " + callSequence.label + " · " + callSequence.hint + "\\n" : "") +
+          (signal ? QUEUE_NUDGE_DUEL_SIGNAL_LABEL + ": " + signal.label + " · " + signal.hint + "\\n" : "") +
+          (signalPulse ? QUEUE_NUDGE_DUEL_SIGNAL_PULSE_LABEL + ": " + signalPulse.label + " · " + signalPulse.hint + "\\n" : "") +
           (signalVolatility
-            ? QUEUE_NUDGE_DUEL_SIGNAL_VOLATILITY_LABEL + ": " + signalVolatility.label + " · " + signalVolatility.hint + "\n"
+            ? QUEUE_NUDGE_DUEL_SIGNAL_VOLATILITY_LABEL + ": " + signalVolatility.label + " · " + signalVolatility.hint + "\\n"
             : "") +
-          (signalOutlook ? QUEUE_NUDGE_DUEL_SIGNAL_OUTLOOK_LABEL + ": " + signalOutlook.label + " · " + signalOutlook.hint + "\n" : "") +
-          (signalRegime ? QUEUE_NUDGE_DUEL_SIGNAL_REGIME_LABEL + ": " + signalRegime.label + " · " + signalRegime.hint + "\n" : "") +
+          (signalOutlook ? QUEUE_NUDGE_DUEL_SIGNAL_OUTLOOK_LABEL + ": " + signalOutlook.label + " · " + signalOutlook.hint + "\\n" : "") +
+          (signalRegime ? QUEUE_NUDGE_DUEL_SIGNAL_REGIME_LABEL + ": " + signalRegime.label + " · " + signalRegime.hint + "\\n" : "") +
           (signalConviction
-            ? QUEUE_NUDGE_DUEL_SIGNAL_CONVICTION_LABEL + ": " + signalConviction.label + " · " + signalConviction.hint + "\n"
+            ? QUEUE_NUDGE_DUEL_SIGNAL_CONVICTION_LABEL + ": " + signalConviction.label + " · " + signalConviction.hint + "\\n"
             : "") +
-          (signalHandoff ? QUEUE_NUDGE_DUEL_SIGNAL_HANDOFF_LABEL + ": " + signalHandoff.label + " · " + signalHandoff.hint + "\n" : "") +
+          (signalHandoff ? QUEUE_NUDGE_DUEL_SIGNAL_HANDOFF_LABEL + ": " + signalHandoff.label + " · " + signalHandoff.hint + "\\n" : "") +
           (signalHandoffTrend
-            ? QUEUE_NUDGE_DUEL_SIGNAL_HANDOFF_TREND_LABEL + ": " + signalHandoffTrend.label + " · " + signalHandoffTrend.hint + "\n"
+            ? QUEUE_NUDGE_DUEL_SIGNAL_HANDOFF_TREND_LABEL + ": " + signalHandoffTrend.label + " · " + signalHandoffTrend.hint + "\\n"
             : "") +
           (signalHandoffMomentum
             ? QUEUE_NUDGE_DUEL_SIGNAL_HANDOFF_MOMENTUM_LABEL +
@@ -6725,11 +6721,11 @@ const html = `<!doctype html>
                 signalHandoffMomentum.label +
                 " · " +
                 signalHandoffMomentum.hint +
-                "\n"
+                "\\n"
             : "") +
-          (signalConsensus ? QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_LABEL + ": " + signalConsensus.label + " · " + signalConsensus.hint + "\n" : "") +
+          (signalConsensus ? QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_LABEL + ": " + signalConsensus.label + " · " + signalConsensus.hint + "\\n" : "") +
           (signalConsensusTrend
-            ? QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_TREND_LABEL + ": " + signalConsensusTrend.label + " · " + signalConsensusTrend.hint + "\n"
+            ? QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_TREND_LABEL + ": " + signalConsensusTrend.label + " · " + signalConsensusTrend.hint + "\\n"
             : "") +
           (signalConsensusMomentum
             ? QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_MOMENTUM_LABEL +
@@ -6737,10 +6733,10 @@ const html = `<!doctype html>
                 signalConsensusMomentum.label +
                 " · " +
                 signalConsensusMomentum.hint +
-                "\n"
+                "\\n"
             : "") +
           (signalConsensusRisk
-            ? QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_RISK_LABEL + ": " + signalConsensusRisk.label + " · " + signalConsensusRisk.hint + "\n"
+            ? QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_RISK_LABEL + ": " + signalConsensusRisk.label + " · " + signalConsensusRisk.hint + "\\n"
             : "") +
           (signalConsensusStability
             ? QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_STABILITY_LABEL +
@@ -6748,7 +6744,7 @@ const html = `<!doctype html>
                 signalConsensusStability.label +
                 " · " +
                 signalConsensusStability.hint +
-                "\n"
+                "\\n"
             : "") +
           (signalConsensusReadiness
             ? QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_READINESS_LABEL +
@@ -6756,7 +6752,7 @@ const html = `<!doctype html>
                 signalConsensusReadiness.label +
                 " · " +
                 signalConsensusReadiness.hint +
-                "\n"
+                "\\n"
             : "") +
           (signalConsensusWindow
             ? QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_WINDOW_LABEL +
@@ -6764,7 +6760,7 @@ const html = `<!doctype html>
                 signalConsensusWindow.label +
                 " · " +
                 signalConsensusWindow.hint +
-                "\n"
+                "\\n"
             : "") +
           (signalConsensusGuardrail
             ? QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_GUARDRAIL_LABEL +
@@ -6772,7 +6768,7 @@ const html = `<!doctype html>
                 signalConsensusGuardrail.label +
                 " · " +
                 signalConsensusGuardrail.hint +
-                "\n"
+                "\\n"
             : "") +
           (signalConsensusTrigger
             ? QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_TRIGGER_LABEL +
@@ -6780,7 +6776,7 @@ const html = `<!doctype html>
                 signalConsensusTrigger.label +
                 " · " +
                 signalConsensusTrigger.hint +
-                "\n"
+                "\\n"
             : "") +
           (signalConsensusProtocol
             ? QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_LABEL +
@@ -6788,7 +6784,7 @@ const html = `<!doctype html>
                 signalConsensusProtocol.label +
                 " · " +
                 signalConsensusProtocol.hint +
-                "\n"
+                "\\n"
             : "") +
           (signalConsensusProtocolConfidence
             ? QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_CONFIDENCE_LABEL +
@@ -6796,7 +6792,7 @@ const html = `<!doctype html>
                 signalConsensusProtocolConfidence.label +
                 " · " +
                 signalConsensusProtocolConfidence.hint +
-                "\n"
+                "\\n"
             : "") +
           (signalConsensusProtocolTrend
             ? QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_TREND_LABEL +
@@ -6804,7 +6800,7 @@ const html = `<!doctype html>
                 signalConsensusProtocolTrend.label +
                 " · " +
                 signalConsensusProtocolTrend.hint +
-                "\n"
+                "\\n"
             : "") +
           (signalConsensusProtocolRisk
             ? QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_RISK_LABEL +
@@ -6812,7 +6808,7 @@ const html = `<!doctype html>
                 signalConsensusProtocolRisk.label +
                 " · " +
                 signalConsensusProtocolRisk.hint +
-                "\n"
+                "\\n"
             : "") +
           (signalConsensusProtocolRegime
             ? QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_REGIME_LABEL +
@@ -6820,7 +6816,7 @@ const html = `<!doctype html>
                 signalConsensusProtocolRegime.label +
                 " · " +
                 signalConsensusProtocolRegime.hint +
-                "\n"
+                "\\n"
             : "") +
           QUEUE_NUDGE_DUEL_PLAN_LABEL +
           ": " +
@@ -6864,80 +6860,80 @@ const html = `<!doctype html>
         const signalConsensusProtocolRegime = ahaDuelSignalConsensusProtocolRegimeMeta();
         if (!duel || !call) return "";
         return (
-          "Aha Duel Call\n" +
+          "Aha Duel Call\\n" +
           duel +
-          "\n" +
+          "\\n" +
           QUEUE_NUDGE_DUEL_CALL_LABEL +
           ": " +
           call.label +
           " · " +
           call.hint +
-          (callTrend ? "\n" + QUEUE_NUDGE_DUEL_CALL_TREND_LABEL + ": " + callTrend.label : "") +
-          (callConfidence ? "\n" + QUEUE_NUDGE_DUEL_CALL_CONFIDENCE_LABEL + ": " + callConfidence.label + " · " + callConfidence.hint : "") +
-          (callStability ? "\n" + QUEUE_NUDGE_DUEL_CALL_STABILITY_LABEL + ": " + callStability.label + " · " + callStability.hint : "") +
-          (callRisk ? "\n" + QUEUE_NUDGE_DUEL_CALL_RISK_LABEL + ": " + callRisk.label + " · " + callRisk.hint : "") +
-          (callSequence ? "\n" + QUEUE_NUDGE_DUEL_CALL_SEQUENCE_LABEL + ": " + callSequence.label + " · " + callSequence.hint : "") +
-          (signal ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_LABEL + ": " + signal.label + " · " + signal.hint : "") +
-          (signalPulse ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_PULSE_LABEL + ": " + signalPulse.label + " · " + signalPulse.hint : "") +
+          (callTrend ? "\\n" + QUEUE_NUDGE_DUEL_CALL_TREND_LABEL + ": " + callTrend.label : "") +
+          (callConfidence ? "\\n" + QUEUE_NUDGE_DUEL_CALL_CONFIDENCE_LABEL + ": " + callConfidence.label + " · " + callConfidence.hint : "") +
+          (callStability ? "\\n" + QUEUE_NUDGE_DUEL_CALL_STABILITY_LABEL + ": " + callStability.label + " · " + callStability.hint : "") +
+          (callRisk ? "\\n" + QUEUE_NUDGE_DUEL_CALL_RISK_LABEL + ": " + callRisk.label + " · " + callRisk.hint : "") +
+          (callSequence ? "\\n" + QUEUE_NUDGE_DUEL_CALL_SEQUENCE_LABEL + ": " + callSequence.label + " · " + callSequence.hint : "") +
+          (signal ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_LABEL + ": " + signal.label + " · " + signal.hint : "") +
+          (signalPulse ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_PULSE_LABEL + ": " + signalPulse.label + " · " + signalPulse.hint : "") +
           (signalVolatility
-            ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_VOLATILITY_LABEL + ": " + signalVolatility.label + " · " + signalVolatility.hint
+            ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_VOLATILITY_LABEL + ": " + signalVolatility.label + " · " + signalVolatility.hint
             : "") +
-          (signalOutlook ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_OUTLOOK_LABEL + ": " + signalOutlook.label + " · " + signalOutlook.hint : "") +
-          (signalRegime ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_REGIME_LABEL + ": " + signalRegime.label + " · " + signalRegime.hint : "") +
+          (signalOutlook ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_OUTLOOK_LABEL + ": " + signalOutlook.label + " · " + signalOutlook.hint : "") +
+          (signalRegime ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_REGIME_LABEL + ": " + signalRegime.label + " · " + signalRegime.hint : "") +
           (signalConviction
-            ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONVICTION_LABEL + ": " + signalConviction.label + " · " + signalConviction.hint
+            ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONVICTION_LABEL + ": " + signalConviction.label + " · " + signalConviction.hint
             : "") +
-          (signalHandoff ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_HANDOFF_LABEL + ": " + signalHandoff.label + " · " + signalHandoff.hint : "") +
+          (signalHandoff ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_HANDOFF_LABEL + ": " + signalHandoff.label + " · " + signalHandoff.hint : "") +
           (signalHandoffTrend
-            ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_HANDOFF_TREND_LABEL + ": " + signalHandoffTrend.label + " · " + signalHandoffTrend.hint
+            ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_HANDOFF_TREND_LABEL + ": " + signalHandoffTrend.label + " · " + signalHandoffTrend.hint
             : "") +
           (signalHandoffMomentum
-            ? "\n" +
+            ? "\\n" +
               QUEUE_NUDGE_DUEL_SIGNAL_HANDOFF_MOMENTUM_LABEL +
               ": " +
               signalHandoffMomentum.label +
               " · " +
               signalHandoffMomentum.hint
             : "") +
-          (signalConsensus ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_LABEL + ": " + signalConsensus.label + " · " + signalConsensus.hint : "")
+          (signalConsensus ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_LABEL + ": " + signalConsensus.label + " · " + signalConsensus.hint : "")
           + (signalConsensusTrend
-            ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_TREND_LABEL + ": " + signalConsensusTrend.label + " · " + signalConsensusTrend.hint
+            ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_TREND_LABEL + ": " + signalConsensusTrend.label + " · " + signalConsensusTrend.hint
             : "")
           + (signalConsensusMomentum
-            ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_MOMENTUM_LABEL + ": " + signalConsensusMomentum.label + " · " + signalConsensusMomentum.hint
+            ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_MOMENTUM_LABEL + ": " + signalConsensusMomentum.label + " · " + signalConsensusMomentum.hint
             : "")
           + (signalConsensusRisk
-            ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_RISK_LABEL + ": " + signalConsensusRisk.label + " · " + signalConsensusRisk.hint
+            ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_RISK_LABEL + ": " + signalConsensusRisk.label + " · " + signalConsensusRisk.hint
             : "")
           + (signalConsensusStability
-            ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_STABILITY_LABEL + ": " + signalConsensusStability.label + " · " + signalConsensusStability.hint
+            ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_STABILITY_LABEL + ": " + signalConsensusStability.label + " · " + signalConsensusStability.hint
             : "")
           + (signalConsensusReadiness
-            ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_READINESS_LABEL + ": " + signalConsensusReadiness.label + " · " + signalConsensusReadiness.hint
+            ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_READINESS_LABEL + ": " + signalConsensusReadiness.label + " · " + signalConsensusReadiness.hint
             : "")
           + (signalConsensusWindow
-            ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_WINDOW_LABEL + ": " + signalConsensusWindow.label + " · " + signalConsensusWindow.hint
+            ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_WINDOW_LABEL + ": " + signalConsensusWindow.label + " · " + signalConsensusWindow.hint
             : "")
           + (signalConsensusGuardrail
-            ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_GUARDRAIL_LABEL + ": " + signalConsensusGuardrail.label + " · " + signalConsensusGuardrail.hint
+            ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_GUARDRAIL_LABEL + ": " + signalConsensusGuardrail.label + " · " + signalConsensusGuardrail.hint
             : "")
           + (signalConsensusTrigger
-            ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_TRIGGER_LABEL + ": " + signalConsensusTrigger.label + " · " + signalConsensusTrigger.hint
+            ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_TRIGGER_LABEL + ": " + signalConsensusTrigger.label + " · " + signalConsensusTrigger.hint
             : "")
           + (signalConsensusProtocol
-            ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_LABEL + ": " + signalConsensusProtocol.label + " · " + signalConsensusProtocol.hint
+            ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_LABEL + ": " + signalConsensusProtocol.label + " · " + signalConsensusProtocol.hint
             : "")
           + (signalConsensusProtocolConfidence
-            ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_CONFIDENCE_LABEL + ": " + signalConsensusProtocolConfidence.label + " · " + signalConsensusProtocolConfidence.hint
+            ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_CONFIDENCE_LABEL + ": " + signalConsensusProtocolConfidence.label + " · " + signalConsensusProtocolConfidence.hint
             : "")
           + (signalConsensusProtocolTrend
-            ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_TREND_LABEL + ": " + signalConsensusProtocolTrend.label + " · " + signalConsensusProtocolTrend.hint
+            ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_TREND_LABEL + ": " + signalConsensusProtocolTrend.label + " · " + signalConsensusProtocolTrend.hint
             : "")
           + (signalConsensusProtocolRisk
-            ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_RISK_LABEL + ": " + signalConsensusProtocolRisk.label + " · " + signalConsensusProtocolRisk.hint
+            ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_RISK_LABEL + ": " + signalConsensusProtocolRisk.label + " · " + signalConsensusProtocolRisk.hint
             : "")
           + (signalConsensusProtocolRegime
-            ? "\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_REGIME_LABEL + ": " + signalConsensusProtocolRegime.label + " · " + signalConsensusProtocolRegime.hint
+            ? "\\n" + QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_REGIME_LABEL + ": " + signalConsensusProtocolRegime.label + " · " + signalConsensusProtocolRegime.hint
             : "")
         );
       }
@@ -6971,6 +6967,10 @@ const html = `<!doctype html>
         const signalConsensusGuardrail = ahaDuelSignalConsensusGuardrailMeta(ranked);
         const signalConsensusTrigger = ahaDuelSignalConsensusTriggerMeta(ranked);
         const signalConsensusProtocol = ahaDuelSignalConsensusProtocolMeta(ranked);
+        const signalConsensusProtocolConfidence = ahaDuelSignalConsensusProtocolConfidenceMeta(ranked);
+        const signalConsensusProtocolTrend = ahaDuelSignalConsensusProtocolTrendMeta();
+        const signalConsensusProtocolRisk = ahaDuelSignalConsensusProtocolRiskMeta();
+        const signalConsensusProtocolRegime = ahaDuelSignalConsensusProtocolRegimeMeta();
         if (call) lines.push(QUEUE_NUDGE_DUEL_CALL_LABEL + ": " + call.label + " · " + call.hint);
         if (callTrend) lines.push(QUEUE_NUDGE_DUEL_CALL_TREND_LABEL + ": " + callTrend.label);
         if (callConfidence) lines.push(QUEUE_NUDGE_DUEL_CALL_CONFIDENCE_LABEL + ": " + callConfidence.label + " · " + callConfidence.hint);
@@ -7104,7 +7104,7 @@ const html = `<!doctype html>
               signalConsensusProtocolRegime.hint,
           );
         }
-        return lines.join("\n");
+        return lines.join("\\n");
       }
 
       function ahaDuelSignalHandoffText(poolItems) {
@@ -7129,7 +7129,6 @@ const html = `<!doctype html>
         const consensusProtocolConfidence = ahaDuelSignalConsensusProtocolConfidenceMeta(ranked);
         const consensusProtocolTrend = ahaDuelSignalConsensusProtocolTrendMeta();
         const consensusProtocolRisk = ahaDuelSignalConsensusProtocolRiskMeta();
-        const consensusProtocolRegime = ahaDuelSignalConsensusProtocolRegimeMeta();
         const consensusProtocolRegime = ahaDuelSignalConsensusProtocolRegimeMeta();
         if (!handoff) return "";
         const lines = ["Aha Duel Signal Handoff", QUEUE_NUDGE_DUEL_SIGNAL_HANDOFF_LABEL + ": " + handoff.label + " · " + handoff.hint];
@@ -7196,7 +7195,7 @@ const html = `<!doctype html>
         if (consensusProtocolRegime) {
           lines.push(QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_REGIME_LABEL + ": " + consensusProtocolRegime.label + " · " + consensusProtocolRegime.hint);
         }
-        return lines.join("\n");
+        return lines.join("\\n");
       }
 
       function ahaDuelSignalConsensusText(poolItems) {
@@ -7217,6 +7216,7 @@ const html = `<!doctype html>
         const consensusProtocolConfidence = ahaDuelSignalConsensusProtocolConfidenceMeta(ranked);
         const consensusProtocolTrend = ahaDuelSignalConsensusProtocolTrendMeta();
         const consensusProtocolRisk = ahaDuelSignalConsensusProtocolRiskMeta();
+        const consensusProtocolRegime = ahaDuelSignalConsensusProtocolRegimeMeta();
         if (!consensus) return "";
         const lines = ["Aha Duel Signal Consensus", QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_LABEL + ": " + consensus.label + " · " + consensus.hint];
         if (handoff) {
@@ -7270,7 +7270,7 @@ const html = `<!doctype html>
         if (call) {
           lines.push(QUEUE_NUDGE_DUEL_CALL_LABEL + ": " + call.label + " · " + call.hint);
         }
-        return lines.join("\n");
+        return lines.join("\\n");
       }
 
       function ahaDuelSignalConsensusProtocolText(poolItems) {
@@ -7316,7 +7316,7 @@ const html = `<!doctype html>
         if (regime) {
           lines.push(QUEUE_NUDGE_DUEL_SIGNAL_CONSENSUS_PROTOCOL_REGIME_LABEL + ": " + regime.label + " · " + regime.hint);
         }
-        return lines.join("\n");
+        return lines.join("\\n");
       }
 
       function ahaDuelSnapshotText(poolItems) {
@@ -7474,7 +7474,7 @@ const html = `<!doctype html>
               String(candidate.title || "Untitled"),
           );
         }
-        return lines.join("\n");
+        return lines.join("\\n");
       }
 
       function refreshAhaRankMap(items) {
@@ -8225,11 +8225,11 @@ const html = `<!doctype html>
           ":</span>" +
           focusModeButtonsHtml +
           '</div><button type="button" class="secondary" id="editTrendFocusContextBtn"' +
-          (hasActiveStepFocus ? "" : " disabled aria-disabled=\"true\"") +
+          (hasActiveStepFocus ? "" : ' disabled aria-disabled="true"') +
           ">" +
           editFocusLabel +
           '</button><button type="button" id="clearTrendStepFocusBtn"' +
-          (hasActiveStepFocus ? "" : " disabled aria-disabled=\"true\"") +
+          (hasActiveStepFocus ? "" : ' disabled aria-disabled="true"') +
           ">" +
           clearFocusLabel +
           "</button></div>";
@@ -10965,7 +10965,7 @@ const html = `<!doctype html>
         if (briefPreview) {
           const briefEl = document.createElement("div");
           briefEl.className = "hero-brief";
-          briefEl.textContent = QUEUE_NUDGE_BRIEF_CONTEXT_LABEL + ": " + decisionBriefContextSummary() + "\n" + briefPreview;
+          briefEl.textContent = QUEUE_NUDGE_BRIEF_CONTEXT_LABEL + ": " + decisionBriefContextSummary() + "\\n" + briefPreview;
           storyHost.appendChild(briefEl);
         }
         const actionsEl = document.createElement("div");
@@ -11427,7 +11427,7 @@ const html = `<!doctype html>
         } else if (status === "READY") {
           statusHint = "Item is ready to export.";
         }
-        const statusHintHtml = statusHint ? "<div class=\\"hint\\">" + statusHint + "</div>" : "";
+        const statusHintHtml = statusHint ? '<div class="hint">' + statusHint + "</div>" : "";
 
         panel.innerHTML = \`
           <h3>Export Records</h3>
@@ -11519,7 +11519,7 @@ const html = `<!doctype html>
         if (openLatestBtn) {
           openLatestBtn.addEventListener("click", () => {
             if (!latestFirstFile?.path) return;
-            const fileHref = "/" + String(latestFirstFile.path).replace(/^\/+/, "");
+            const fileHref = "/" + String(latestFirstFile.path).replace(/^\\/+/, "");
             window.open(encodeURI(fileHref), "_blank", "noopener,noreferrer");
           });
         }
@@ -11544,7 +11544,7 @@ const html = `<!doctype html>
             for (const file of files) {
               const row = document.createElement("div");
               row.className = "file-row";
-              const fileHref = "/" + String(file.path || "").replace(/^\/+/, "");
+              const fileHref = "/" + String(file.path || "").replace(/^\\/+/, "");
               row.innerHTML = \`
                 <span class="status status-default">\${String(file.type || "file").toUpperCase()}</span>
                 <span class="file-path">\${file.path}</span>
@@ -13232,7 +13232,7 @@ const html = `<!doctype html>
           return;
         }
         const url = String(item.url || "").trim();
-        if (!/^https?:\/\//i.test(url)) {
+        if (!/^https?:\\/\\//i.test(url)) {
           const hint = "Selected item has no valid http(s) source URL.";
           setActionFeedbackPair("done", hint, queueActionBannerEl);
           errorEl.textContent = hint;
@@ -13262,7 +13262,7 @@ const html = `<!doctype html>
           return;
         }
         const url = String(item.url || "").trim();
-        if (!/^https?:\/\//i.test(url)) {
+        if (!/^https?:\\/\\//i.test(url)) {
           const hint = "Selected item has no valid http(s) source URL.";
           setActionFeedbackPair("done", hint, queueActionBannerEl);
           errorEl.textContent = hint;

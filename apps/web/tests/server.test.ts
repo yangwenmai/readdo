@@ -29,6 +29,12 @@ test("web root serves inbox html shell", async () => {
     const res = await fetch(baseUrl + "/");
     assert.equal(res.status, 200);
     const text = await res.text();
+    const inlineScriptMatch = text.match(/<script>([\s\S]*?)<\/script>/u);
+    assert.ok(inlineScriptMatch?.[1], "expected inline script in inbox shell");
+    assert.doesNotThrow(() => {
+      // 编译检查：防止重复 const/语法错误被静态文本断言漏掉
+      new Function(inlineScriptMatch[1]);
+    });
     assert.match(text, /Read→Do Inbox/u);
     assert.match(text, /从信息堆积到可执行决策/u);
     assert.match(text, /Clear Filters/u);
