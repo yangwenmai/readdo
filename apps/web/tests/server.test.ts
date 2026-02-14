@@ -427,6 +427,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Run Signal Command \(Alt\+L\)/u);
     assert.match(text, /Run Signal Command/u);
     assert.match(text, /Run Signal Script/u);
+    assert.match(text, /Run Signal Checklist/u);
     assert.match(text, /Run Rival Action/u);
     assert.match(text, /Two-step sprint ready/u);
     assert.match(text, /One side blocked/u);
@@ -603,6 +604,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Run Signal Command \(Alt\+L\)/u);
     assert.match(text, /Run Signal Command/u);
     assert.match(text, /Run Signal Script/u);
+    assert.match(text, /Run Signal Checklist/u);
     assert.match(text, /Open Lead/u);
     assert.match(text, /Open Rival/u);
     assert.match(text, /hero-kicker/u);

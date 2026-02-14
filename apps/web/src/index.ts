@@ -166,6 +166,7 @@ const queueNudgeRunSignalConsensusLabel = "Run Signal Consensus";
 const queueNudgeRunSignalProtocolLabel = "Run Signal Protocol (Alt+P)";
 const queueNudgeRunSignalCommandLabel = "Run Signal Command (Alt+L)";
 const queueNudgeRunSignalScriptLabel = "Run Signal Script";
+const queueNudgeRunSignalChecklistLabel = "Run Signal Checklist";
 const queueNudgeCopySignalHandoffLabel = "Copy Signal Handoff";
 const queueNudgeCopySignalConsensusLabel = "Copy Signal Consensus";
 const queueNudgeCopySignalCommandLabel = "Copy Signal Command (Alt+Shift+L)";
@@ -4522,6 +4523,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_RUN_SIGNAL_PROTOCOL_LABEL = ${JSON.stringify(queueNudgeRunSignalProtocolLabel)};
       const QUEUE_NUDGE_RUN_SIGNAL_COMMAND_LABEL = ${JSON.stringify(queueNudgeRunSignalCommandLabel)};
       const QUEUE_NUDGE_RUN_SIGNAL_SCRIPT_LABEL = ${JSON.stringify(queueNudgeRunSignalScriptLabel)};
+      const QUEUE_NUDGE_RUN_SIGNAL_CHECKLIST_LABEL = ${JSON.stringify(queueNudgeRunSignalChecklistLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_HANDOFF_LABEL = ${JSON.stringify(queueNudgeCopySignalHandoffLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_CONSENSUS_LABEL = ${JSON.stringify(queueNudgeCopySignalConsensusLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_COMMAND_LABEL = ${JSON.stringify(queueNudgeCopySignalCommandLabel)};
@@ -10863,6 +10865,14 @@ const html = `<!doctype html>
                 await runDuelSignalScriptAction(runSignalScriptBtn);
               });
               actionsEl.appendChild(runSignalScriptBtn);
+              const runSignalChecklistBtn = document.createElement("button");
+              runSignalChecklistBtn.type = "button";
+              runSignalChecklistBtn.className = "secondary";
+              runSignalChecklistBtn.textContent = QUEUE_NUDGE_RUN_SIGNAL_CHECKLIST_LABEL;
+              runSignalChecklistBtn.addEventListener("click", async () => {
+                await runDuelSignalChecklistAction(runSignalChecklistBtn);
+              });
+              actionsEl.appendChild(runSignalChecklistBtn);
               duelEl.appendChild(actionsEl);
               ahaNudgeEl.appendChild(duelEl);
             }
@@ -12380,6 +12390,14 @@ const html = `<!doctype html>
             await runDuelSignalScriptAction(runSignalScriptBtn);
           });
           actionsEl.appendChild(runSignalScriptBtn);
+          const runSignalChecklistBtn = document.createElement("button");
+          runSignalChecklistBtn.type = "button";
+          runSignalChecklistBtn.className = "secondary";
+          runSignalChecklistBtn.textContent = QUEUE_NUDGE_RUN_SIGNAL_CHECKLIST_LABEL;
+          runSignalChecklistBtn.addEventListener("click", async () => {
+            await runDuelSignalChecklistAction(runSignalChecklistBtn);
+          });
+          actionsEl.appendChild(runSignalChecklistBtn);
         }
         if (String(top?.id) !== String(item?.id)) {
           const leadBtn = document.createElement("button");
@@ -14453,6 +14471,51 @@ const html = `<!doctype html>
           command.label +
           (scriptLane ? " · " + scriptLane.label + " · " + scriptLane.hint : "") +
           (scriptChecklist ? " · " + scriptChecklist.label + " · " + scriptChecklist.hint : "") +
+          ".";
+      }
+
+      async function runDuelSignalChecklistAction(button = null) {
+        const visibleItems = visibleQueueItems();
+        const pool = visibleItems.length ? visibleItems : allItems;
+        const trigger = ahaDuelSignalConsensusTriggerMeta(pool);
+        const protocol = ahaDuelSignalConsensusProtocolMeta(pool);
+        const cadence = ahaDuelSignalConsensusProtocolCadenceMeta();
+        const pressure = ahaDuelSignalConsensusProtocolPressureMeta();
+        const command = ahaDuelSignalConsensusProtocolCommandMeta(pool, trigger, protocol, cadence, pressure);
+        const script = ahaDuelSignalConsensusProtocolScriptMeta(pool, command, cadence, pressure);
+        const scriptLane = ahaDuelSignalConsensusProtocolScriptLaneMeta(pool, script, command);
+        const scriptChecklist = ahaDuelSignalConsensusProtocolScriptChecklistMeta(pool, script, scriptLane, command);
+        if (!scriptChecklist || !script || !command) {
+          errorEl.textContent = "No duel signal checklist available under current filters.";
+          return;
+        }
+        const checklistLabel = String(scriptChecklist.label || "").toLowerCase();
+        if (checklistLabel.includes("hold") || checklistLabel.includes("watch")) {
+          errorEl.textContent =
+            "Signal checklist standby: " +
+            scriptChecklist.hint +
+            " · " +
+            scriptChecklist.label +
+            " · " +
+            command.label +
+            ".";
+          return;
+        }
+        if (checklistLabel.includes("replay")) {
+          await runDuelSignalConsensusAction(button);
+        } else {
+          await runDuelSignalScriptAction(button);
+        }
+        const base = errorEl.textContent ? errorEl.textContent.replace(/\.$/, "") : "Signal checklist executed";
+        errorEl.textContent =
+          base +
+          " · " +
+          scriptChecklist.label +
+          " · " +
+          scriptChecklist.hint +
+          " · " +
+          script.label +
+          (scriptLane ? " · " + scriptLane.label + " · " + scriptLane.hint : "") +
           ".";
       }
 
