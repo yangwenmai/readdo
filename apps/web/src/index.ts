@@ -141,6 +141,7 @@ const queueNudgeRunSignalConsensusLabel = "Run Signal Consensus";
 const queueNudgeCopySignalHandoffLabel = "Copy Signal Handoff";
 const queueNudgeCopySignalConsensusLabel = "Copy Signal Consensus";
 const queueNudgeDownloadSignalHandoffLabel = "Download Signal Handoff";
+const queueNudgeDownloadSignalConsensusLabel = "Download Signal Consensus";
 const queueNudgeCopyDuelCallLabel = "Copy Duel Call (Alt+C)";
 const queueNudgeCopyDuelSignalsLabel = "Copy Duel Signals (Alt+S)";
 const queueNudgeCopyBriefLabel = "Copy Decision Brief (Shift+D)";
@@ -3299,6 +3300,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_COPY_SIGNAL_HANDOFF_LABEL = ${JSON.stringify(queueNudgeCopySignalHandoffLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_CONSENSUS_LABEL = ${JSON.stringify(queueNudgeCopySignalConsensusLabel)};
       const QUEUE_NUDGE_DOWNLOAD_SIGNAL_HANDOFF_LABEL = ${JSON.stringify(queueNudgeDownloadSignalHandoffLabel)};
+      const QUEUE_NUDGE_DOWNLOAD_SIGNAL_CONSENSUS_LABEL = ${JSON.stringify(queueNudgeDownloadSignalConsensusLabel)};
       const QUEUE_NUDGE_COPY_DUEL_CALL_LABEL = ${JSON.stringify(queueNudgeCopyDuelCallLabel)};
       const QUEUE_NUDGE_COPY_DUEL_SIGNALS_LABEL = ${JSON.stringify(queueNudgeCopyDuelSignalsLabel)};
       const QUEUE_NUDGE_COPY_BRIEF_LABEL = ${JSON.stringify(queueNudgeCopyBriefLabel)};
@@ -7510,6 +7512,14 @@ const html = `<!doctype html>
                 await runDownloadAhaDuelSignalHandoffAction(downloadSignalHandoffBtn);
               });
               actionsEl.appendChild(downloadSignalHandoffBtn);
+              const downloadSignalConsensusBtn = document.createElement("button");
+              downloadSignalConsensusBtn.type = "button";
+              downloadSignalConsensusBtn.className = "secondary";
+              downloadSignalConsensusBtn.textContent = QUEUE_NUDGE_DOWNLOAD_SIGNAL_CONSENSUS_LABEL;
+              downloadSignalConsensusBtn.addEventListener("click", async () => {
+                await runDownloadAhaDuelSignalConsensusAction(downloadSignalConsensusBtn);
+              });
+              actionsEl.appendChild(downloadSignalConsensusBtn);
               const copyDuelSnapshotBtn = document.createElement("button");
               copyDuelSnapshotBtn.type = "button";
               copyDuelSnapshotBtn.className = "secondary";
@@ -8653,6 +8663,14 @@ const html = `<!doctype html>
             await runDownloadAhaDuelSignalHandoffAction(downloadSignalHandoffBtn);
           });
           actionsEl.appendChild(downloadSignalHandoffBtn);
+          const downloadSignalConsensusBtn = document.createElement("button");
+          downloadSignalConsensusBtn.type = "button";
+          downloadSignalConsensusBtn.className = "secondary";
+          downloadSignalConsensusBtn.textContent = QUEUE_NUDGE_DOWNLOAD_SIGNAL_CONSENSUS_LABEL;
+          downloadSignalConsensusBtn.addEventListener("click", async () => {
+            await runDownloadAhaDuelSignalConsensusAction(downloadSignalConsensusBtn);
+          });
+          actionsEl.appendChild(downloadSignalConsensusBtn);
           const copyDuelSnapshotBtn = document.createElement("button");
           copyDuelSnapshotBtn.type = "button";
           copyDuelSnapshotBtn.className = "secondary";
@@ -9905,6 +9923,36 @@ const html = `<!doctype html>
               document.body.removeChild(anchor);
               URL.revokeObjectURL(url);
               errorEl.textContent = "Downloaded duel signal handoff.";
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
+      async function runDownloadAhaDuelSignalConsensusAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_download_aha_duel_signal_consensus",
+            label: "Download Signal Consensus",
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const pool = visibleItems.length ? visibleItems : allItems;
+              const text = ahaDuelSignalConsensusText(pool);
+              if (!text) {
+                errorEl.textContent = "Duel signal consensus is unavailable under current filters.";
+                return;
+              }
+              const fileName = "aha_signal_consensus_" + new Date().toISOString().replace(/[:.]/g, "-") + ".txt";
+              const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+              const url = URL.createObjectURL(blob);
+              const anchor = document.createElement("a");
+              anchor.href = url;
+              anchor.download = fileName;
+              document.body.appendChild(anchor);
+              anchor.click();
+              document.body.removeChild(anchor);
+              URL.revokeObjectURL(url);
+              errorEl.textContent = "Downloaded duel signal consensus.";
             },
           },
           { button, localFeedbackEl: queueActionBannerEl },
