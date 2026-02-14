@@ -32,6 +32,7 @@ const shortcutGuideItems = [
   { key: "Alt+C", label: "Copy Duel Call" },
   { key: "Alt+S", label: "Copy Duel Signals" },
   { key: "Alt+M", label: "Run Duel Call" },
+  { key: "Alt+P", label: "Run Signal Protocol" },
   { key: "E", label: "Open Aha Rival" },
   { key: "Shift+E", label: "Copy Aha Duel" },
   { key: "Alt+E", label: "Run Rival Action" },
@@ -148,7 +149,7 @@ const queueNudgeRunDuelLabel = "Run Duel Pair (Alt+Q)";
 const queueNudgeRunDuelCallLabel = "Run Duel Call (Alt+M)";
 const queueNudgeRunSignalHandoffLabel = "Run Signal Handoff";
 const queueNudgeRunSignalConsensusLabel = "Run Signal Consensus";
-const queueNudgeRunSignalProtocolLabel = "Run Signal Protocol";
+const queueNudgeRunSignalProtocolLabel = "Run Signal Protocol (Alt+P)";
 const queueNudgeCopySignalHandoffLabel = "Copy Signal Handoff";
 const queueNudgeCopySignalConsensusLabel = "Copy Signal Consensus";
 const queueNudgeCopySignalProtocolLabel = "Copy Signal Protocol";
@@ -13372,6 +13373,7 @@ const html = `<!doctype html>
         if (event.altKey && key === "c") return "alt+c";
         if (event.altKey && key === "s") return "alt+s";
         if (event.altKey && key === "m") return "alt+m";
+        if (event.altKey && key === "p") return "alt+p";
         if (event.shiftKey && key === "q") return "shift+q";
         if (event.shiftKey && key === "s") return "shift+s";
         if (event.shiftKey && key === "d") return "shift+d";
@@ -13464,6 +13466,9 @@ const html = `<!doctype html>
         },
         "alt+m": () => {
           void runDuelCallAction();
+        },
+        "alt+p": () => {
+          void runDuelSignalProtocolAction();
         },
         "shift+q": () => {
           void runCopyAhaDuelPlanAction();
