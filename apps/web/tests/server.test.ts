@@ -137,6 +137,9 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Momentum Trend/u);
     assert.match(text, /Hot\+Strong/u);
     assert.match(text, /nudge-story/u);
+    assert.match(text, /nudge-brief/u);
+    assert.match(text, /Decision Brief Preview/u);
+    assert.match(text, /Aha Decision Brief/u);
     assert.match(text, /Aha Storyline/u);
     assert.match(text, /Storyline:/u);
     assert.match(text, /Lead #/u);
@@ -261,6 +264,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /hero-duel/u);
     assert.match(text, /duel-gap-pill/u);
     assert.match(text, /duel-edge-pill/u);
+    assert.match(text, /hero-brief/u);
     assert.match(text, /Queue Storyline/u);
     assert.match(text, /Copy Duel/u);
     assert.match(text, /Copy Decision Brief/u);

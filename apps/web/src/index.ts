@@ -106,6 +106,7 @@ const queueNudgeCopyDuelLabel = "Copy Duel";
 const queueNudgeRunRivalLabel = "Run Rival Action (Alt+E)";
 const queueNudgeCopyBriefLabel = "Copy Decision Brief (Shift+D)";
 const queueNudgeDownloadBriefLabel = "Download Decision Brief (Alt+D)";
+const queueNudgeBriefLabel = "Decision Brief Preview";
 const queueLeadGapLabelPrefix = "Lead Gap";
 const queueDuelRoleLabelPrefix = "Duel Role";
 const detailStoryLabel = "Queue Storyline";
@@ -946,6 +947,17 @@ const html = `<!doctype html>
         background: #ecfdf5;
         color: #166534;
       }
+      .hero-story .hero-brief {
+        margin-top: 6px;
+        border: 1px dashed rgba(148, 163, 184, 0.55);
+        border-radius: 8px;
+        background: rgba(248, 250, 252, 0.92);
+        padding: 6px 8px;
+        font-size: 11px;
+        color: #334155;
+        line-height: 1.42;
+        white-space: pre-line;
+      }
       .hero-story-actions {
         margin-top: 6px;
         display: inline-flex;
@@ -1547,6 +1559,24 @@ const html = `<!doctype html>
       .aha-nudge .nudge-duel .actions {
         margin-top: 0;
       }
+      .aha-nudge .nudge-brief {
+        margin-top: 8px;
+        border-top: 1px dashed rgba(148, 163, 184, 0.45);
+        padding-top: 8px;
+        display: grid;
+        gap: 4px;
+      }
+      .aha-nudge .nudge-brief .label {
+        font-size: 11px;
+        color: #334155;
+        font-weight: 700;
+      }
+      .aha-nudge .nudge-brief .body {
+        font-size: 12px;
+        color: #1e293b;
+        line-height: 1.45;
+        white-space: pre-line;
+      }
       .aha-nudge .nudge-duel-gap {
         display: inline-flex;
         align-items: center;
@@ -2110,6 +2140,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_RUN_RIVAL_LABEL = ${JSON.stringify(queueNudgeRunRivalLabel)};
       const QUEUE_NUDGE_COPY_BRIEF_LABEL = ${JSON.stringify(queueNudgeCopyBriefLabel)};
       const QUEUE_NUDGE_DOWNLOAD_BRIEF_LABEL = ${JSON.stringify(queueNudgeDownloadBriefLabel)};
+      const QUEUE_NUDGE_BRIEF_LABEL = ${JSON.stringify(queueNudgeBriefLabel)};
       const QUEUE_LEAD_GAP_LABEL_PREFIX = ${JSON.stringify(queueLeadGapLabelPrefix)};
       const QUEUE_DUEL_ROLE_LABEL_PREFIX = ${JSON.stringify(queueDuelRoleLabelPrefix)};
       const DETAIL_STORY_LABEL = ${JSON.stringify(detailStoryLabel)};
@@ -2929,6 +2960,15 @@ const html = `<!doctype html>
           lines.push(QUEUE_NUDGE_DUEL_TREND_LABEL + ": " + duelTrend.label);
         }
         return lines.join("\n");
+      }
+
+      function ahaDecisionBriefPreview(poolItems, lineLimit = 3) {
+        const brief = ahaDecisionBriefText(poolItems);
+        if (!brief) return "";
+        return brief
+          .split("\n")
+          .slice(0, Math.max(1, Number(lineLimit) || 1))
+          .join("\n");
       }
 
       function ahaHeatTrendPoints() {
@@ -5017,6 +5057,13 @@ const html = `<!doctype html>
                   "</div>";
                 duelEl.appendChild(trendEl);
               }
+              const briefPreview = ahaDecisionBriefPreview(ahaPool, 3);
+              if (briefPreview) {
+                const briefEl = document.createElement("div");
+                briefEl.className = "nudge-brief";
+                briefEl.innerHTML = '<span class="label">' + QUEUE_NUDGE_BRIEF_LABEL + '</span><span class="body">' + briefPreview + "</span>";
+                duelEl.appendChild(briefEl);
+              }
               const actionsEl = document.createElement("div");
               actionsEl.className = "actions";
               const openRivalBtn = document.createElement("button");
@@ -5813,6 +5860,7 @@ const html = `<!doctype html>
         const duelGap = ahaDuelGapMeta(rankedPool);
         const duelEdge = ahaDuelEdgeMeta(rankedPool);
         const duelTrend = ahaDuelGapTrendMeta();
+        const briefPreview = ahaDecisionBriefPreview(rankedPool, 4);
         const rival = rankedPool[1] || null;
         storyHost.innerHTML =
           '<div class="label">' +
@@ -5855,6 +5903,12 @@ const html = `<!doctype html>
             duelTrendEl.textContent = QUEUE_NUDGE_DUEL_TREND_LABEL + ": " + duelTrend.label;
             storyHost.appendChild(duelTrendEl);
           }
+        }
+        if (briefPreview) {
+          const briefEl = document.createElement("div");
+          briefEl.className = "hero-brief";
+          briefEl.textContent = briefPreview;
+          storyHost.appendChild(briefEl);
         }
         const actionsEl = document.createElement("div");
         actionsEl.className = "hero-story-actions";
