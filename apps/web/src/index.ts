@@ -114,6 +114,7 @@ const queueNudgeDuelCallRiskLabel = "Duel Call Shift Risk";
 const queueNudgeDuelCallSequenceLabel = "Duel Call Sequence";
 const queueNudgeDuelSignalLabel = "Duel Signal Index";
 const queueNudgeDuelSignalPulseLabel = "Duel Signal Pulse";
+const queueNudgeDuelSignalSeriesLabel = "Signal Points";
 const queueNudgeDuelSnapshotLabel = "Duel Snapshot";
 const queueNudgeDuelTrendLabel = "Duel Gap Trend";
 const queueNudgeDuelSeriesLabel = "Lead-Rival";
@@ -1169,6 +1170,36 @@ const html = `<!doctype html>
         background: #fff1f2;
         color: #9f1239;
       }
+      .hero-story .duel-signal-chart-inline {
+        margin-top: 6px;
+        display: grid;
+        gap: 4px;
+      }
+      .hero-story .duel-signal-chart-inline .meta {
+        font-size: 11px;
+        color: #334155;
+      }
+      .hero-story .duel-signal-chart-inline .bars {
+        display: grid;
+        grid-template-columns: repeat(8, minmax(0, 1fr));
+        gap: 4px;
+        align-items: end;
+        min-height: 26px;
+      }
+      .hero-story .duel-signal-chart-inline .bar {
+        border-radius: 6px 6px 4px 4px;
+        border: 1px solid #cbd5e1;
+        background: linear-gradient(180deg, #e2e8f0, #f8fafc);
+        min-height: 8px;
+      }
+      .hero-story .duel-signal-chart-inline .bar.high {
+        border-color: #86efac;
+        background: linear-gradient(180deg, #bbf7d0, #ecfdf5);
+      }
+      .hero-story .duel-signal-chart-inline .bar.low {
+        border-color: #fda4af;
+        background: linear-gradient(180deg, #ffe4e6, #fff1f2);
+      }
       .hero-story .duel-snapshot-inline {
         margin-top: 6px;
         border-radius: 8px;
@@ -2138,6 +2169,36 @@ const html = `<!doctype html>
         background: #fff1f2;
         color: #9f1239;
       }
+      .aha-nudge .nudge-duel-signal-chart {
+        margin-top: 6px;
+        display: grid;
+        gap: 4px;
+      }
+      .aha-nudge .nudge-duel-signal-chart .meta {
+        font-size: 11px;
+        color: #334155;
+      }
+      .aha-nudge .nudge-duel-signal-chart .bars {
+        display: grid;
+        grid-template-columns: repeat(8, minmax(0, 1fr));
+        gap: 4px;
+        align-items: end;
+        min-height: 28px;
+      }
+      .aha-nudge .nudge-duel-signal-chart .bar {
+        border-radius: 6px 6px 4px 4px;
+        border: 1px solid #cbd5e1;
+        background: linear-gradient(180deg, #e2e8f0, #f8fafc);
+        min-height: 8px;
+      }
+      .aha-nudge .nudge-duel-signal-chart .bar.high {
+        border-color: #86efac;
+        background: linear-gradient(180deg, #bbf7d0, #ecfdf5);
+      }
+      .aha-nudge .nudge-duel-signal-chart .bar.low {
+        border-color: #fda4af;
+        background: linear-gradient(180deg, #ffe4e6, #fff1f2);
+      }
       .aha-nudge .nudge-duel-snapshot {
         margin-top: 6px;
         border-radius: 10px;
@@ -2697,6 +2758,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_DUEL_CALL_SEQUENCE_LABEL = ${JSON.stringify(queueNudgeDuelCallSequenceLabel)};
       const QUEUE_NUDGE_DUEL_SIGNAL_LABEL = ${JSON.stringify(queueNudgeDuelSignalLabel)};
       const QUEUE_NUDGE_DUEL_SIGNAL_PULSE_LABEL = ${JSON.stringify(queueNudgeDuelSignalPulseLabel)};
+      const QUEUE_NUDGE_DUEL_SIGNAL_SERIES_LABEL = ${JSON.stringify(queueNudgeDuelSignalSeriesLabel)};
       const QUEUE_NUDGE_DUEL_SNAPSHOT_LABEL = ${JSON.stringify(queueNudgeDuelSnapshotLabel)};
       const QUEUE_NUDGE_DUEL_TREND_LABEL = ${JSON.stringify(queueNudgeDuelTrendLabel)};
       const QUEUE_NUDGE_DUEL_SERIES_LABEL = ${JSON.stringify(queueNudgeDuelSeriesLabel)};
@@ -3688,6 +3750,31 @@ const html = `<!doctype html>
           return { label: "Cooling -" + Math.abs(delta), tone, hint: points.length + " signal points" };
         }
         return { label: "Flat", tone, hint: points.length + " signal points" };
+      }
+
+      function ahaDuelSignalPulseBarsHtml(points = ahaDuelSignalPulsePoints()) {
+        if (!points.length) return "";
+        const values = points.map((point) => Number(point || 0));
+        const maxValue = Math.max(...values, 1);
+        const minValue = Math.min(...values);
+        return points
+          .map((point, index) => {
+            const value = Number(point || 0);
+            const height = Math.max(Math.round((value / maxValue) * 100), 18);
+            const tone = value === maxValue ? " high" : values.length > 1 && value === minValue && maxValue !== minValue ? " low" : "";
+            return (
+              '<span class="bar' +
+              tone +
+              '" style="height:' +
+              height +
+              '%" title="s' +
+              (index + 1) +
+              ": " +
+              value +
+              '"></span>'
+            );
+          })
+          .join("");
       }
 
       function ahaDuelGapTrendMeta(points = ahaDuelGapTrendPoints()) {
@@ -6132,6 +6219,20 @@ const html = `<!doctype html>
                 signalPulseEl.textContent =
                   QUEUE_NUDGE_DUEL_SIGNAL_PULSE_LABEL + ": " + duelSignalPulse.label + " · " + duelSignalPulse.hint;
                 duelEl.appendChild(signalPulseEl);
+                const signalPoints = ahaDuelSignalPulsePoints();
+                if (signalPoints.length) {
+                  const signalChartEl = document.createElement("div");
+                  signalChartEl.className = "nudge-duel-signal-chart";
+                  signalChartEl.innerHTML =
+                    '<div class="meta">' +
+                    QUEUE_NUDGE_DUEL_SIGNAL_SERIES_LABEL +
+                    " · " +
+                    duelSignalPulse.label +
+                    '</div><div class="bars">' +
+                    ahaDuelSignalPulseBarsHtml(signalPoints) +
+                    "</div>";
+                  duelEl.appendChild(signalChartEl);
+                }
               }
               const duelSnapshot = ahaDuelSnapshotText(ahaPool);
               if (duelSnapshot) {
@@ -7151,6 +7252,20 @@ const html = `<!doctype html>
             duelSignalPulseEl.textContent =
               QUEUE_NUDGE_DUEL_SIGNAL_PULSE_LABEL + ": " + duelSignalPulse.label + " · " + duelSignalPulse.hint;
             storyHost.appendChild(duelSignalPulseEl);
+            const signalPoints = ahaDuelSignalPulsePoints();
+            if (signalPoints.length) {
+              const signalChartEl = document.createElement("div");
+              signalChartEl.className = "duel-signal-chart-inline";
+              signalChartEl.innerHTML =
+                '<div class="meta">' +
+                QUEUE_NUDGE_DUEL_SIGNAL_SERIES_LABEL +
+                " · " +
+                duelSignalPulse.label +
+                '</div><div class="bars">' +
+                ahaDuelSignalPulseBarsHtml(signalPoints) +
+                "</div>";
+              storyHost.appendChild(signalChartEl);
+            }
           }
           if (duelSnapshot) {
             const duelSnapshotEl = document.createElement("div");
