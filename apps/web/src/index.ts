@@ -132,6 +132,7 @@ const queueNudgeRunRivalLabel = "Run Rival Action (Alt+E)";
 const queueNudgeToggleDuelLabel = "Toggle Duel Pair (Alt+Z)";
 const queueNudgeRunDuelLabel = "Run Duel Pair (Alt+Q)";
 const queueNudgeRunDuelCallLabel = "Run Duel Call (Alt+M)";
+const queueNudgeRunSignalHandoffLabel = "Run Signal Handoff";
 const queueNudgeCopyDuelCallLabel = "Copy Duel Call (Alt+C)";
 const queueNudgeCopyDuelSignalsLabel = "Copy Duel Signals (Alt+S)";
 const queueNudgeCopyBriefLabel = "Copy Decision Brief (Shift+D)";
@@ -3056,6 +3057,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_TOGGLE_DUEL_LABEL = ${JSON.stringify(queueNudgeToggleDuelLabel)};
       const QUEUE_NUDGE_RUN_DUEL_LABEL = ${JSON.stringify(queueNudgeRunDuelLabel)};
       const QUEUE_NUDGE_RUN_DUEL_CALL_LABEL = ${JSON.stringify(queueNudgeRunDuelCallLabel)};
+      const QUEUE_NUDGE_RUN_SIGNAL_HANDOFF_LABEL = ${JSON.stringify(queueNudgeRunSignalHandoffLabel)};
       const QUEUE_NUDGE_COPY_DUEL_CALL_LABEL = ${JSON.stringify(queueNudgeCopyDuelCallLabel)};
       const QUEUE_NUDGE_COPY_DUEL_SIGNALS_LABEL = ${JSON.stringify(queueNudgeCopyDuelSignalsLabel)};
       const QUEUE_NUDGE_COPY_BRIEF_LABEL = ${JSON.stringify(queueNudgeCopyBriefLabel)};
@@ -6967,6 +6969,14 @@ const html = `<!doctype html>
                 await runDuelCallAction(runDuelCallBtn);
               });
               actionsEl.appendChild(runDuelCallBtn);
+              const runSignalHandoffBtn = document.createElement("button");
+              runSignalHandoffBtn.type = "button";
+              runSignalHandoffBtn.className = "secondary";
+              runSignalHandoffBtn.textContent = QUEUE_NUDGE_RUN_SIGNAL_HANDOFF_LABEL;
+              runSignalHandoffBtn.addEventListener("click", async () => {
+                await runDuelSignalHandoffAction(runSignalHandoffBtn);
+              });
+              actionsEl.appendChild(runSignalHandoffBtn);
               duelEl.appendChild(actionsEl);
               ahaNudgeEl.appendChild(duelEl);
             }
@@ -8023,6 +8033,14 @@ const html = `<!doctype html>
             await runDuelCallAction(runDuelCallBtn);
           });
           actionsEl.appendChild(runDuelCallBtn);
+          const runSignalHandoffBtn = document.createElement("button");
+          runSignalHandoffBtn.type = "button";
+          runSignalHandoffBtn.className = "secondary";
+          runSignalHandoffBtn.textContent = QUEUE_NUDGE_RUN_SIGNAL_HANDOFF_LABEL;
+          runSignalHandoffBtn.addEventListener("click", async () => {
+            await runDuelSignalHandoffAction(runSignalHandoffBtn);
+          });
+          actionsEl.appendChild(runSignalHandoffBtn);
         }
         if (String(top?.id) !== String(item?.id)) {
           const leadBtn = document.createElement("button");
@@ -9424,6 +9442,79 @@ const html = `<!doctype html>
                 meta.value +
                 ") · " +
                 call.primary.label +
+                ".";
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
+      async function runDuelSignalHandoffAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_run_duel_signal_handoff",
+            label: "Run Duel Signal Handoff",
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const pool = visibleItems.length ? visibleItems : allItems;
+              const handoff = ahaDuelSignalHandoffMeta(pool);
+              if (!handoff) {
+                errorEl.textContent = "No duel signal handoff available under current filters.";
+                return;
+              }
+              const ranked = sortedAhaItems(pool);
+              const lead = ranked[0] || null;
+              const rival = ranked[1] || null;
+              if (handoff.label === "Hold & scan") {
+                errorEl.textContent = "Signal handoff suggests hold: " + handoff.hint + ".";
+                return;
+              }
+              if (handoff.label === "Split test") {
+                if (!lead || !rival) {
+                  errorEl.textContent = "Signal handoff split test requires both lead and rival candidates.";
+                  return;
+                }
+                const outcomes = [];
+                for (const [index, item] of [lead, rival].entries()) {
+                  await selectItem(item.id);
+                  focusQueueItemCard(item.id, { revealCollapsed: true });
+                  const primary = primaryActionForItem(item);
+                  if (!primary || primary.disabled) {
+                    outcomes.push((index === 0 ? "Lead" : "Rival") + " #" + item.id + ": no runnable action");
+                    continue;
+                  }
+                  await primary.action();
+                  outcomes.push((index === 0 ? "Lead" : "Rival") + " #" + item.id + ": " + primary.label);
+                }
+                errorEl.textContent = "Signal handoff executed → Split test · " + outcomes.join(" · ");
+                return;
+              }
+              const role = handoff.label.startsWith("Rival") ? "Rival" : "Lead";
+              const target = role === "Rival" ? rival : lead;
+              if (!target) {
+                errorEl.textContent = "Signal handoff target is unavailable under current filters.";
+                return;
+              }
+              await selectItem(target.id);
+              focusQueueItemCard(target.id, { revealCollapsed: true });
+              const primary = primaryActionForItem(target);
+              if (!primary || primary.disabled) {
+                errorEl.textContent = "Signal handoff target #" + target.id + " has no runnable action.";
+                return;
+              }
+              await primary.action();
+              const meta = ahaIndexMetaForItem(target);
+              errorEl.textContent =
+                "Signal handoff executed → " +
+                handoff.label +
+                " · " +
+                role +
+                " #" +
+                target.id +
+                " (" +
+                meta.value +
+                ") · " +
+                primary.label +
                 ".";
             },
           },
