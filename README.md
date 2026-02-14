@@ -1,222 +1,221 @@
 # Read→Do (readdo)
-Save links less. Ship outputs more.
 
-Read→Do is an AI-native “Read → Decide → Do → Ship” system:
-- Capture links with a one-line intent
-- Auto-generate structured artifacts (Summary / Score / Todos / Card)
-- Export shareable outputs (PNG/MD/caption)
-- Local-first by default (SQLite)
+**Save less. Do more.**
 
-## What’s inside
-- `apps/api`        Local backend (API + orchestrator + worker)
-- `apps/web`        Web app (Inbox / Detail / Status Actions)
-- `apps/extension`  Chrome extension (one-click capture)
-- `packages/core`   Core engine (summary/score/todos/card generation)
-- `packages/contracts` Runtime schema validators (AJV)
-- `packages/eval-runner` Eval CLI (`pnpm eval`)
-- `docs/contracts/schemas` JSON schemas (source of truth)
-- `docs/templates`  Prompt templates (versioned)
-- `docs/evals`      Regression cases + rubric + reports
-- `docs`            PRD / System Design / Tech Spec / Execution Plan
+Read→Do 是一个 AI-native 的"从读到做"系统，把浏览器里堆积的 Tab 变成可执行的行动队列。
+
+**Capture（捕捉）→ Decide（取舍）→ Do（行动）**
+
+- 一键捕捉链接 + 写一句"为什么存它"
+- AI 自动生成摘要、评分、行动建议（Todos）
+- 本地优先（Go + SQLite），零运维
 
 ---
 
-## Quick start (MVP)
-> This repo is designed to run locally first.
+## 项目结构
 
-### 1) Install
-```bash
-pnpm install
-````
-
-### 2) Start API
-
-```bash
-pnpm dev:api
+```
+cmd/server/          Go 后端入口（API + Worker）
+internal/
+  api/               REST API 路由 & 处理器
+  engine/            Core Engine（Pipeline + AI Steps）
+  model/             领域模型（Item / Artifact / Error）
+  store/             SQLite 数据访问层
+  worker/            后台处理 Worker
+extension/           Chrome Extension（Manifest V3）
+web/                 React + Vite Web 应用
+  src/
+    api/             API 客户端
+    components/      通用组件（Layout / ItemCard / Toast / PriorityBadge）
+    pages/           页面（Inbox / Detail / Archive）
+    styles/          设计体系 CSS 变量 & 全局样式
+docs/                PRD / UX Spec / Tech Spec
 ```
 
-Default:
+---
 
-* API: `http://localhost:8787/api` (example)
+## 快速开始
 
-> If you use a different port, update the web app + extension config accordingly.
+### 前提条件
 
-### 3) Start Web
+- Go 1.21+
+- Node.js 18+
+- Chrome 浏览器
+
+### 1) 启动后端
 
 ```bash
-pnpm dev:web
+# Stub 模式（无需 OpenAI key，返回模拟数据，适合开发调试）
+go run ./cmd/server/
+
+# 真实 AI 模式
+OPENAI_API_KEY=sk-xxx go run ./cmd/server/
 ```
 
-Open `http://localhost:5173` in your browser.
+看到 `readdo server listening on http://localhost:8080` 即启动成功。
 
-Web Inbox 支持 `Retryable` 下拉筛选，可快速查看可重试失败项与已达上限失败项。
-Web Inbox 还支持 `Failure Step` 下拉筛选（extract/pipeline/export），用于聚焦不同失败阶段。
-点击 `Preview Retry` / `Retry Failed` 时会带上当前 Failure Step 过滤条件。
-若输入搜索关键词，Retry 预览/执行也会仅作用于匹配关键词的失败项。
-`Retry Failed` 以服务端批量扫描结果为准，不依赖当前列表首屏加载的条目数量。
-点击 `Retry Failed` 时会先执行同参数 dry-run 预检并弹出确认，再进行真实执行。
-若批量导出重试命中历史幂等重放，执行摘要会显示 `export_replayed` 计数。
-点击 `Preview Archive` 可预览将被批量归档的 blocked 失败项 ID 列表。
-`Archive Scope` 支持 blocked / retryable / all failed 三种归档范围。
-点击 `Archive Failed` 可批量归档匹配范围的失败项（先预览再确认执行）。
-若输入搜索关键词，Archive 预览/执行也会仅作用于匹配关键词的失败项。
-点击 `Preview Unarchive` / `Unarchive Archived` 可批量恢复归档项，并支持 smart/regenerate 模式。
-若输入搜索关键词，Unarchive 预览/执行会仅作用于匹配关键词的 archived 项。
-批量预览会显示 `scanned/scanned_total` 与 `truncated`，用于识别是否被 limit 截断。
-可通过 `Batch Limit` 输入框控制每次批量预览/执行扫描的最大条数（1..200）。
-当 `truncated=yes` 时，可根据返回的 `next_offset` 继续翻页预览下一批候选。
-UI 提供 `Preview Next` 按钮，可直接基于 `next_offset` 连续翻页预览。
-也可通过 `Preview Offset` 输入框从任意 offset 起始预览（例如跳到第 200 条后再看）。
-批量执行（Retry/Archive/Unarchive）会使用当前 `Preview Offset`，保证“预览页即执行页”。
-批量执行会在预览后使用服务端回写的 `requested_offset` 再次发起请求，确保执行页与最终预览页严格一致。
-`Clear Filters` 可快速清空 q/status/retryable/failure step 四类列表筛选，不影响 Batch Limit、Archive Scope、Unarchive Mode、Auto refresh。
-`Reset Controls` 可一键恢复筛选/批量参数默认值，并关闭自动刷新。
-单条行内操作按钮在请求进行中会临时禁用，避免重复点击导致的重复提交。
-筛选条件、Batch Limit、Preview Offset、Auto refresh 会在浏览器本地持久化，刷新页面后自动恢复。
-当修改搜索词、切换筛选条件或调整批量参数时，旧的预览结果会自动清空，并将 `Preview Offset` 归零，避免跨上下文误读。
+可选环境变量：
 
-### 4) Load Chrome Extension
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `PORT` | `8080` | HTTP 监听端口 |
+| `DB_PATH` | `readdo.db` | SQLite 数据库文件路径 |
+| `OPENAI_API_KEY` | (空) | 设置后启用真实 AI pipeline |
 
-1. Chrome → `chrome://extensions`
-2. Enable **Developer mode**
-3. **Load unpacked** → select `apps/extension`
-4. Pin the extension to the toolbar
-
-### 5) Capture a link
-
-* Open any webpage
-* Click the extension
-* Enter `Why save this?` (intent)
-* Save → Open Inbox
-
-> Extension 会基于“规范化 URL（去 hash、去常见跟踪参数、移除默认端口、移除 hostname 尾随点、移除 URL 凭据、稳定排序 query）+ 规范化 intent（合并多空白）”生成稳定幂等键；重复点击同一条输入不会重复创建 item。`stableCaptureKey` 内部也会做 URL 规范化，避免调用方遗漏预处理。扩展提交给 API 的 `url/domain/source_type` 也基于同一 canonical URL，减少存储形态漂移。
-> API 在 capture 入库前也会做 URL 规范化（移除 credentials/hash/常见跟踪参数、移除默认端口和 hostname 尾点、稳定排序 query），用于统一存储形态。
-> 即使调用方未显式提供 `Idempotency-Key/capture_id`，API 也会基于“规范化 url + 规范化 intent_text”推导稳定 capture key（与 extension `stableCaptureKey` 格式对齐），减少重复 capture。
-> 对 `extcap_` 形态的 capture 幂等键，API 会按大小写不敏感处理，减少跨调用方大小写差异导致的重复请求。
-> 当 `Idempotency-Key` 被代理合并为逗号分隔值（含前导空片段）时，API 会按首个非空片段解析，确保 capture/process/export 的幂等语义一致。
-> `capture_id / process_request_id / export_key` 若提供，必须是字符串；否则 API 返回 `400 VALIDATION_ERROR`。
-> 为避免无效请求，扩展仅允许在 `http/https` 页面发起捕获（`chrome://`、`file://` 等会在前端直接提示不支持）。
-> API 层仍允许 `data:` URL（主要用于本地测试与回归用例），因此自动化测试中会看到 `data:text/plain,...` 的捕获样例。
-
----
-
-## Run evals (quality gate)
-
-Evals ensure schema + key behaviors don’t drift.
+### 2) 启动前端
 
 ```bash
-pnpm eval
+cd web
+npm install   # 首次需要
+npm run dev
 ```
 
-Advanced examples:
+浏览器打开 **http://localhost:5173**。
+
+> Vite 已配置 `/api` 代理到后端 `localhost:8080`，开发时无需额外配置。
+
+### 3) 加载 Chrome Extension
+
+1. Chrome 地址栏输入 `chrome://extensions/`
+2. 打开右上角「开发者模式」
+3. 点击「加载已解压的扩展程序」→ 选择项目根目录下的 `extension/` 文件夹
+4. 将扩展固定到工具栏
+
+---
+
+## 使用流程
+
+### Capture（捕捉）
+
+打开任意网页 → 点击扩展图标 → 输入一句「为什么存这个？」→ 点 Save → 关闭 Tab。
+
+也可以直接用 curl 测试：
 
 ```bash
-# Use creator profile and only block on P0
-pnpm eval -- --profile creator --fail-on P0
-
-# Custom case glob and output report path
-pnpm eval -- --cases "docs/evals/cases/case_00*.json" --out "docs/evals/reports/custom.json"
+curl -X POST http://localhost:8080/api/capture \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://go.dev/blog/context","title":"Go Context","intent_text":"学习 context 用法"}'
 ```
 
-Quality gates:
+### Decide（取舍）
 
-* P0 must be 100% passing
-* P1 must be 100% passing (unless you explicitly relax it)
-* P2 allows small slack
+打开 Inbox，AI 会自动处理捕捉的链接（约 3-5 秒），生成：
 
-See:
+- **匹配分**（0-100）
+- **优先级**（Read next / Worth it / If time / Skip）
+- **推荐理由**（≥3 条）
 
-* `docs/05-Quality-Evals.md`
-* `docs/evals/rubric.md`
-* `docs/evals/cases/*`
+卡片按优先级自动分组排列。
 
----
+### Do（行动）
 
-## Contracts & governance
+点击卡片进入详情页：
 
-Artifacts are the source of truth. Any AI output must:
+- **Summary**：3 条核心要点 + 1 条洞察
+- **Todos**：3-7 条可执行任务（含预计时间）
 
-1. Match schema in `docs/contracts/schemas/*`
-2. Carry required meta fields (run_id / engine_version / template_version / created_by / created_at)
-3. Pass eval gates when templates/engine change
-
-Key docs:
-
-* `docs/contracts/state-machine.md`
-* `docs/contracts/api.md`
-* `docs/contracts/artifact-meta.md`
-
-> 兼容性说明：若历史数据中存在损坏 JSON（如 legacy failure/artifact payload/meta），API 读取接口会尽量降级为“将损坏/非对象 failure 视为缺失 / 跳过损坏/非对象 payload 版本 / 将损坏 meta 降级为 {}”而非直接 500。
+Summary 和 Todos 均支持编辑。勾选完所有 Todos 后会提示归档。
 
 ---
 
-## Export formats
+## API 端点
 
-MVP export targets:
-
-* Markdown + caption（已落地）
-* PNG（优先尝试，失败可降级）
-
-See `docs/contracts/schemas/card.schema.json` for `render_spec`.
-
-> Export supports `formats: ["png","md","caption"]`.  
-> 非法 `formats`（如 `pdf`）会直接返回 `400 VALIDATION_ERROR`，且不会把 item 写成 `FAILED_EXPORT`。  
-> 可选 `card_version`（整数 >=1）可指定使用某一版本 card 导出；不存在返回 404，损坏版本返回 `DATA_CORRUPTION`。
-> If png rendering fails and only png is requested, item will enter `FAILED_EXPORT`.
-> Web Detail 的 Export Records 支持 `Copy Path` 与 `Open`（通过 `/exports/...` 直接预览文件）。
-> 失败重试遵循上限策略（默认 3 次），达到上限后会返回 `RETRY_LIMIT_REACHED`。
-> 对同一 item 重复使用同一 `export_key` 会命中幂等重放（不新增 export 版本）；若此前是 `FAILED_EXPORT`，重放命中后会回到 `SHIPPED` 并清理 failure。
-> 当 `FAILED_EXPORT` 已达到重试上限时，新导出请求会被阻断；但若使用历史已存在的同一 `export_key`，仍可命中重放返回历史结果。
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/api/capture` | 捕捉链接 |
+| `GET` | `/api/items` | 列表（支持 `?status=` 筛选） |
+| `GET` | `/api/items/:id` | 详情（含 artifacts） |
+| `POST` | `/api/items/:id/retry` | 重试失败项 |
+| `PATCH` | `/api/items/:id/status` | 更新状态（归档/恢复） |
+| `PUT` | `/api/items/:id/artifacts/:type` | 编辑 artifact（summary/todos） |
 
 ---
 
-## API quick checks
+## 核心架构
+
+```
+Chrome Extension ──POST /capture──→ Go Backend (API)
+                                       │
+                                       ├── Store (SQLite)
+                                       │
+                                       └── Worker (goroutine, 3s 轮询)
+                                              │
+                                              └── Pipeline
+                                                   ├── Extract (HTTP + go-readability)
+                                                   ├── Summarize (LLM)
+                                                   ├── Score (LLM)
+                                                   └── Todos (LLM)
+
+React Web App ──GET/PATCH/PUT──→ Go Backend (API)
+```
+
+### 状态机
+
+```
+CAPTURED → PROCESSING → READY → ARCHIVED
+                ↓
+              FAILED (可重试 → CAPTURED)
+```
+
+### AI Pipeline（4 步）
+
+1. **Extract**：HTTP 抓取 + go-readability 提取正文
+2. **Summarize**：生成 3 bullets + 1 insight
+3. **Score**：匹配分（0-100）+ 优先级 + 理由
+4. **Todos**：生成 3-7 条可执行任务
+
+每步产物存入 `artifacts` 表，类型为 `extraction` / `summary` / `score` / `todos`。
+
+---
+
+## 技术栈
+
+| 层 | 技术 |
+|----|------|
+| 后端 | Go, net/http (stdlib), SQLite (modernc.org/sqlite) |
+| AI | OpenAI API (可替换) |
+| 内容提取 | go-readability |
+| 前端 | React 19, Vite, TypeScript, React Router, CSS Modules |
+| 扩展 | Chrome Manifest V3, Vanilla JS |
+| 数据库 | SQLite (WAL mode) |
+
+---
+
+## 开发说明
+
+### 构建后端
 
 ```bash
-# Worker queue/lease visibility
-curl "http://localhost:8787/api/system/worker"
+go build -o readdo ./cmd/server/
+./readdo
+```
 
-# Filter inbox by status and search keyword
-curl "http://localhost:8787/api/items?status=READY&q=checklist"
+### 构建前端
 
-# List non-retryable failed items
-curl "http://localhost:8787/api/items?status=FAILED_EXTRACTION,FAILED_AI,FAILED_EXPORT&retryable=false"
+```bash
+cd web
+npm run build    # 产出到 web/dist/
+```
 
-# Batch retry retryable FAILED_EXTRACTION/FAILED_AI
-curl -X POST "http://localhost:8787/api/items/retry-failed" \
-  -H "content-type: application/json" \
-  -d '{"limit":20}'
+### 代码检查
 
-# Dry-run preview for batch retry (no state changes)
-curl -X POST "http://localhost:8787/api/items/retry-failed" \
-  -H "content-type: application/json" \
-  -d '{"limit":20,"offset":0,"dry_run":true,"q":"Fail One"}'
+```bash
+# Go
+go vet ./...
 
-# Dry-run preview for batch archive blocked failed items
-curl -X POST "http://localhost:8787/api/items/archive-failed" \
-  -H "content-type: application/json" \
-  -d '{"limit":20,"offset":0,"dry_run":true,"retryable":false,"q":"Retryable Failure"}'
-
-# Dry-run preview for batch unarchive
-curl -X POST "http://localhost:8787/api/items/unarchive-batch" \
-  -H "content-type: application/json" \
-  -d '{"limit":20,"offset":0,"dry_run":true,"regenerate":false,"q":"AI-native"}'
-
-# Process endpoint idempotent replay (same key can be safely retried)
-curl -X POST "http://localhost:8787/api/items/<item_id>/process" \
-  -H "content-type: application/json" \
-  -H "Idempotency-Key: process-demo-001" \
-  -d '{"mode":"REGENERATE"}'
+# TypeScript
+cd web && npx tsc --noEmit
 ```
 
 ---
 
 ## Roadmap
 
-* More sources: YouTube transcript, newsletters, PDFs
-* More templates: engineer/creator/manager cards
-* More exports: Notion/Obsidian/Todoist/Linear
-* Desktop shell (Tauri) as a replaceable experience layer
+- 更多来源：YouTube 字幕、Newsletter、PDF
+- 更多模型：支持 Claude / Gemini / 本地模型
+- 桌面应用（Tauri）
+- 导出：Notion / Obsidian / Todoist 集成
+- 团队协作
 
 ---
 
