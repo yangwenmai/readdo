@@ -163,6 +163,7 @@ const queueNudgeRunSignalHandoffLabel = "Run Signal Handoff";
 const queueNudgeRunSignalConsensusLabel = "Run Signal Consensus";
 const queueNudgeRunSignalProtocolLabel = "Run Signal Protocol (Alt+P)";
 const queueNudgeRunSignalCommandLabel = "Run Signal Command (Alt+L)";
+const queueNudgeRunSignalScriptLabel = "Run Signal Script";
 const queueNudgeCopySignalHandoffLabel = "Copy Signal Handoff";
 const queueNudgeCopySignalConsensusLabel = "Copy Signal Consensus";
 const queueNudgeCopySignalCommandLabel = "Copy Signal Command (Alt+Shift+L)";
@@ -4404,6 +4405,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_RUN_SIGNAL_CONSENSUS_LABEL = ${JSON.stringify(queueNudgeRunSignalConsensusLabel)};
       const QUEUE_NUDGE_RUN_SIGNAL_PROTOCOL_LABEL = ${JSON.stringify(queueNudgeRunSignalProtocolLabel)};
       const QUEUE_NUDGE_RUN_SIGNAL_COMMAND_LABEL = ${JSON.stringify(queueNudgeRunSignalCommandLabel)};
+      const QUEUE_NUDGE_RUN_SIGNAL_SCRIPT_LABEL = ${JSON.stringify(queueNudgeRunSignalScriptLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_HANDOFF_LABEL = ${JSON.stringify(queueNudgeCopySignalHandoffLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_CONSENSUS_LABEL = ${JSON.stringify(queueNudgeCopySignalConsensusLabel)};
       const QUEUE_NUDGE_COPY_SIGNAL_COMMAND_LABEL = ${JSON.stringify(queueNudgeCopySignalCommandLabel)};
@@ -10506,6 +10508,14 @@ const html = `<!doctype html>
                 await runDuelSignalCommandAction(runSignalCommandBtn);
               });
               actionsEl.appendChild(runSignalCommandBtn);
+              const runSignalScriptBtn = document.createElement("button");
+              runSignalScriptBtn.type = "button";
+              runSignalScriptBtn.className = "secondary";
+              runSignalScriptBtn.textContent = QUEUE_NUDGE_RUN_SIGNAL_SCRIPT_LABEL;
+              runSignalScriptBtn.addEventListener("click", async () => {
+                await runDuelSignalScriptAction(runSignalScriptBtn);
+              });
+              actionsEl.appendChild(runSignalScriptBtn);
               duelEl.appendChild(actionsEl);
               ahaNudgeEl.appendChild(duelEl);
             }
@@ -11964,6 +11974,14 @@ const html = `<!doctype html>
             await runDuelSignalCommandAction(runSignalCommandBtn);
           });
           actionsEl.appendChild(runSignalCommandBtn);
+          const runSignalScriptBtn = document.createElement("button");
+          runSignalScriptBtn.type = "button";
+          runSignalScriptBtn.className = "secondary";
+          runSignalScriptBtn.textContent = QUEUE_NUDGE_RUN_SIGNAL_SCRIPT_LABEL;
+          runSignalScriptBtn.addEventListener("click", async () => {
+            await runDuelSignalScriptAction(runSignalScriptBtn);
+          });
+          actionsEl.appendChild(runSignalScriptBtn);
         }
         if (String(top?.id) !== String(item?.id)) {
           const leadBtn = document.createElement("button");
@@ -13913,6 +13931,32 @@ const html = `<!doctype html>
         }
         const base = errorEl.textContent ? errorEl.textContent.replace(/\.$/, "") : "Signal command executed";
         errorEl.textContent = base + " · " + command.label + " · " + command.hint + (script ? " · " + script.label + " · " + script.hint : "") + ".";
+      }
+
+      async function runDuelSignalScriptAction(button = null) {
+        const visibleItems = visibleQueueItems();
+        const pool = visibleItems.length ? visibleItems : allItems;
+        const trigger = ahaDuelSignalConsensusTriggerMeta(pool);
+        const protocol = ahaDuelSignalConsensusProtocolMeta(pool);
+        const cadence = ahaDuelSignalConsensusProtocolCadenceMeta();
+        const pressure = ahaDuelSignalConsensusProtocolPressureMeta();
+        const command = ahaDuelSignalConsensusProtocolCommandMeta(pool, trigger, protocol, cadence, pressure);
+        const script = ahaDuelSignalConsensusProtocolScriptMeta(pool, command, cadence, pressure);
+        if (!script || !command) {
+          errorEl.textContent = "No duel signal script available under current filters.";
+          return;
+        }
+        if (script.label === "Hold and wait script" || script.label === "Watch refresh script") {
+          errorEl.textContent = "Signal script standby: " + script.hint + " · " + command.label + ".";
+          return;
+        }
+        if (script.label === "Split replay script") {
+          await runDuelSignalConsensusAction(button);
+        } else {
+          await runDuelSignalProtocolAction(button);
+        }
+        const base = errorEl.textContent ? errorEl.textContent.replace(/\.$/, "") : "Signal script executed";
+        errorEl.textContent = base + " · " + script.label + " · " + script.hint + " · " + command.label + ".";
       }
 
       async function runDownloadAhaSnapshotAction(button = null) {
