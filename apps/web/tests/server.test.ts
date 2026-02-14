@@ -152,10 +152,12 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Duel:/u);
     assert.match(text, /nudge-duel-gap/u);
     assert.match(text, /nudge-duel-edge/u);
+    assert.match(text, /nudge-duel-call/u);
     assert.match(text, /nudge-duel-plan/u);
     assert.match(text, /nudge-duel-trend/u);
     assert.match(text, /Duel Gap/u);
     assert.match(text, /Duel Edge/u);
+    assert.match(text, /Duel Call/u);
     assert.match(text, /Duel Action Plan/u);
     assert.match(text, /Duel Gap Trend/u);
     assert.match(text, /Lead-Rival/u);
@@ -165,6 +167,8 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Coin flip/u);
     assert.match(text, /Lean lead/u);
     assert.match(text, /Strong lead/u);
+    assert.match(text, /Execute Lead Now/u);
+    assert.match(text, /Probe Rival First/u);
     assert.match(text, /Open Rival/u);
     assert.match(text, /Copy Duel/u);
     assert.match(text, /Copy Duel Plan \(Shift\+Q\)/u);
@@ -172,6 +176,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Download Decision Brief \(Alt\+D\)/u);
     assert.match(text, /Toggle Duel Pair \(Alt\+Z\)/u);
     assert.match(text, /Run Duel Pair \(Alt\+Q\)/u);
+    assert.match(text, /Run Duel Call/u);
     assert.match(text, /Run Rival Action/u);
     assert.match(text, /Two-step sprint ready/u);
     assert.match(text, /One side blocked/u);
@@ -274,6 +279,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /detailHeroStory/u);
     assert.match(text, /hero-story/u);
     assert.match(text, /hero-duel/u);
+    assert.match(text, /duel-call-pill/u);
     assert.match(text, /duel-plan-inline/u);
     assert.match(text, /duel-gap-pill/u);
     assert.match(text, /duel-edge-pill/u);
@@ -286,6 +292,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Download Decision Brief \(Alt\+D\)/u);
     assert.match(text, /Toggle Duel Pair \(Alt\+Z\)/u);
     assert.match(text, /Run Duel Pair \(Alt\+Q\)/u);
+    assert.match(text, /Run Duel Call/u);
     assert.match(text, /Open Lead/u);
     assert.match(text, /Open Rival/u);
     assert.match(text, /hero-kicker/u);

@@ -102,6 +102,7 @@ const queueNudgeStoryLabel = "Aha Storyline";
 const queueNudgeDuelLabel = "Aha Duel";
 const queueNudgeDuelGapLabel = "Duel Gap";
 const queueNudgeDuelEdgeLabel = "Duel Edge";
+const queueNudgeDuelCallLabel = "Duel Call";
 const queueNudgeDuelTrendLabel = "Duel Gap Trend";
 const queueNudgeDuelSeriesLabel = "Lead-Rival";
 const queueNudgeDuelPlanLabel = "Duel Action Plan";
@@ -111,6 +112,7 @@ const queueNudgeCopyDuelPlanLabel = "Copy Duel Plan (Shift+Q)";
 const queueNudgeRunRivalLabel = "Run Rival Action (Alt+E)";
 const queueNudgeToggleDuelLabel = "Toggle Duel Pair (Alt+Z)";
 const queueNudgeRunDuelLabel = "Run Duel Pair (Alt+Q)";
+const queueNudgeRunDuelCallLabel = "Run Duel Call";
 const queueNudgeCopyBriefLabel = "Copy Decision Brief (Shift+D)";
 const queueNudgeDownloadBriefLabel = "Download Decision Brief (Alt+D)";
 const queueNudgeBriefLabel = "Decision Brief Preview";
@@ -927,6 +929,35 @@ const html = `<!doctype html>
         background: #ecfdf5;
         color: #166534;
       }
+      .hero-story .duel-call-pill {
+        margin-top: 6px;
+        margin-left: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 8px;
+      }
+      .hero-story .duel-call-pill.call-lead {
+        border-color: #86efac;
+        background: #ecfdf5;
+        color: #166534;
+      }
+      .hero-story .duel-call-pill.call-rival {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .hero-story .duel-call-pill.call-hold {
+        border-color: #fecaca;
+        background: #fff1f2;
+        color: #9f1239;
+      }
       .hero-story .duel-trend-inline {
         margin-top: 6px;
         display: inline-flex;
@@ -1670,6 +1701,33 @@ const html = `<!doctype html>
         background: #ecfdf5;
         color: #166534;
       }
+      .aha-nudge .nudge-duel-call {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 9px;
+      }
+      .aha-nudge .nudge-duel-call.call-lead {
+        border-color: #86efac;
+        background: #ecfdf5;
+        color: #166534;
+      }
+      .aha-nudge .nudge-duel-call.call-rival {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .aha-nudge .nudge-duel-call.call-hold {
+        border-color: #fecaca;
+        background: #fff1f2;
+        color: #9f1239;
+      }
       .aha-nudge .nudge-duel-plan {
         margin-top: 4px;
         border-radius: 10px;
@@ -2204,6 +2262,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_DUEL_LABEL = ${JSON.stringify(queueNudgeDuelLabel)};
       const QUEUE_NUDGE_DUEL_GAP_LABEL = ${JSON.stringify(queueNudgeDuelGapLabel)};
       const QUEUE_NUDGE_DUEL_EDGE_LABEL = ${JSON.stringify(queueNudgeDuelEdgeLabel)};
+      const QUEUE_NUDGE_DUEL_CALL_LABEL = ${JSON.stringify(queueNudgeDuelCallLabel)};
       const QUEUE_NUDGE_DUEL_TREND_LABEL = ${JSON.stringify(queueNudgeDuelTrendLabel)};
       const QUEUE_NUDGE_DUEL_SERIES_LABEL = ${JSON.stringify(queueNudgeDuelSeriesLabel)};
       const QUEUE_NUDGE_DUEL_PLAN_LABEL = ${JSON.stringify(queueNudgeDuelPlanLabel)};
@@ -2213,6 +2272,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_RUN_RIVAL_LABEL = ${JSON.stringify(queueNudgeRunRivalLabel)};
       const QUEUE_NUDGE_TOGGLE_DUEL_LABEL = ${JSON.stringify(queueNudgeToggleDuelLabel)};
       const QUEUE_NUDGE_RUN_DUEL_LABEL = ${JSON.stringify(queueNudgeRunDuelLabel)};
+      const QUEUE_NUDGE_RUN_DUEL_CALL_LABEL = ${JSON.stringify(queueNudgeRunDuelCallLabel)};
       const QUEUE_NUDGE_COPY_BRIEF_LABEL = ${JSON.stringify(queueNudgeCopyBriefLabel)};
       const QUEUE_NUDGE_DOWNLOAD_BRIEF_LABEL = ${JSON.stringify(queueNudgeDownloadBriefLabel)};
       const QUEUE_NUDGE_BRIEF_LABEL = ${JSON.stringify(queueNudgeBriefLabel)};
@@ -3038,6 +3098,7 @@ const html = `<!doctype html>
         const duel = ahaDuelText(ranked);
         const duelGap = ahaDuelGapMeta(ranked);
         const duelEdge = ahaDuelEdgeMeta(ranked);
+        const duelCall = ahaDuelCallMeta(ranked);
         const duelTrend = ahaDuelGapTrendMeta();
         const lines = ["Aha Decision Brief", QUEUE_NUDGE_BRIEF_CONTEXT_LABEL + ": " + decisionBriefContextSummary(), story || "Storyline unavailable."];
         if (duel) {
@@ -3048,6 +3109,9 @@ const html = `<!doctype html>
         }
         if (duelEdge) {
           lines.push(QUEUE_NUDGE_DUEL_EDGE_LABEL + ": " + duelEdge.label + " · " + duelEdge.hint);
+        }
+        if (duelCall) {
+          lines.push(QUEUE_NUDGE_DUEL_CALL_LABEL + ": " + duelCall.label + " · " + duelCall.hint);
         }
         if (duelTrend) {
           lines.push(QUEUE_NUDGE_DUEL_TREND_LABEL + ": " + duelTrend.label);
@@ -3316,6 +3380,67 @@ const html = `<!doctype html>
         };
       }
 
+      function ahaDuelCallMeta(poolItems) {
+        const ranked = sortedAhaItems(poolItems);
+        if (ranked.length < 2) return null;
+        const lead = ranked[0];
+        const rival = ranked[1];
+        const leadPrimary = primaryActionForItem(lead);
+        const rivalPrimary = primaryActionForItem(rival);
+        const leadRunnable = Boolean(leadPrimary && !leadPrimary.disabled);
+        const rivalRunnable = Boolean(rivalPrimary && !rivalPrimary.disabled);
+        const gap = ahaDuelGapMeta(ranked);
+        const edge = ahaDuelEdgeMeta(ranked);
+        if (!leadRunnable && !rivalRunnable) {
+          return {
+            tone: "call-hold",
+            label: "Hold",
+            hint: "Both sides blocked, resolve prerequisites first",
+            role: "Hold",
+            target: null,
+            primary: null,
+          };
+        }
+        if (leadRunnable && (edge?.tone === "edge-strong" || gap?.tone === "gap-wide")) {
+          return {
+            tone: "call-lead",
+            label: "Execute Lead Now",
+            hint: "Lead signal is clear, capture momentum",
+            role: "Lead",
+            target: lead,
+            primary: leadPrimary,
+          };
+        }
+        if (rivalRunnable && gap?.tone === "gap-tight") {
+          return {
+            tone: "call-rival",
+            label: "Probe Rival First",
+            hint: "Close race, validate rival before committing",
+            role: "Rival",
+            target: rival,
+            primary: rivalPrimary,
+          };
+        }
+        if (leadRunnable) {
+          return {
+            tone: "call-lead",
+            label: "Execute Lead Now",
+            hint: "Lead remains the safest execution path",
+            role: "Lead",
+            target: lead,
+            primary: leadPrimary,
+          };
+        }
+        return {
+          tone: "call-rival",
+          label: "Probe Rival First",
+          hint: "Lead blocked, rival path is runnable",
+          role: "Rival",
+          target: rival,
+          primary: rivalPrimary,
+        };
+      }
+
       function ahaDuelActionPlanMeta(poolItems) {
         const ranked = sortedAhaItems(poolItems);
         if (ranked.length < 2) return null;
@@ -3346,12 +3471,14 @@ const html = `<!doctype html>
       function ahaDuelActionPlanText(poolItems) {
         const ranked = sortedAhaItems(poolItems);
         const duel = ahaDuelText(ranked);
+        const call = ahaDuelCallMeta(ranked);
         const plan = ahaDuelActionPlanMeta(ranked);
         if (!duel || !plan) return "";
         return (
           "Aha Duel Plan\n" +
           duel +
           "\n" +
+          (call ? QUEUE_NUDGE_DUEL_CALL_LABEL + ": " + call.label + " · " + call.hint + "\n" : "") +
           QUEUE_NUDGE_DUEL_PLAN_LABEL +
           ": " +
           plan.summary +
@@ -5175,6 +5302,19 @@ const html = `<!doctype html>
                   "</span>";
                 duelEl.appendChild(edgeEl);
               }
+              const duelCall = ahaDuelCallMeta(ahaPool);
+              if (duelCall) {
+                const callEl = document.createElement("span");
+                callEl.className = "nudge-duel-call " + duelCall.tone;
+                callEl.innerHTML =
+                  QUEUE_NUDGE_DUEL_CALL_LABEL +
+                  ": " +
+                  duelCall.label +
+                  '<span class="muted">· ' +
+                  duelCall.hint +
+                  "</span>";
+                duelEl.appendChild(callEl);
+              }
               const duelPlan = ahaDuelActionPlanMeta(ahaPool);
               if (duelPlan) {
                 const planEl = document.createElement("div");
@@ -5290,6 +5430,14 @@ const html = `<!doctype html>
                 await runDuelPairPrimaryActions(runDuelBtn);
               });
               actionsEl.appendChild(runDuelBtn);
+              const runDuelCallBtn = document.createElement("button");
+              runDuelCallBtn.type = "button";
+              runDuelCallBtn.className = "secondary";
+              runDuelCallBtn.textContent = QUEUE_NUDGE_RUN_DUEL_CALL_LABEL;
+              runDuelCallBtn.addEventListener("click", async () => {
+                await runDuelCallAction(runDuelCallBtn);
+              });
+              actionsEl.appendChild(runDuelCallBtn);
               duelEl.appendChild(actionsEl);
               ahaNudgeEl.appendChild(duelEl);
             }
@@ -6043,6 +6191,7 @@ const html = `<!doctype html>
         const duel = ahaDuelText(rankedPool);
         const duelGap = ahaDuelGapMeta(rankedPool);
         const duelEdge = ahaDuelEdgeMeta(rankedPool);
+        const duelCall = ahaDuelCallMeta(rankedPool);
         const duelPlan = ahaDuelActionPlanMeta(rankedPool);
         const duelTrend = ahaDuelGapTrendMeta();
         const briefPreview = ahaDecisionBriefPreview(rankedPool, 4);
@@ -6081,6 +6230,18 @@ const html = `<!doctype html>
               duelEdge.hint +
               "</span>";
             storyHost.appendChild(duelEdgeEl);
+          }
+          if (duelCall) {
+            const duelCallEl = document.createElement("span");
+            duelCallEl.className = "duel-call-pill " + duelCall.tone;
+            duelCallEl.innerHTML =
+              QUEUE_NUDGE_DUEL_CALL_LABEL +
+              ": " +
+              duelCall.label +
+              '<span class="muted">· ' +
+              duelCall.hint +
+              "</span>";
+            storyHost.appendChild(duelCallEl);
           }
           if (duelTrend) {
             const duelTrendEl = document.createElement("span");
@@ -6178,6 +6339,14 @@ const html = `<!doctype html>
             await runDuelPairPrimaryActions(runDuelBtn);
           });
           actionsEl.appendChild(runDuelBtn);
+          const runDuelCallBtn = document.createElement("button");
+          runDuelCallBtn.type = "button";
+          runDuelCallBtn.className = "secondary";
+          runDuelCallBtn.textContent = QUEUE_NUDGE_RUN_DUEL_CALL_LABEL;
+          runDuelCallBtn.addEventListener("click", async () => {
+            await runDuelCallAction(runDuelCallBtn);
+          });
+          actionsEl.appendChild(runDuelCallBtn);
         }
         if (String(top?.id) !== String(item?.id)) {
           const leadBtn = document.createElement("button");
@@ -7465,6 +7634,43 @@ const html = `<!doctype html>
                 outcomes.push((index === 0 ? "Lead" : "Rival") + " #" + item.id + ": " + primary.label);
               }
               errorEl.textContent = "Duel run completed · " + outcomes.join(" · ");
+            },
+          },
+          { button, localFeedbackEl: queueActionBannerEl },
+        );
+      }
+
+      async function runDuelCallAction(button = null) {
+        await runActionWithFeedback(
+          {
+            id: "queue_run_duel_call",
+            label: "Run Duel Call",
+            action: async () => {
+              const visibleItems = visibleQueueItems();
+              const pool = visibleItems.length ? visibleItems : allItems;
+              const call = ahaDuelCallMeta(pool);
+              if (!call) {
+                errorEl.textContent = "No duel call available under current filters.";
+                return;
+              }
+              if (!call.target || !call.primary) {
+                errorEl.textContent = "Duel call suggests hold: " + call.hint + ".";
+                return;
+              }
+              await selectItem(call.target.id);
+              focusQueueItemCard(call.target.id, { revealCollapsed: true });
+              await call.primary.action();
+              const meta = ahaIndexMetaForItem(call.target);
+              errorEl.textContent =
+                "Duel call executed → " +
+                call.role +
+                " #" +
+                call.target.id +
+                " (" +
+                meta.value +
+                ") · " +
+                call.primary.label +
+                ".";
             },
           },
           { button, localFeedbackEl: queueActionBannerEl },
