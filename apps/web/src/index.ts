@@ -107,6 +107,7 @@ const queueNudgeDuelEdgeLabel = "Duel Edge";
 const queueNudgeDuelCallLabel = "Duel Call";
 const queueNudgeDuelCallTrendLabel = "Duel Call Trend";
 const queueNudgeDuelCallConfidenceLabel = "Duel Call Confidence";
+const queueNudgeDuelCallStabilityLabel = "Duel Call Stability";
 const queueNudgeDuelTrendLabel = "Duel Gap Trend";
 const queueNudgeDuelSeriesLabel = "Lead-Rival";
 const queueNudgeDuelPlanLabel = "Duel Action Plan";
@@ -1019,6 +1020,34 @@ const html = `<!doctype html>
         background: #fff1f2;
         color: #9f1239;
       }
+      .hero-story .duel-call-stability-inline {
+        margin-top: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 8px;
+      }
+      .hero-story .duel-call-stability-inline.call-lead {
+        border-color: #86efac;
+        background: #ecfdf5;
+        color: #166534;
+      }
+      .hero-story .duel-call-stability-inline.call-rival {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .hero-story .duel-call-stability-inline.call-hold {
+        border-color: #fecaca;
+        background: #fff1f2;
+        color: #9f1239;
+      }
       .hero-story .duel-trend-inline {
         margin-top: 6px;
         display: inline-flex;
@@ -1843,6 +1872,33 @@ const html = `<!doctype html>
         background: #fff1f2;
         color: #9f1239;
       }
+      .aha-nudge .nudge-duel-call-stability {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 9px;
+      }
+      .aha-nudge .nudge-duel-call-stability.call-lead {
+        border-color: #86efac;
+        background: #ecfdf5;
+        color: #166534;
+      }
+      .aha-nudge .nudge-duel-call-stability.call-rival {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .aha-nudge .nudge-duel-call-stability.call-hold {
+        border-color: #fecaca;
+        background: #fff1f2;
+        color: #9f1239;
+      }
       .aha-nudge .nudge-duel-plan {
         margin-top: 4px;
         border-radius: 10px;
@@ -2380,6 +2436,7 @@ const html = `<!doctype html>
       const QUEUE_NUDGE_DUEL_CALL_LABEL = ${JSON.stringify(queueNudgeDuelCallLabel)};
       const QUEUE_NUDGE_DUEL_CALL_TREND_LABEL = ${JSON.stringify(queueNudgeDuelCallTrendLabel)};
       const QUEUE_NUDGE_DUEL_CALL_CONFIDENCE_LABEL = ${JSON.stringify(queueNudgeDuelCallConfidenceLabel)};
+      const QUEUE_NUDGE_DUEL_CALL_STABILITY_LABEL = ${JSON.stringify(queueNudgeDuelCallStabilityLabel)};
       const QUEUE_NUDGE_DUEL_TREND_LABEL = ${JSON.stringify(queueNudgeDuelTrendLabel)};
       const QUEUE_NUDGE_DUEL_SERIES_LABEL = ${JSON.stringify(queueNudgeDuelSeriesLabel)};
       const QUEUE_NUDGE_DUEL_PLAN_LABEL = ${JSON.stringify(queueNudgeDuelPlanLabel)};
@@ -3225,6 +3282,30 @@ const html = `<!doctype html>
         };
       }
 
+      function ahaDuelCallStabilityMeta(points = ahaDuelCallTrendPoints()) {
+        if (!points.length) {
+          return { label: "Baseline 0%", tone: "call-hold", hint: "Need more call transitions" };
+        }
+        if (points.length < 2) {
+          return { label: "Steady 100%", tone: "call-lead", hint: "Only one call observed" };
+        }
+        let shifts = 0;
+        for (let index = 1; index < points.length; index += 1) {
+          const prev = String(points[index - 1]?.role || "hold");
+          const current = String(points[index]?.role || "hold");
+          if (prev !== current) shifts += 1;
+        }
+        const windows = Math.max(points.length - 1, 1);
+        const stability = Math.max(0, Math.round(((windows - shifts) / windows) * 100));
+        if (stability >= 75) {
+          return { label: "Steady " + stability + "%", tone: "call-lead", hint: shifts + "/" + windows + " shifts" };
+        }
+        if (stability >= 45) {
+          return { label: "Mixed " + stability + "%", tone: "call-rival", hint: shifts + "/" + windows + " shifts" };
+        }
+        return { label: "Volatile " + stability + "%", tone: "call-hold", hint: shifts + "/" + windows + " shifts" };
+      }
+
       function ahaDuelGapTrendMeta(points = ahaDuelGapTrendPoints()) {
         if (!points.length) return { label: "No trend", tone: "edge-mid" };
         if (points.length < 2) return { label: "Baseline", tone: "edge-mid" };
@@ -3288,6 +3369,7 @@ const html = `<!doctype html>
         const duelCall = ahaDuelCallMeta(ranked);
         const duelCallTrend = ahaDuelCallTrendMeta();
         const duelCallConfidence = ahaDuelCallConfidenceMeta();
+        const duelCallStability = ahaDuelCallStabilityMeta();
         const duelTrend = ahaDuelGapTrendMeta();
         const lines = ["Aha Decision Brief", QUEUE_NUDGE_BRIEF_CONTEXT_LABEL + ": " + decisionBriefContextSummary(), story || "Storyline unavailable."];
         if (duel) {
@@ -3307,6 +3389,9 @@ const html = `<!doctype html>
         }
         if (duelCallConfidence) {
           lines.push(QUEUE_NUDGE_DUEL_CALL_CONFIDENCE_LABEL + ": " + duelCallConfidence.label + " · " + duelCallConfidence.hint);
+        }
+        if (duelCallStability) {
+          lines.push(QUEUE_NUDGE_DUEL_CALL_STABILITY_LABEL + ": " + duelCallStability.label + " · " + duelCallStability.hint);
         }
         if (duelTrend) {
           lines.push(QUEUE_NUDGE_DUEL_TREND_LABEL + ": " + duelTrend.label);
@@ -3669,6 +3754,7 @@ const html = `<!doctype html>
         const call = ahaDuelCallMeta(ranked);
         const callTrend = ahaDuelCallTrendMeta();
         const callConfidence = ahaDuelCallConfidenceMeta();
+        const callStability = ahaDuelCallStabilityMeta();
         const plan = ahaDuelActionPlanMeta(ranked);
         if (!duel || !plan) return "";
         return (
@@ -3678,6 +3764,7 @@ const html = `<!doctype html>
           (call ? QUEUE_NUDGE_DUEL_CALL_LABEL + ": " + call.label + " · " + call.hint + "\n" : "") +
           (callTrend ? QUEUE_NUDGE_DUEL_CALL_TREND_LABEL + ": " + callTrend.label + "\n" : "") +
           (callConfidence ? QUEUE_NUDGE_DUEL_CALL_CONFIDENCE_LABEL + ": " + callConfidence.label + " · " + callConfidence.hint + "\n" : "") +
+          (callStability ? QUEUE_NUDGE_DUEL_CALL_STABILITY_LABEL + ": " + callStability.label + " · " + callStability.hint + "\n" : "") +
           QUEUE_NUDGE_DUEL_PLAN_LABEL +
           ": " +
           plan.summary +
@@ -3692,6 +3779,7 @@ const html = `<!doctype html>
         const call = ahaDuelCallMeta(ranked);
         const callTrend = ahaDuelCallTrendMeta();
         const callConfidence = ahaDuelCallConfidenceMeta();
+        const callStability = ahaDuelCallStabilityMeta();
         if (!duel || !call) return "";
         return (
           "Aha Duel Call\n" +
@@ -3703,7 +3791,8 @@ const html = `<!doctype html>
           " · " +
           call.hint +
           (callTrend ? "\n" + QUEUE_NUDGE_DUEL_CALL_TREND_LABEL + ": " + callTrend.label : "") +
-          (callConfidence ? "\n" + QUEUE_NUDGE_DUEL_CALL_CONFIDENCE_LABEL + ": " + callConfidence.label + " · " + callConfidence.hint : "")
+          (callConfidence ? "\n" + QUEUE_NUDGE_DUEL_CALL_CONFIDENCE_LABEL + ": " + callConfidence.label + " · " + callConfidence.hint : "") +
+          (callStability ? "\n" + QUEUE_NUDGE_DUEL_CALL_STABILITY_LABEL + ": " + callStability.label + " · " + callStability.hint : "")
         );
       }
 
@@ -5550,6 +5639,14 @@ const html = `<!doctype html>
                   QUEUE_NUDGE_DUEL_CALL_CONFIDENCE_LABEL + ": " + duelCallConfidence.label + " · " + duelCallConfidence.hint;
                 duelEl.appendChild(callConfidenceEl);
               }
+              const duelCallStability = ahaDuelCallStabilityMeta();
+              if (duelCallStability) {
+                const callStabilityEl = document.createElement("span");
+                callStabilityEl.className = "nudge-duel-call-stability " + duelCallStability.tone;
+                callStabilityEl.textContent =
+                  QUEUE_NUDGE_DUEL_CALL_STABILITY_LABEL + ": " + duelCallStability.label + " · " + duelCallStability.hint;
+                duelEl.appendChild(callStabilityEl);
+              }
               const duelPlan = ahaDuelActionPlanMeta(ahaPool);
               if (duelPlan) {
                 const planEl = document.createElement("div");
@@ -6438,6 +6535,7 @@ const html = `<!doctype html>
         const duelCall = ahaDuelCallMeta(rankedPool);
         const duelCallTrend = ahaDuelCallTrendMeta();
         const duelCallConfidence = ahaDuelCallConfidenceMeta();
+        const duelCallStability = ahaDuelCallStabilityMeta();
         const duelPlan = ahaDuelActionPlanMeta(rankedPool);
         const duelTrend = ahaDuelGapTrendMeta();
         const briefPreview = ahaDecisionBriefPreview(rankedPool, 4);
@@ -6501,6 +6599,13 @@ const html = `<!doctype html>
             duelCallConfidenceEl.textContent =
               QUEUE_NUDGE_DUEL_CALL_CONFIDENCE_LABEL + ": " + duelCallConfidence.label + " · " + duelCallConfidence.hint;
             storyHost.appendChild(duelCallConfidenceEl);
+          }
+          if (duelCallStability) {
+            const duelCallStabilityEl = document.createElement("span");
+            duelCallStabilityEl.className = "duel-call-stability-inline " + duelCallStability.tone;
+            duelCallStabilityEl.textContent =
+              QUEUE_NUDGE_DUEL_CALL_STABILITY_LABEL + ": " + duelCallStability.label + " · " + duelCallStability.hint;
+            storyHost.appendChild(duelCallStabilityEl);
           }
           if (duelTrend) {
             const duelTrendEl = document.createElement("span");
