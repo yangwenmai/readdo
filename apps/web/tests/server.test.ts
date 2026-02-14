@@ -179,6 +179,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /nudge-duel-signal-consensus-risk/u);
     assert.match(text, /nudge-duel-signal-consensus-stability/u);
     assert.match(text, /nudge-duel-signal-consensus-readiness/u);
+    assert.match(text, /nudge-duel-signal-consensus-window/u);
     assert.match(text, /nudge-duel-signal-chart/u);
     assert.match(text, /nudge-duel-snapshot/u);
     assert.match(text, /nudge-duel-plan/u);
@@ -206,6 +207,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Duel Signal Consensus Risk/u);
     assert.match(text, /Duel Signal Consensus Stability/u);
     assert.match(text, /Duel Signal Consensus Readiness/u);
+    assert.match(text, /Duel Signal Consensus Window/u);
     assert.match(text, /Handoff Points/u);
     assert.match(text, /Consensus Points/u);
     assert.match(text, /Signal Points/u);
@@ -236,6 +238,12 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /Delay execution/u);
     assert.match(text, /Split test ready/u);
     assert.match(text, /Hold confirmation/u);
+    assert.match(text, /Immediate window/u);
+    assert.match(text, /Staged window/u);
+    assert.match(text, /Probe window/u);
+    assert.match(text, /Hold window/u);
+    assert.match(text, /Parallel window/u);
+    assert.match(text, /Adaptive window/u);
     assert.match(text, /Low shift risk/u);
     assert.match(text, /Medium shift risk/u);
     assert.match(text, /High shift risk/u);
@@ -424,6 +432,7 @@ test("web root serves inbox html shell", async () => {
     assert.match(text, /duel-signal-consensus-risk-inline/u);
     assert.match(text, /duel-signal-consensus-stability-inline/u);
     assert.match(text, /duel-signal-consensus-readiness-inline/u);
+    assert.match(text, /duel-signal-consensus-window-inline/u);
     assert.match(text, /duel-signal-consensus-chart-inline/u);
     assert.match(text, /duel-signal-handoff-chart-inline/u);
     assert.match(text, /duel-signal-chart-inline/u);
