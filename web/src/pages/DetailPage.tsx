@@ -4,11 +4,14 @@ import {
   api,
   parseArtifact,
   timeAgo,
+  readingTime,
+  previewText,
   type ItemWithArtifacts,
   type SummaryPayload,
   type ScorePayload,
   type TodosPayload,
   type TodoItem,
+  type ExtractionPayload,
 } from '../api/client'
 import PriorityBadge from '../components/PriorityBadge'
 import Toast from '../components/Toast'
@@ -46,9 +49,12 @@ export default function DetailPage() {
   if (loading) return <div className={styles.loading}>Loading...</div>
   if (!item) return null
 
+  const extraction = parseArtifact<ExtractionPayload>(item.artifacts, 'extraction')
   const summary = parseArtifact<SummaryPayload>(item.artifacts, 'summary')
   const score = parseArtifact<ScorePayload>(item.artifacts, 'score')
   const todos = parseArtifact<TodosPayload>(item.artifacts, 'todos')
+
+  const canReprocess = item.status === 'READY' || item.status === 'FAILED'
 
   // --- Handlers ---
 
@@ -59,6 +65,16 @@ export default function DetailPage() {
       setTimeout(() => navigate('/inbox'), 500)
     } catch {
       setToast('Archive failed')
+    }
+  }
+
+  const handleReprocess = async () => {
+    try {
+      await api.reprocess(item.id)
+      setToast('Re-queued for processing')
+      fetchItem()
+    } catch {
+      setToast('Reprocess failed')
     }
   }
 
@@ -154,9 +170,6 @@ export default function DetailPage() {
         <div className={styles.meta}>
           {item.domain}
         </div>
-        {item.intent_text && (
-          <div className={styles.intent}>"{item.intent_text}"</div>
-        )}
         <div className={styles.badges}>
           {item.priority && <PriorityBadge priority={item.priority} />}
           {item.match_score != null && (
@@ -165,6 +178,47 @@ export default function DetailPage() {
           <span className={styles.time}>{timeAgo(item.created_at)}</span>
         </div>
       </div>
+
+      {/* Intents (capture history) */}
+      {item.intents && item.intents.length > 0 ? (
+        <section className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>
+              Capture Intent{item.intents.length > 1 ? 's' : ''}
+            </h2>
+            <span className={styles.intentCount}>{item.intents.length}x saved</span>
+          </div>
+          <div className={styles.sectionContent}>
+            <ul className={styles.intentList}>
+              {item.intents.map((intent) => (
+                <li key={intent.id} className={styles.intentItem}>
+                  <span className={styles.intentTime}>{timeAgo(intent.created_at)}</span>
+                  <span className={styles.intentText}>"{intent.text}"</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      ) : item.intent_text ? (
+        /* Fallback: show raw intent_text when structured intents are not yet available */
+        <section className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>Capture Intent</h2>
+            {item.save_count > 1 && (
+              <span className={styles.intentCount}>{item.save_count}x saved</span>
+            )}
+          </div>
+          <div className={styles.sectionContent}>
+            <ul className={styles.intentList}>
+              {item.intent_text.split('\n---\n').map((text, i) => (
+                <li key={i} className={styles.intentItem}>
+                  <span className={styles.intentText}>"{text.trim()}"</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      ) : null}
 
       {/* Why Read This */}
       {score && score.reasons.length > 0 && (
@@ -236,6 +290,51 @@ export default function DetailPage() {
                 </div>
               </div>
             )}
+          </div>
+        </section>
+      )}
+
+      {/* Content Preview */}
+      {extraction && extraction.normalized_text && (
+        <section className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>Content Preview</h2>
+          </div>
+          <div className={styles.sectionContent}>
+            {/* Extraction metadata */}
+            {(extraction.content_meta.author || extraction.content_meta.word_count > 0 || extraction.content_meta.publish_date) && (
+              <div className={styles.extractionMeta}>
+                {extraction.content_meta.author && (
+                  <span className={styles.extractionMetaItem}>
+                    <span className={styles.extractionMetaLabel}>Author</span>
+                    {extraction.content_meta.author}
+                  </span>
+                )}
+                {extraction.content_meta.word_count > 0 && (
+                  <span className={styles.extractionMetaItem}>
+                    <span className={styles.extractionMetaLabel}>Read time</span>
+                    {readingTime(extraction.content_meta.word_count)}
+                  </span>
+                )}
+                {extraction.content_meta.publish_date && (
+                  <span className={styles.extractionMetaItem}>
+                    <span className={styles.extractionMetaLabel}>Published</span>
+                    {new Date(extraction.content_meta.publish_date).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+            )}
+            <p className={styles.previewText}>
+              {previewText(extraction.normalized_text)}
+            </p>
+            <a
+              className={styles.readOriginal}
+              href={item.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Read full article →
+            </a>
           </div>
         </section>
       )}
@@ -333,6 +432,11 @@ export default function DetailPage() {
         <button className={styles.archiveBtn} onClick={handleArchive}>
           Archive
         </button>
+        {canReprocess && (
+          <button className={styles.reprocessBtn} onClick={handleReprocess}>
+            Reprocess
+          </button>
+        )}
         <a
           className={styles.originalBtn}
           href={item.url}

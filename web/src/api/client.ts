@@ -13,6 +13,7 @@ export interface Item {
   priority?: string;
   match_score?: number;
   error_info?: string;
+  save_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -26,8 +27,16 @@ export interface Artifact {
   created_at: string;
 }
 
+export interface Intent {
+  id: string;
+  item_id: string;
+  text: string;
+  created_at: string;
+}
+
 export interface ItemWithArtifacts extends Item {
   artifacts: Artifact[];
+  intents: Intent[];
 }
 
 export interface SummaryPayload {
@@ -50,6 +59,17 @@ export interface TodoItem {
 
 export interface TodosPayload {
   todos: TodoItem[];
+}
+
+export interface ContentMeta {
+  author?: string;
+  publish_date?: string;
+  word_count: number;
+}
+
+export interface ExtractionPayload {
+  normalized_text: string;
+  content_meta: ContentMeta;
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -76,6 +96,9 @@ export const api = {
   retry: (id: string) =>
     request<{ id: string; status: string }>(`/api/items/${id}/retry`, { method: 'POST' }),
 
+  reprocess: (id: string) =>
+    request<{ id: string; status: string }>(`/api/items/${id}/reprocess`, { method: 'POST' }),
+
   updateStatus: (id: string, status: string) =>
     request<{ id: string; status: string }>(`/api/items/${id}/status`, {
       method: 'PATCH',
@@ -97,6 +120,23 @@ export function parseArtifact<T>(artifacts: Artifact[], type: string): T | null 
   } catch {
     return null;
   }
+}
+
+/** Estimate reading time from word count (avg 200 words/min for English, 400 chars/min for CJK). */
+export function readingTime(wordCount: number): string {
+  const minutes = Math.max(1, Math.ceil(wordCount / 200));
+  if (minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m > 0 ? `${h}h ${m}min` : `${h}h`;
+}
+
+/** Truncate text to roughly N lines (by character count), adding ellipsis. */
+export function previewText(text: string, maxChars = 300): string {
+  if (text.length <= maxChars) return text;
+  // Cut at the last space before maxChars to avoid breaking words.
+  const cut = text.lastIndexOf(' ', maxChars);
+  return text.slice(0, cut > 0 ? cut : maxChars) + ' …';
 }
 
 export function timeAgo(dateStr: string): string {
