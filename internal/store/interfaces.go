@@ -18,6 +18,7 @@ type ItemWriter interface {
 	CreateItem(ctx context.Context, item model.Item) error
 	UpdateItemStatus(ctx context.Context, id, newStatus string, errorInfo *string) error
 	UpdateItemScoreAndPriority(ctx context.Context, id string, score float64, priority string) error
+	UpdateItemForReprocess(ctx context.Context, id, intentText string, saveCount int) error
 }
 
 // ItemClaimer provides atomic claim operations for background processing.
@@ -31,9 +32,15 @@ type ArtifactStore interface {
 	UpsertArtifact(ctx context.Context, a model.Artifact) error
 }
 
+// IntentStore provides access to intent persistence.
+type IntentStore interface {
+	CreateIntent(ctx context.Context, intent model.Intent) error
+}
+
 // ItemRepository combines all item-related operations for the API layer.
 type ItemRepository interface {
 	ItemReader
 	ItemWriter
 	ArtifactStore
+	IntentStore
 }

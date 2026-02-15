@@ -34,14 +34,34 @@ type Item struct {
 	Priority   *string  `json:"priority,omitempty"`
 	MatchScore *float64 `json:"match_score,omitempty"`
 	ErrorInfo  *string  `json:"error_info,omitempty"`
+	SaveCount  int      `json:"save_count"`
 	CreatedAt  string   `json:"created_at"`
 	UpdatedAt  string   `json:"updated_at"`
 }
 
-// ItemWithArtifacts is an Item together with its associated artifacts.
+// Intent represents a single capture event with its own timestamp.
+type Intent struct {
+	ID        string `json:"id"`
+	ItemID    string `json:"item_id"`
+	Text      string `json:"text"`
+	CreatedAt string `json:"created_at"`
+}
+
+// NewIntent creates a new Intent record.
+func NewIntent(id, itemID, text string) Intent {
+	return Intent{
+		ID:        id,
+		ItemID:    itemID,
+		Text:      text,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+	}
+}
+
+// ItemWithArtifacts is an Item together with its associated artifacts and intents.
 type ItemWithArtifacts struct {
 	Item
 	Artifacts []Artifact `json:"artifacts"`
+	Intents   []Intent   `json:"intents"`
 }
 
 // ItemFilter holds query parameters for listing items.
@@ -90,7 +110,23 @@ func NewItem(id, url, title, domain, sourceType, intentText string) Item {
 		SourceType: sourceType,
 		IntentText: intentText,
 		Status:     StatusCaptured,
+		SaveCount:  1,
 		CreatedAt:  now,
 		UpdatedAt:  now,
 	}
+}
+
+// MergeIntent appends a new intent to the item's existing intent text.
+// It uses newline separator and increments the save count.
+func (i *Item) MergeIntent(newIntent string) {
+	if newIntent == "" {
+		i.SaveCount++
+		return
+	}
+	if i.IntentText == "" {
+		i.IntentText = newIntent
+	} else {
+		i.IntentText = i.IntentText + "\n---\n" + newIntent
+	}
+	i.SaveCount++
 }

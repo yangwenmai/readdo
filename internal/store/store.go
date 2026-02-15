@@ -17,6 +17,7 @@ var (
 	_ ItemWriter    = (*Store)(nil)
 	_ ItemClaimer   = (*Store)(nil)
 	_ ArtifactStore = (*Store)(nil)
+	_ IntentStore   = (*Store)(nil)
 )
 
 // Store provides data access to the SQLite database.
@@ -35,7 +36,7 @@ func New(db *sql.DB) (*Store, error) {
 
 // currentSchemaVersion is bumped whenever the schema changes.
 // Add a new migration function in the migrations slice below.
-const currentSchemaVersion = 1
+const currentSchemaVersion = 3
 
 func (s *Store) migrate() error {
 	// Ensure the schema_version table exists.
@@ -59,6 +60,8 @@ func (s *Store) migrate() error {
 	// Index 0 = migration from v0 to v1, etc.
 	migrations := []func() error{
 		s.migrateV1, // v0 → v1: initial schema
+		s.migrateV2, // v1 → v2: add save_count column
+		s.migrateV3, // v2 → v3: add intents table, migrate existing intent_text
 	}
 
 	for i := version; i < len(migrations); i++ {
@@ -107,6 +110,61 @@ func (s *Store) migrateV1() error {
 	return err
 }
 
+// migrateV2 adds the save_count column (v1 → v2).
+func (s *Store) migrateV2() error {
+	_, err := s.db.Exec(`ALTER TABLE items ADD COLUMN save_count INTEGER NOT NULL DEFAULT 1`)
+	return err
+}
+
+// migrateV3 adds the intents table and migrates existing intent_text data (v2 → v3).
+func (s *Store) migrateV3() error {
+	// Create intents table.
+	if _, err := s.db.Exec(`
+		CREATE TABLE IF NOT EXISTS intents (
+			id         TEXT PRIMARY KEY,
+			item_id    TEXT NOT NULL REFERENCES items(id),
+			text       TEXT NOT NULL,
+			created_at TEXT NOT NULL
+		);
+		CREATE INDEX IF NOT EXISTS idx_intents_item ON intents(item_id, created_at ASC);
+	`); err != nil {
+		return fmt.Errorf("create intents table: %w", err)
+	}
+
+	// Migrate existing intent_text into individual intent records.
+	rows, err := s.db.Query(`SELECT id, intent_text, created_at FROM items WHERE intent_text != ''`)
+	if err != nil {
+		return fmt.Errorf("read items for intent migration: %w", err)
+	}
+	defer rows.Close()
+
+	stmt, err := s.db.Prepare(`INSERT INTO intents (id, item_id, text, created_at) VALUES (?, ?, ?, ?)`)
+	if err != nil {
+		return fmt.Errorf("prepare intent insert: %w", err)
+	}
+	defer stmt.Close()
+
+	for rows.Next() {
+		var itemID, intentText, createdAt string
+		if err := rows.Scan(&itemID, &intentText, &createdAt); err != nil {
+			return fmt.Errorf("scan item: %w", err)
+		}
+		// Split by the old separator.
+		parts := strings.Split(intentText, "\n---\n")
+		for _, part := range parts {
+			part = strings.TrimSpace(part)
+			if part == "" {
+				continue
+			}
+			id := fmt.Sprintf("migrated-%s-%d", itemID, len(part))
+			if _, err := stmt.Exec(id, itemID, part, createdAt); err != nil {
+				return fmt.Errorf("insert migrated intent: %w", err)
+			}
+		}
+	}
+	return rows.Err()
+}
+
 // ---------------------------------------------------------------------------
 // Items
 // ---------------------------------------------------------------------------
@@ -114,18 +172,18 @@ func (s *Store) migrateV1() error {
 // CreateItem inserts a new item.
 func (s *Store) CreateItem(ctx context.Context, item model.Item) error {
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO items (id, url, title, domain, source_type, intent_text, status, priority, match_score, error_info, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		INSERT INTO items (id, url, title, domain, source_type, intent_text, status, priority, match_score, error_info, save_count, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		item.ID, item.URL, item.Title, item.Domain, item.SourceType, item.IntentText,
-		item.Status, item.Priority, item.MatchScore, item.ErrorInfo,
+		item.Status, item.Priority, item.MatchScore, item.ErrorInfo, item.SaveCount,
 		item.CreatedAt, item.UpdatedAt,
 	)
 	return err
 }
 
-// GetItem returns an item together with its artifacts.
+// GetItem returns an item together with its artifacts and intents.
 func (s *Store) GetItem(ctx context.Context, id string) (*model.ItemWithArtifacts, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT id, url, title, domain, source_type, intent_text, status, priority, match_score, error_info, created_at, updated_at FROM items WHERE id = ?`, id)
+	row := s.db.QueryRowContext(ctx, `SELECT id, url, title, domain, source_type, intent_text, status, priority, match_score, error_info, save_count, created_at, updated_at FROM items WHERE id = ?`, id)
 	item, err := scanItem(row)
 	if err != nil {
 		return nil, err
@@ -135,12 +193,16 @@ func (s *Store) GetItem(ctx context.Context, id string) (*model.ItemWithArtifact
 	if err != nil {
 		return nil, err
 	}
-	return &model.ItemWithArtifacts{Item: *item, Artifacts: artifacts}, nil
+
+	// Intents may not exist yet if migration v3 hasn't run; treat as empty.
+	intents, _ := s.listIntents(ctx, id)
+
+	return &model.ItemWithArtifacts{Item: *item, Artifacts: artifacts, Intents: intents}, nil
 }
 
 // ListItems returns items matching the given filter, ordered by priority/score.
 func (s *Store) ListItems(ctx context.Context, f model.ItemFilter) ([]model.Item, error) {
-	query := `SELECT id, url, title, domain, source_type, intent_text, status, priority, match_score, error_info, created_at, updated_at FROM items`
+	query := `SELECT id, url, title, domain, source_type, intent_text, status, priority, match_score, error_info, save_count, created_at, updated_at FROM items`
 	var conditions []string
 	var args []interface{}
 
@@ -175,7 +237,7 @@ func (s *Store) ListItems(ctx context.Context, f model.ItemFilter) ([]model.Item
 	var items []model.Item
 	for rows.Next() {
 		var item model.Item
-		if err := rows.Scan(&item.ID, &item.URL, &item.Title, &item.Domain, &item.SourceType, &item.IntentText, &item.Status, &item.Priority, &item.MatchScore, &item.ErrorInfo, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.URL, &item.Title, &item.Domain, &item.SourceType, &item.IntentText, &item.Status, &item.Priority, &item.MatchScore, &item.ErrorInfo, &item.SaveCount, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, item)
@@ -204,7 +266,7 @@ func (s *Store) ClaimNextCaptured(ctx context.Context) (*model.Item, error) {
 	row := s.db.QueryRowContext(ctx, `
 		UPDATE items SET status = ?, updated_at = ?
 		WHERE id = (SELECT id FROM items WHERE status = ? ORDER BY created_at ASC LIMIT 1)
-		RETURNING id, url, title, domain, source_type, intent_text, status, priority, match_score, error_info, created_at, updated_at`,
+		RETURNING id, url, title, domain, source_type, intent_text, status, priority, match_score, error_info, save_count, created_at, updated_at`,
 		model.StatusProcessing, now, model.StatusCaptured,
 	)
 	item, err := scanItem(row)
@@ -217,7 +279,7 @@ func (s *Store) ClaimNextCaptured(ctx context.Context) (*model.Item, error) {
 // FindItemByURL returns an active (non-ARCHIVED) item with the given URL, or nil if not found.
 func (s *Store) FindItemByURL(ctx context.Context, url string) (*model.Item, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, url, title, domain, source_type, intent_text, status, priority, match_score, error_info, created_at, updated_at
+		`SELECT id, url, title, domain, source_type, intent_text, status, priority, match_score, error_info, save_count, created_at, updated_at
 		 FROM items WHERE url = ? AND status != ? ORDER BY created_at DESC LIMIT 1`,
 		url, model.StatusArchived,
 	)
@@ -226,6 +288,17 @@ func (s *Store) FindItemByURL(ctx context.Context, url string) (*model.Item, err
 		return nil, err
 	}
 	return item, nil
+}
+
+// UpdateItemForReprocess merges the new intent, increments save_count, and resets the
+// item to CAPTURED status so it will be re-processed by the pipeline.
+func (s *Store) UpdateItemForReprocess(ctx context.Context, id, intentText string, saveCount int) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE items SET intent_text = ?, save_count = ?, status = ?, error_info = NULL, updated_at = ? WHERE id = ?`,
+		intentText, saveCount, model.StatusCaptured, now, id,
+	)
+	return err
 }
 
 // ResetStaleProcessing resets any PROCESSING items back to CAPTURED (for server restart).
@@ -275,6 +348,38 @@ func (s *Store) listArtifacts(ctx context.Context, itemID string) ([]model.Artif
 }
 
 // ---------------------------------------------------------------------------
+// Intents
+// ---------------------------------------------------------------------------
+
+// CreateIntent inserts a new intent record.
+func (s *Store) CreateIntent(ctx context.Context, intent model.Intent) error {
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO intents (id, item_id, text, created_at) VALUES (?, ?, ?, ?)`,
+		intent.ID, intent.ItemID, intent.Text, intent.CreatedAt,
+	)
+	return err
+}
+
+// listIntents returns all intents for an item, ordered by creation time.
+func (s *Store) listIntents(ctx context.Context, itemID string) ([]model.Intent, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, item_id, text, created_at FROM intents WHERE item_id = ? ORDER BY created_at ASC`, itemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var intents []model.Intent
+	for rows.Next() {
+		var i model.Intent
+		if err := rows.Scan(&i.ID, &i.ItemID, &i.Text, &i.CreatedAt); err != nil {
+			return nil, err
+		}
+		intents = append(intents, i)
+	}
+	return intents, rows.Err()
+}
+
+// ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
 
@@ -284,7 +389,7 @@ type scanner interface {
 
 func scanItem(row scanner) (*model.Item, error) {
 	var item model.Item
-	err := row.Scan(&item.ID, &item.URL, &item.Title, &item.Domain, &item.SourceType, &item.IntentText, &item.Status, &item.Priority, &item.MatchScore, &item.ErrorInfo, &item.CreatedAt, &item.UpdatedAt)
+	err := row.Scan(&item.ID, &item.URL, &item.Title, &item.Domain, &item.SourceType, &item.IntentText, &item.Status, &item.Priority, &item.MatchScore, &item.ErrorInfo, &item.SaveCount, &item.CreatedAt, &item.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
