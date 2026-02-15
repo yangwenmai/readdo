@@ -44,17 +44,16 @@ func main() {
 	}
 
 	// Build pipeline dependencies.
-	var extractor engine.ContentExtractor
-	var modelClient engine.ModelClient
+	// Always use real HTTP extractor — content fetching doesn't need an API key.
+	extractor := engine.NewHTTPExtractor()
 
+	var modelClient engine.ModelClient
 	if cfg.UseStubs() {
-		slog.Info("OPENAI_API_KEY not set, using stub pipeline")
+		slog.Info("OPENAI_API_KEY not set, using stub LLM client (extraction still uses HTTP)")
 		modelClient = &engine.StubModelClient{}
-		extractor = &engine.StubExtractor{}
 	} else {
 		slog.Info("using OpenAI model client", "model", cfg.OpenAIModel)
 		modelClient = engine.NewOpenAIClient(cfg.OpenAIKey, engine.WithModel(cfg.OpenAIModel))
-		extractor = engine.NewHTTPExtractor()
 	}
 
 	// Build pipeline with pluggable steps.
