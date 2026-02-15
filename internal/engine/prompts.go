@@ -3,6 +3,7 @@ package engine
 import (
 	"encoding/json"
 	"fmt"
+	"unicode/utf8"
 )
 
 func buildSummarizePrompt(text, intent string) string {
@@ -17,11 +18,11 @@ Rules:
 - Keep it concise and actionable
 
 Article text:
-%s`, intent, truncate(text, 12000))
+%s`, intent, truncateRunes(text, 12000))
 }
 
 func buildScorePrompt(intent string, summary *SummaryResult, extraction *ExtractedContent) string {
-	summaryJSON, _ := json.Marshal(summary)
+	summaryJSON := mustJSON(summary)
 	return fmt.Sprintf(`You are a content relevance scorer. Rate how well this article matches the user's intent.
 
 User intent: "%s"
@@ -35,11 +36,11 @@ Rules:
 - match_score: integer 0-100
 - priority: one of "READ_NEXT" (>=80), "WORTH_IT" (60-79), "IF_TIME" (40-59), "SKIP" (<40)
 - reasons: at least 3 reasons explaining the score, referencing the intent or content
-- Be specific, not generic`, intent, string(summaryJSON), extraction.Meta.WordCount)
+- Be specific, not generic`, intent, summaryJSON, extraction.Meta.WordCount)
 }
 
 func buildTodoPrompt(intent string, summary *SummaryResult, score *ScoreResult) string {
-	summaryJSON, _ := json.Marshal(summary)
+	summaryJSON := mustJSON(summary)
 	return fmt.Sprintf(`You are a task planner. Create actionable TODO items for a user who saved this article.
 
 User intent: "%s"
@@ -55,12 +56,24 @@ Rules:
 - eta: one of "10m", "20m", "30m", "45m", "1h", "2h", "3h+"
 - type: one of "READ", "WRITE", "BUILD", "SHARE"
 - At least 1 item must be type "WRITE" or "SHARE" (output-oriented task)
-- Align tasks with the user's intent`, intent, score.Priority, string(summaryJSON))
+- Align tasks with the user's intent`, intent, score.Priority, summaryJSON)
 }
 
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
+// truncateRunes truncates s to maxRunes runes (Unicode-safe).
+func truncateRunes(s string, maxRunes int) string {
+	if utf8.RuneCountInString(s) <= maxRunes {
 		return s
 	}
-	return s[:maxLen] + "\n... [truncated]"
+	runes := []rune(s)
+	return string(runes[:maxRunes]) + "\n... [truncated]"
+}
+
+// mustJSON marshals v to a JSON string. It panics on error because callers
+// only pass known struct types that are guaranteed to be serializable.
+func mustJSON(v any) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		panic(fmt.Sprintf("engine: json.Marshal failed on known type: %v", err))
+	}
+	return string(b)
 }

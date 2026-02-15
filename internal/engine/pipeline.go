@@ -4,54 +4,28 @@ import (
 	"context"
 
 	"github.com/yangwenmai/readdo/internal/model"
-	"github.com/yangwenmai/readdo/internal/store"
 )
 
-// Pipeline orchestrates the execution of all processing steps for an item.
+// Pipeline orchestrates the execution of a sequence of Steps for an item.
 type Pipeline struct {
-	store     *store.Store
-	extractor ContentExtractor
-	model     ModelClient
+	steps []Step
 }
 
-// NewPipeline creates a pipeline with the given dependencies.
-func NewPipeline(s *store.Store, extractor ContentExtractor, mc ModelClient) *Pipeline {
-	return &Pipeline{store: s, extractor: extractor, model: mc}
+// NewPipeline creates a pipeline with the given steps, executed in order.
+func NewPipeline(steps ...Step) *Pipeline {
+	return &Pipeline{steps: steps}
 }
 
 // Run executes all pipeline steps for the given item.
-// On success it saves all artifacts and returns nil.
-// On failure it returns a *StepError indicating which step failed.
+// On success it returns nil. On failure it returns a *StepError indicating
+// which step failed.
 func (p *Pipeline) Run(ctx context.Context, item *model.Item) error {
-	// Step 1: Extract
-	extraction, err := p.runExtract(ctx, item)
-	if err != nil {
-		return &StepError{Step: "extract", Err: err}
+	sc := &StepContext{Item: item}
+	for _, step := range p.steps {
+		if err := step.Run(ctx, sc); err != nil {
+			return &StepError{Step: step.Name(), Err: err}
+		}
 	}
-
-	// Step 2: Summarize
-	summary, err := p.runSummarize(ctx, item, extraction)
-	if err != nil {
-		return &StepError{Step: "summarize", Err: err}
-	}
-
-	// Step 3: Score
-	score, err := p.runScore(ctx, item, summary, extraction)
-	if err != nil {
-		return &StepError{Step: "score", Err: err}
-	}
-
-	// Step 4: Todos
-	_, err = p.runTodo(ctx, item, summary, score)
-	if err != nil {
-		return &StepError{Step: "todo", Err: err}
-	}
-
-	// Update item score/priority from the score result.
-	if err := p.store.UpdateItemScoreAndPriority(item.ID, score.MatchScore, score.Priority); err != nil {
-		return &StepError{Step: "score_update", Err: err}
-	}
-
 	return nil
 }
 
@@ -67,4 +41,10 @@ func (e *StepError) Error() string {
 
 func (e *StepError) Unwrap() error {
 	return e.Err
+}
+
+// StepName returns the name of the step that failed.
+// This satisfies the stepNamer interface used by the worker package.
+func (e *StepError) StepName() string {
+	return e.Step
 }

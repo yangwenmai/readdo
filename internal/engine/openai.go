@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -62,7 +63,24 @@ type chatResponse struct {
 	} `json:"error,omitempty"`
 }
 
+// apiError represents an error from the OpenAI API that may or may not be retryable.
+type apiError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *apiError) Error() string {
+	return fmt.Sprintf("HTTP %d: %s", e.StatusCode, e.Body)
+}
+
+// isRetryable returns true for transient errors (rate limit, server errors).
+func (e *apiError) isRetryable() bool {
+	return e.StatusCode == http.StatusTooManyRequests ||
+		e.StatusCode >= http.StatusInternalServerError
+}
+
 // Complete sends a prompt to OpenAI and returns the assistant's response text.
+// It retries once with backoff on transient failures.
 func (c *OpenAIClient) Complete(ctx context.Context, prompt string) (string, error) {
 	reqBody := chatRequest{
 		Model: c.model,
@@ -77,14 +95,30 @@ func (c *OpenAIClient) Complete(ctx context.Context, prompt string) (string, err
 		return "", fmt.Errorf("marshal request: %w", err)
 	}
 
-	// Retry once on failure.
+	const maxAttempts = 2
 	var lastErr error
-	for attempt := 0; attempt < 2; attempt++ {
+	for attempt := 0; attempt < maxAttempts; attempt++ {
 		result, err := c.doRequest(ctx, body)
 		if err == nil {
 			return result, nil
 		}
 		lastErr = err
+
+		// Only retry on transient/retryable errors.
+		var ae *apiError
+		if errors.As(err, &ae) && !ae.isRetryable() {
+			return "", fmt.Errorf("openai: %w", err)
+		}
+
+		// Backoff before retry (skip on last attempt).
+		if attempt < maxAttempts-1 {
+			backoff := time.Duration(attempt+1) * 2 * time.Second
+			select {
+			case <-ctx.Done():
+				return "", ctx.Err()
+			case <-time.After(backoff):
+			}
+		}
 	}
 	return "", fmt.Errorf("openai: %w", lastErr)
 }
@@ -109,7 +143,7 @@ func (c *OpenAIClient) doRequest(ctx context.Context, body []byte) (string, erro
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody))
+		return "", &apiError{StatusCode: resp.StatusCode, Body: string(respBody)}
 	}
 
 	var chatResp chatResponse
