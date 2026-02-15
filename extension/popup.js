@@ -6,6 +6,8 @@ const captureView = document.getElementById('capture-view');
 const successView = document.getElementById('success-view');
 const pageTitle = document.getElementById('page-title');
 const pageDomain = document.getElementById('page-domain');
+const referrerInfo = document.getElementById('referrer-info');
+const referrerTitle = document.getElementById('referrer-title');
 const intentInput = document.getElementById('intent-input');
 const saveBtn = document.getElementById('save-btn');
 const saveText = document.getElementById('save-text');
@@ -14,24 +16,81 @@ const errorToast = document.getElementById('error-toast');
 const errorMsg = document.getElementById('error-msg');
 const retryBtn = document.getElementById('retry-btn');
 const openInbox = document.getElementById('open-inbox');
+const successSubtitle = document.getElementById('success-subtitle');
 
 // State
-let currentTab = null;
+let captureData = null;
+let isLinkMode = false;
 
-// Initialize: get current tab info
-chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-  if (tabs[0]) {
-    currentTab = tabs[0];
-    pageTitle.textContent = currentTab.title || 'Untitled';
-    try {
-      const url = new URL(currentTab.url);
-      pageDomain.textContent = url.hostname;
-    } catch {
-      pageDomain.textContent = currentTab.url;
-    }
+// Detect mode from URL params
+const params = new URLSearchParams(window.location.search);
+isLinkMode = params.get('mode') === 'link';
+
+// Initialize based on mode
+if (isLinkMode) {
+  initLinkMode();
+} else {
+  initTabMode();
+}
+
+// Mode: capture a link from context menu
+async function initLinkMode() {
+  const result = await chrome.storage.session.get('pendingCapture');
+  const pending = result.pendingCapture;
+
+  if (!pending) {
+    pageTitle.textContent = 'No link data found';
+    saveBtn.disabled = true;
+    return;
   }
+
+  captureData = {
+    url: pending.url,
+    title: pending.title || '',
+    referrer_url: pending.referrer_url || '',
+    referrer_title: pending.referrer_title || '',
+  };
+
+  // Display link info
+  pageTitle.textContent = captureData.title || captureData.url;
+  try {
+    pageDomain.textContent = new URL(captureData.url).hostname;
+  } catch {
+    pageDomain.textContent = captureData.url;
+  }
+
+  // Show referrer info if available
+  if (referrerInfo && captureData.referrer_title) {
+    referrerTitle.textContent = captureData.referrer_title;
+    referrerInfo.classList.remove('hidden');
+  }
+
+  // Clean up storage
+  await chrome.storage.session.remove('pendingCapture');
+
   intentInput.focus();
-});
+}
+
+// Mode: capture current active tab (original behavior)
+function initTabMode() {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0]) {
+      const tab = tabs[0];
+      captureData = {
+        url: tab.url,
+        title: tab.title || '',
+      };
+      pageTitle.textContent = tab.title || 'Untitled';
+      try {
+        const url = new URL(tab.url);
+        pageDomain.textContent = url.hostname;
+      } catch {
+        pageDomain.textContent = tab.url;
+      }
+    }
+    intentInput.focus();
+  });
+}
 
 // Set inbox link
 openInbox.href = WEB_APP_URL;
@@ -55,7 +114,7 @@ function extractDomain(url) {
 
 // Save handler
 async function handleSave() {
-  if (!currentTab) return;
+  if (!captureData) return;
 
   // Show loading state
   saveBtn.disabled = true;
@@ -64,12 +123,18 @@ async function handleSave() {
   errorToast.classList.add('hidden');
 
   const payload = {
-    url: currentTab.url,
-    title: currentTab.title || '',
-    domain: extractDomain(currentTab.url),
-    source_type: detectSourceType(currentTab.url),
+    url: captureData.url,
+    title: captureData.title || '',
+    domain: extractDomain(captureData.url),
+    source_type: detectSourceType(captureData.url),
     intent_text: intentInput.value.trim(),
   };
+
+  // Include referrer info in link mode
+  if (isLinkMode && captureData.referrer_url) {
+    payload.referrer_url = captureData.referrer_url;
+    payload.referrer_title = captureData.referrer_title || '';
+  }
 
   try {
     const resp = await fetch(`${API_BASE}/api/capture`, {
@@ -86,6 +151,12 @@ async function handleSave() {
     // Success: switch to success view
     captureView.classList.add('hidden');
     successView.classList.remove('hidden');
+
+    // In link mode: update subtitle and auto-close after delay
+    if (isLinkMode) {
+      successSubtitle.textContent = 'Link captured from the page.';
+      setTimeout(() => window.close(), 1500);
+    }
   } catch (err) {
     // Show error
     saveBtn.disabled = false;
