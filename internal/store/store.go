@@ -214,6 +214,20 @@ func (s *Store) ClaimNextCaptured(ctx context.Context) (*model.Item, error) {
 	return item, err
 }
 
+// FindItemByURL returns an active (non-ARCHIVED) item with the given URL, or nil if not found.
+func (s *Store) FindItemByURL(ctx context.Context, url string) (*model.Item, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT id, url, title, domain, source_type, intent_text, status, priority, match_score, error_info, created_at, updated_at
+		 FROM items WHERE url = ? AND status != ? ORDER BY created_at DESC LIMIT 1`,
+		url, model.StatusArchived,
+	)
+	item, err := scanItem(row)
+	if err != nil {
+		return nil, err
+	}
+	return item, nil
+}
+
 // ResetStaleProcessing resets any PROCESSING items back to CAPTURED (for server restart).
 func (s *Store) ResetStaleProcessing(ctx context.Context) (int64, error) {
 	now := time.Now().UTC().Format(time.RFC3339)

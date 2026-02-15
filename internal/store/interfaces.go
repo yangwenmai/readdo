@@ -10,6 +10,7 @@ import (
 type ItemReader interface {
 	GetItem(ctx context.Context, id string) (*model.ItemWithArtifacts, error)
 	ListItems(ctx context.Context, f model.ItemFilter) ([]model.Item, error)
+	FindItemByURL(ctx context.Context, url string) (*model.Item, error)
 }
 
 // ItemWriter provides write access to items.

@@ -44,6 +44,17 @@ func (s *Server) handleCapture(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// URL deduplication: reject if an active (non-ARCHIVED) item already exists for this URL.
+	existing, err := s.store.FindItemByURL(r.Context(), req.URL)
+	if err == nil && existing != nil {
+		writeJSON(w, http.StatusConflict, map[string]string{
+			"error":           "item with this URL already exists",
+			"existing_id":     existing.ID,
+			"existing_status": existing.Status,
+		})
+		return
+	}
+
 	item := model.NewItem(
 		uuid.New().String(),
 		req.URL,
