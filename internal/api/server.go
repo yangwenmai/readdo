@@ -3,19 +3,23 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/yangwenmai/readdo/internal/store"
 )
 
+// maxRequestBody is the maximum allowed request body size (1 MB).
+const maxRequestBody int64 = 1 << 20
+
 // Server holds the HTTP handlers and dependencies.
 type Server struct {
-	store *store.Store
+	store store.ItemRepository
 	mux   *http.ServeMux
 }
 
 // New creates a new API server.
-func New(s *store.Store) *Server {
+func New(s store.ItemRepository) *Server {
 	srv := &Server{store: s, mux: http.NewServeMux()}
 	srv.routes()
 	return srv
@@ -23,7 +27,7 @@ func New(s *store.Store) *Server {
 
 // Handler returns the root http.Handler with middleware applied.
 func (s *Server) Handler() http.Handler {
-	return cors(jsonContent(s.mux))
+	return corsMiddleware(limitBody(jsonContent(s.mux)))
 }
 
 func (s *Server) routes() {
@@ -39,15 +43,29 @@ func (s *Server) routes() {
 // Middleware
 // ---------------------------------------------------------------------------
 
-func cors(next http.Handler) http.Handler {
+// corsMiddleware sets CORS headers. The allowed origin is configurable via the
+// CORS_ORIGIN environment variable; defaults to "*" for development.
+func corsMiddleware(next http.Handler) http.Handler {
+	origin := os.Getenv("CORS_ORIGIN")
+	if origin == "" {
+		origin = "*" // TODO: restrict in production
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Origin", origin)
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// limitBody restricts the request body to maxRequestBody bytes.
+func limitBody(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, maxRequestBody)
 		next.ServeHTTP(w, r)
 	})
 }

@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/url"
 	"time"
@@ -52,7 +53,7 @@ func (s *Server) handleCapture(w http.ResponseWriter, r *http.Request) {
 		req.IntentText,
 	)
 
-	if err := s.store.CreateItem(item); err != nil {
+	if err := s.store.CreateItem(r.Context(), item); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to create item")
 		return
 	}
@@ -73,7 +74,7 @@ func (s *Server) handleListItems(w http.ResponseWriter, r *http.Request) {
 		Priority: splitComma(r.URL.Query().Get("priority")),
 	}
 
-	items, err := s.store.ListItems(filter)
+	items, err := s.store.ListItems(r.Context(), filter)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list items")
 		return
@@ -95,8 +96,8 @@ func (s *Server) handleGetItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item, err := s.store.GetItem(id)
-	if err == sql.ErrNoRows {
+	item, err := s.store.GetItem(r.Context(), id)
+	if errors.Is(err, sql.ErrNoRows) {
 		writeError(w, http.StatusNotFound, "item not found")
 		return
 	}
@@ -115,8 +116,8 @@ func (s *Server) handleGetItem(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleRetry(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
-	item, err := s.store.GetItem(id)
-	if err == sql.ErrNoRows {
+	item, err := s.store.GetItem(r.Context(), id)
+	if errors.Is(err, sql.ErrNoRows) {
 		writeError(w, http.StatusNotFound, "item not found")
 		return
 	}
@@ -130,7 +131,7 @@ func (s *Server) handleRetry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.store.UpdateItemStatus(id, model.StatusCaptured, nil); err != nil {
+	if err := s.store.UpdateItemStatus(r.Context(), id, model.StatusCaptured, nil); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to update status")
 		return
 	}
@@ -155,8 +156,8 @@ func (s *Server) handleUpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item, err := s.store.GetItem(id)
-	if err == sql.ErrNoRows {
+	item, err := s.store.GetItem(r.Context(), id)
+	if errors.Is(err, sql.ErrNoRows) {
 		writeError(w, http.StatusNotFound, "item not found")
 		return
 	}
@@ -165,29 +166,13 @@ func (s *Server) handleUpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate transition.
-	if item.Status == model.StatusProcessing {
-		writeError(w, http.StatusConflict, "cannot change status while PROCESSING")
+	// Validate transition using domain model.
+	if err := item.ValidateTransition(req.Status); err != nil {
+		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
 
-	switch req.Status {
-	case model.StatusArchived:
-		if item.Status != model.StatusReady && item.Status != model.StatusFailed {
-			writeError(w, http.StatusConflict, "can only archive READY or FAILED items")
-			return
-		}
-	case model.StatusReady:
-		if item.Status != model.StatusArchived {
-			writeError(w, http.StatusConflict, "can only restore ARCHIVED items to READY")
-			return
-		}
-	default:
-		writeError(w, http.StatusBadRequest, "status must be ARCHIVED or READY")
-		return
-	}
-
-	if err := s.store.UpdateItemStatus(id, req.Status, nil); err != nil {
+	if err := s.store.UpdateItemStatus(r.Context(), id, req.Status, nil); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to update status")
 		return
 	}
@@ -217,8 +202,8 @@ func (s *Server) handleEditArtifact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item, err := s.store.GetItem(itemID)
-	if err == sql.ErrNoRows {
+	item, err := s.store.GetItem(r.Context(), itemID)
+	if errors.Is(err, sql.ErrNoRows) {
 		writeError(w, http.StatusNotFound, "item not found")
 		return
 	}
@@ -246,7 +231,7 @@ func (s *Server) handleEditArtifact(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:    time.Now().UTC().Format(time.RFC3339),
 	}
 
-	if err := s.store.UpsertArtifact(artifact); err != nil {
+	if err := s.store.UpsertArtifact(r.Context(), artifact); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to save artifact")
 		return
 	}

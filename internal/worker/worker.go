@@ -2,40 +2,50 @@ package worker
 
 import (
 	"context"
-	"log"
+	"errors"
+	"log/slog"
 	"time"
 
-	"github.com/yangwenmai/readdo/internal/engine"
 	"github.com/yangwenmai/readdo/internal/model"
-	"github.com/yangwenmai/readdo/internal/store"
 )
+
+// Processor runs the processing pipeline for a single item.
+type Processor interface {
+	Run(ctx context.Context, item *model.Item) error
+}
+
+// ItemClaimer provides atomic claim and status update operations.
+type ItemClaimer interface {
+	ClaimNextCaptured(ctx context.Context) (*model.Item, error)
+	UpdateItemStatus(ctx context.Context, id, newStatus string, errorInfo *string) error
+}
 
 // Worker polls for CAPTURED items and runs the pipeline.
 type Worker struct {
-	store    *store.Store
-	pipeline *engine.Pipeline
-	interval time.Duration
+	claimer   ItemClaimer
+	processor Processor
+	interval  time.Duration
 }
 
 // New creates a new Worker.
-func New(s *store.Store, p *engine.Pipeline, interval time.Duration) *Worker {
-	return &Worker{store: s, pipeline: p, interval: interval}
+func New(claimer ItemClaimer, processor Processor, interval time.Duration) *Worker {
+	return &Worker{claimer: claimer, processor: processor, interval: interval}
 }
 
 // Start begins the polling loop. It blocks until ctx is cancelled.
 func (w *Worker) Start(ctx context.Context) {
-	log.Printf("[worker] started, polling every %s", w.interval)
+	slog.Info("worker started", "interval", w.interval.String())
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("[worker] stopped")
+			slog.Info("worker stopped")
 			return
 		default:
 		}
 
-		item, err := w.store.ClaimNextCaptured()
+		item, err := w.claimer.ClaimNextCaptured(ctx)
 		if err != nil {
-			log.Printf("[worker] claim error: %v", err)
+			slog.Error("worker claim error", "error", err)
 			w.sleep(ctx)
 			continue
 		}
@@ -44,20 +54,20 @@ func (w *Worker) Start(ctx context.Context) {
 			continue
 		}
 
-		log.Printf("[worker] processing item %s (%s)", item.ID, item.Title)
-		if err := w.pipeline.Run(ctx, item); err != nil {
-			log.Printf("[worker] pipeline failed for %s: %v", item.ID, err)
+		slog.Info("processing item", "item_id", item.ID, "title", item.Title)
+		if err := w.processor.Run(ctx, item); err != nil {
+			slog.Error("pipeline failed", "item_id", item.ID, "error", err)
 			errInfo := w.buildErrorInfo(err)
-			if sErr := w.store.UpdateItemStatus(item.ID, model.StatusFailed, &errInfo); sErr != nil {
-				log.Printf("[worker] failed to set FAILED status: %v", sErr)
+			if sErr := w.claimer.UpdateItemStatus(ctx, item.ID, model.StatusFailed, &errInfo); sErr != nil {
+				slog.Error("failed to set FAILED status", "item_id", item.ID, "error", sErr)
 			}
 			continue
 		}
 
-		if err := w.store.UpdateItemStatus(item.ID, model.StatusReady, nil); err != nil {
-			log.Printf("[worker] failed to set READY status: %v", err)
+		if err := w.claimer.UpdateItemStatus(ctx, item.ID, model.StatusReady, nil); err != nil {
+			slog.Error("failed to set READY status", "item_id", item.ID, "error", err)
 		} else {
-			log.Printf("[worker] item %s is now READY", item.ID)
+			slog.Info("item is now READY", "item_id", item.ID)
 		}
 	}
 }
@@ -69,10 +79,16 @@ func (w *Worker) sleep(ctx context.Context) {
 	}
 }
 
+// stepNamer is implemented by errors that carry a pipeline step name.
+type stepNamer interface {
+	StepName() string
+}
+
 func (w *Worker) buildErrorInfo(err error) string {
 	step := "unknown"
-	if se, ok := err.(*engine.StepError); ok {
-		step = se.Step
+	var sn stepNamer
+	if errors.As(err, &sn) {
+		step = sn.StepName()
 	}
 	info := model.ErrorInfo{
 		FailedStep: step,
