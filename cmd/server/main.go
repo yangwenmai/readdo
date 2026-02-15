@@ -2,72 +2,80 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/yangwenmai/readdo/internal/api"
+	"github.com/yangwenmai/readdo/internal/config"
 	"github.com/yangwenmai/readdo/internal/engine"
 	"github.com/yangwenmai/readdo/internal/store"
 	"github.com/yangwenmai/readdo/internal/worker"
 )
 
 func main() {
-	port := envOr("PORT", "8080")
-	dbPath := envOr("DB_PATH", "readdo.db")
+	// Initialize structured logger.
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+
+	cfg := config.Load()
 
 	// Open SQLite.
-	db, err := store.OpenSQLite(dbPath)
+	db, err := store.OpenSQLite(cfg.DBPath)
 	if err != nil {
-		log.Fatalf("open db: %v", err)
+		slog.Error("failed to open database", "path", cfg.DBPath, "error", err)
+		os.Exit(1)
 	}
 	defer db.Close()
 
 	// Initialize store.
 	s, err := store.New(db)
 	if err != nil {
-		log.Fatalf("init store: %v", err)
+		slog.Error("failed to initialize store", "error", err)
+		os.Exit(1)
 	}
 
 	// Reset stale PROCESSING items from previous run.
-	if n, err := s.ResetStaleProcessing(); err != nil {
-		log.Printf("warning: reset stale processing: %v", err)
+	if n, err := s.ResetStaleProcessing(context.Background()); err != nil {
+		slog.Warn("reset stale processing failed", "error", err)
 	} else if n > 0 {
-		log.Printf("reset %d stale PROCESSING items to CAPTURED", n)
+		slog.Info("reset stale PROCESSING items to CAPTURED", "count", n)
 	}
 
 	// Build pipeline dependencies.
 	var extractor engine.ContentExtractor
 	var modelClient engine.ModelClient
 
-	apiKey := os.Getenv("OPENAI_API_KEY")
-	if apiKey != "" {
-		log.Println("using OpenAI model client")
-		modelClient = engine.NewOpenAIClient(apiKey)
-		extractor = engine.NewHTTPExtractor()
-	} else {
-		log.Println("OPENAI_API_KEY not set, using stub pipeline")
+	if cfg.UseStubs() {
+		slog.Info("OPENAI_API_KEY not set, using stub pipeline")
 		modelClient = &engine.StubModelClient{}
 		extractor = &engine.StubExtractor{}
+	} else {
+		slog.Info("using OpenAI model client", "model", cfg.OpenAIModel)
+		modelClient = engine.NewOpenAIClient(cfg.OpenAIKey, engine.WithModel(cfg.OpenAIModel))
+		extractor = engine.NewHTTPExtractor()
 	}
 
-	pipeline := engine.NewPipeline(s, extractor, modelClient)
+	// Build pipeline with pluggable steps.
+	pipeline := engine.NewPipeline(
+		&engine.ExtractStep{Extractor: extractor, Artifacts: s},
+		&engine.SummarizeStep{Model: modelClient, Artifacts: s},
+		&engine.ScoreStep{Model: modelClient, Artifacts: s, Scores: s},
+		&engine.TodoStep{Model: modelClient, Artifacts: s},
+	)
 
 	// Start worker in background.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	w := worker.New(s, pipeline, 3*time.Second)
+	w := worker.New(s, pipeline, cfg.WorkerInterval)
 	go w.Start(ctx)
 
 	// Start API server.
 	srv := api.New(s)
 	httpServer := &http.Server{
-		Addr:    ":" + port,
+		Addr:    ":" + cfg.Port,
 		Handler: srv.Handler(),
 	}
 
@@ -76,20 +84,14 @@ func main() {
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 		<-sigCh
-		log.Println("shutting down...")
+		slog.Info("shutting down...")
 		cancel()
 		httpServer.Shutdown(context.Background())
 	}()
 
-	fmt.Printf("readdo server listening on http://localhost:%s\n", port)
+	slog.Info("readdo server listening", "addr", "http://localhost:"+cfg.Port)
 	if err := httpServer.ListenAndServe(); err != http.ErrServerClosed {
-		log.Fatalf("server error: %v", err)
+		slog.Error("server error", "error", err)
+		os.Exit(1)
 	}
-}
-
-func envOr(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return fallback
 }
