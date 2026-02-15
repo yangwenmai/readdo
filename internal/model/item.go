@@ -1,6 +1,9 @@
 package model
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // Item status constants
 const (
@@ -45,6 +48,35 @@ type ItemWithArtifacts struct {
 type ItemFilter struct {
 	Status   []string
 	Priority []string
+}
+
+// allowedTransitions defines which status transitions are valid for user-initiated actions.
+var allowedTransitions = map[string]map[string]bool{
+	StatusReady:    {StatusArchived: true},
+	StatusFailed:   {StatusCaptured: true, StatusArchived: true},
+	StatusArchived: {StatusReady: true},
+}
+
+// userSettableStatuses are the statuses a user can directly set via the API.
+var userSettableStatuses = map[string]bool{
+	StatusArchived: true,
+	StatusReady:    true,
+}
+
+// ValidateTransition checks whether transitioning from the item's current status
+// to target is allowed. Returns nil if the transition is valid.
+func (i *Item) ValidateTransition(target string) error {
+	if !userSettableStatuses[target] {
+		return fmt.Errorf("status must be ARCHIVED or READY")
+	}
+	if i.Status == StatusProcessing {
+		return fmt.Errorf("cannot change status while PROCESSING")
+	}
+	allowed, ok := allowedTransitions[i.Status]
+	if !ok || !allowed[target] {
+		return fmt.Errorf("cannot transition from %s to %s", i.Status, target)
+	}
+	return nil
 }
 
 // NewItem creates a new Item with CAPTURED status.

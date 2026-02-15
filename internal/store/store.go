@@ -1,12 +1,22 @@
 package store
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/yangwenmai/readdo/internal/model"
+)
+
+// Verify at compile time that Store implements all interfaces.
+var (
+	_ ItemReader    = (*Store)(nil)
+	_ ItemWriter    = (*Store)(nil)
+	_ ItemClaimer   = (*Store)(nil)
+	_ ArtifactStore = (*Store)(nil)
 )
 
 // Store provides data access to the SQLite database.
@@ -23,7 +33,48 @@ func New(db *sql.DB) (*Store, error) {
 	return s, nil
 }
 
+// currentSchemaVersion is bumped whenever the schema changes.
+// Add a new migration function in the migrations slice below.
+const currentSchemaVersion = 1
+
 func (s *Store) migrate() error {
+	// Ensure the schema_version table exists.
+	if _, err := s.db.Exec(`CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)`); err != nil {
+		return fmt.Errorf("create schema_version table: %w", err)
+	}
+
+	var version int
+	err := s.db.QueryRow(`SELECT version FROM schema_version LIMIT 1`).Scan(&version)
+	if errors.Is(err, sql.ErrNoRows) {
+		// Fresh database: initialize to version 0.
+		if _, err := s.db.Exec(`INSERT INTO schema_version (version) VALUES (0)`); err != nil {
+			return fmt.Errorf("init schema version: %w", err)
+		}
+		version = 0
+	} else if err != nil {
+		return fmt.Errorf("read schema version: %w", err)
+	}
+
+	// migrations is an ordered list of migration functions.
+	// Index 0 = migration from v0 to v1, etc.
+	migrations := []func() error{
+		s.migrateV1, // v0 → v1: initial schema
+	}
+
+	for i := version; i < len(migrations); i++ {
+		if err := migrations[i](); err != nil {
+			return fmt.Errorf("migration v%d→v%d: %w", i, i+1, err)
+		}
+		if _, err := s.db.Exec(`UPDATE schema_version SET version = ?`, i+1); err != nil {
+			return fmt.Errorf("update schema version to %d: %w", i+1, err)
+		}
+	}
+
+	return nil
+}
+
+// migrateV1 creates the initial schema (v0 → v1).
+func (s *Store) migrateV1() error {
 	schema := `
 	CREATE TABLE IF NOT EXISTS items (
 		id          TEXT PRIMARY KEY,
@@ -61,8 +112,8 @@ func (s *Store) migrate() error {
 // ---------------------------------------------------------------------------
 
 // CreateItem inserts a new item.
-func (s *Store) CreateItem(item model.Item) error {
-	_, err := s.db.Exec(`
+func (s *Store) CreateItem(ctx context.Context, item model.Item) error {
+	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO items (id, url, title, domain, source_type, intent_text, status, priority, match_score, error_info, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		item.ID, item.URL, item.Title, item.Domain, item.SourceType, item.IntentText,
@@ -73,14 +124,14 @@ func (s *Store) CreateItem(item model.Item) error {
 }
 
 // GetItem returns an item together with its artifacts.
-func (s *Store) GetItem(id string) (*model.ItemWithArtifacts, error) {
-	row := s.db.QueryRow(`SELECT id, url, title, domain, source_type, intent_text, status, priority, match_score, error_info, created_at, updated_at FROM items WHERE id = ?`, id)
+func (s *Store) GetItem(ctx context.Context, id string) (*model.ItemWithArtifacts, error) {
+	row := s.db.QueryRowContext(ctx, `SELECT id, url, title, domain, source_type, intent_text, status, priority, match_score, error_info, created_at, updated_at FROM items WHERE id = ?`, id)
 	item, err := scanItem(row)
 	if err != nil {
 		return nil, err
 	}
 
-	artifacts, err := s.listArtifacts(id)
+	artifacts, err := s.listArtifacts(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +139,7 @@ func (s *Store) GetItem(id string) (*model.ItemWithArtifacts, error) {
 }
 
 // ListItems returns items matching the given filter, ordered by priority/score.
-func (s *Store) ListItems(f model.ItemFilter) ([]model.Item, error) {
+func (s *Store) ListItems(ctx context.Context, f model.ItemFilter) ([]model.Item, error) {
 	query := `SELECT id, url, title, domain, source_type, intent_text, status, priority, match_score, error_info, created_at, updated_at FROM items`
 	var conditions []string
 	var args []interface{}
@@ -115,7 +166,7 @@ func (s *Store) ListItems(f model.ItemFilter) ([]model.Item, error) {
 	}
 	query += " ORDER BY CASE status WHEN 'PROCESSING' THEN 0 WHEN 'CAPTURED' THEN 1 WHEN 'FAILED' THEN 2 WHEN 'READY' THEN 3 ELSE 4 END, COALESCE(match_score, 0) DESC, updated_at DESC"
 
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -132,41 +183,41 @@ func (s *Store) ListItems(f model.ItemFilter) ([]model.Item, error) {
 	return items, rows.Err()
 }
 
-// UpdateItemStatus changes the status of an item with validation.
-func (s *Store) UpdateItemStatus(id, newStatus string, errorInfo *string) error {
+// UpdateItemStatus changes the status of an item.
+func (s *Store) UpdateItemStatus(ctx context.Context, id, newStatus string, errorInfo *string) error {
 	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := s.db.Exec(`UPDATE items SET status = ?, error_info = ?, updated_at = ? WHERE id = ?`, newStatus, errorInfo, now, id)
+	_, err := s.db.ExecContext(ctx, `UPDATE items SET status = ?, error_info = ?, updated_at = ? WHERE id = ?`, newStatus, errorInfo, now, id)
 	return err
 }
 
 // UpdateItemScoreAndPriority sets the AI-derived score and priority.
-func (s *Store) UpdateItemScoreAndPriority(id string, score float64, priority string) error {
+func (s *Store) UpdateItemScoreAndPriority(ctx context.Context, id string, score float64, priority string) error {
 	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := s.db.Exec(`UPDATE items SET match_score = ?, priority = ?, updated_at = ? WHERE id = ?`, score, priority, now, id)
+	_, err := s.db.ExecContext(ctx, `UPDATE items SET match_score = ?, priority = ?, updated_at = ? WHERE id = ?`, score, priority, now, id)
 	return err
 }
 
 // ClaimNextCaptured atomically picks the oldest CAPTURED item and sets it to PROCESSING.
 // Returns nil if no item is available.
-func (s *Store) ClaimNextCaptured() (*model.Item, error) {
+func (s *Store) ClaimNextCaptured(ctx context.Context) (*model.Item, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
-	row := s.db.QueryRow(`
+	row := s.db.QueryRowContext(ctx, `
 		UPDATE items SET status = ?, updated_at = ?
 		WHERE id = (SELECT id FROM items WHERE status = ? ORDER BY created_at ASC LIMIT 1)
 		RETURNING id, url, title, domain, source_type, intent_text, status, priority, match_score, error_info, created_at, updated_at`,
 		model.StatusProcessing, now, model.StatusCaptured,
 	)
 	item, err := scanItem(row)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	return item, err
 }
 
 // ResetStaleProcessing resets any PROCESSING items back to CAPTURED (for server restart).
-func (s *Store) ResetStaleProcessing() (int64, error) {
+func (s *Store) ResetStaleProcessing(ctx context.Context) (int64, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
-	res, err := s.db.Exec(`UPDATE items SET status = ?, updated_at = ? WHERE status = ?`, model.StatusCaptured, now, model.StatusProcessing)
+	res, err := s.db.ExecContext(ctx, `UPDATE items SET status = ?, updated_at = ? WHERE status = ?`, model.StatusCaptured, now, model.StatusProcessing)
 	if err != nil {
 		return 0, err
 	}
@@ -178,8 +229,8 @@ func (s *Store) ResetStaleProcessing() (int64, error) {
 // ---------------------------------------------------------------------------
 
 // UpsertArtifact inserts or replaces an artifact (one per item per type).
-func (s *Store) UpsertArtifact(a model.Artifact) error {
-	_, err := s.db.Exec(`
+func (s *Store) UpsertArtifact(ctx context.Context, a model.Artifact) error {
+	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO artifacts (id, item_id, artifact_type, payload, created_by, created_at)
 		VALUES (?, ?, ?, ?, ?, ?)
 		ON CONFLICT(item_id, artifact_type) DO UPDATE SET
@@ -192,8 +243,8 @@ func (s *Store) UpsertArtifact(a model.Artifact) error {
 	return err
 }
 
-func (s *Store) listArtifacts(itemID string) ([]model.Artifact, error) {
-	rows, err := s.db.Query(`SELECT id, item_id, artifact_type, payload, created_by, created_at FROM artifacts WHERE item_id = ? ORDER BY created_at ASC`, itemID)
+func (s *Store) listArtifacts(ctx context.Context, itemID string) ([]model.Artifact, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, item_id, artifact_type, payload, created_by, created_at FROM artifacts WHERE item_id = ? ORDER BY created_at ASC`, itemID)
 	if err != nil {
 		return nil, err
 	}
