@@ -20,7 +20,7 @@ func NewPipeline(steps ...Step) *Pipeline {
 // On success it returns nil. On failure it returns a *StepError indicating
 // which step failed.
 func (p *Pipeline) Run(ctx context.Context, item *model.Item) error {
-	sc := &StepContext{Item: item}
+	sc := &StepContext{Item: item, SaveCount: item.SaveCount}
 	for _, step := range p.steps {
 		if err := step.Run(ctx, sc); err != nil {
 			return &StepError{Step: step.Name(), Err: err}

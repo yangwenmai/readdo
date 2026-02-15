@@ -69,6 +69,7 @@ type TodosResult struct {
 // Each step reads inputs from previous steps and writes its own output.
 type StepContext struct {
 	Item       *model.Item
+	SaveCount  int // how many times this URL has been saved; used as a scoring boost signal
 	Extraction *ExtractedContent
 	Summary    *SummaryResult
 	Score      *ScoreResult

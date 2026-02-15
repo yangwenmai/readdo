@@ -104,7 +104,7 @@ type ScoreStep struct {
 func (s *ScoreStep) Name() string { return "score" }
 
 func (s *ScoreStep) Run(ctx context.Context, sc *StepContext) error {
-	prompt := buildScorePrompt(sc.Item.IntentText, sc.Summary, sc.Extraction)
+	prompt := buildScorePrompt(sc.Item.IntentText, sc.Summary, sc.Extraction, sc.SaveCount)
 	result, err := runLLMStep[ScoreResult](ctx, s.Model, s.Artifacts, sc.Item.ID, model.ArtifactScore, prompt)
 	if err != nil {
 		return err

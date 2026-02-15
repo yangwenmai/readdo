@@ -21,13 +21,19 @@ Article text:
 %s`, intent, truncateRunes(text, 12000))
 }
 
-func buildScorePrompt(intent string, summary *SummaryResult, extraction *ExtractedContent) string {
+func buildScorePrompt(intent string, summary *SummaryResult, extraction *ExtractedContent, saveCount int) string {
 	summaryJSON := mustJSON(summary)
+	saveCountHint := ""
+	if saveCount > 1 {
+		saveCountHint = fmt.Sprintf(`
+- IMPORTANT: This article has been saved %d times with different intents, indicating high user interest. Award a bonus of +%d points (before capping at 100) to the base score.`, saveCount, min(saveCount*5, 20))
+	}
 	return fmt.Sprintf(`You are a content relevance scorer. Rate how well this article matches the user's intent.
 
 User intent: "%s"
 Summary: %s
 Word count: %d
+Times saved: %d
 
 Output ONLY valid JSON with this exact structure:
 {"match_score": 75, "priority": "WORTH_IT", "reasons": ["reason 1", "reason 2", "reason 3"]}
@@ -36,7 +42,7 @@ Rules:
 - match_score: integer 0-100
 - priority: one of "READ_NEXT" (>=80), "WORTH_IT" (60-79), "IF_TIME" (40-59), "SKIP" (<40)
 - reasons: at least 3 reasons explaining the score, referencing the intent or content
-- Be specific, not generic`, intent, summaryJSON, extraction.Meta.WordCount)
+- Be specific, not generic%s`, intent, summaryJSON, extraction.Meta.WordCount, saveCount, saveCountHint)
 }
 
 func buildTodoPrompt(intent string, summary *SummaryResult, score *ScoreResult) string {
