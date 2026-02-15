@@ -35,6 +35,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/items", s.handleListItems)
 	s.mux.HandleFunc("GET /api/items/{id}", s.handleGetItem)
 	s.mux.HandleFunc("POST /api/items/{id}/retry", s.handleRetry)
+	s.mux.HandleFunc("POST /api/items/{id}/reprocess", s.handleReprocess)
 	s.mux.HandleFunc("PATCH /api/items/{id}/status", s.handleUpdateStatus)
 	s.mux.HandleFunc("PUT /api/items/{id}/artifacts/{type}", s.handleEditArtifact)
 }

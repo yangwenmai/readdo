@@ -44,13 +44,26 @@ func (s *Server) handleCapture(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// URL deduplication: reject if an active (non-ARCHIVED) item already exists for this URL.
+	// Check if an active (non-ARCHIVED) item already exists for this URL.
+	// If so, merge the new intent and re-queue for processing instead of rejecting.
 	existing, err := s.store.FindItemByURL(r.Context(), req.URL)
 	if err == nil && existing != nil {
-		writeJSON(w, http.StatusConflict, map[string]string{
-			"error":           "item with this URL already exists",
-			"existing_id":     existing.ID,
-			"existing_status": existing.Status,
+		existing.MergeIntent(req.IntentText)
+		if err := s.store.UpdateItemForReprocess(r.Context(), existing.ID, existing.IntentText, existing.SaveCount); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to update item")
+			return
+		}
+		// Record the intent as a separate timestamped entry.
+		if req.IntentText != "" {
+			intent := model.NewIntent(uuid.New().String(), existing.ID, req.IntentText)
+			_ = s.store.CreateIntent(r.Context(), intent) // best-effort
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"id":         existing.ID,
+			"status":     model.StatusCaptured,
+			"merged":     true,
+			"save_count": existing.SaveCount,
+			"message":    "intent merged, item re-queued for processing",
 		})
 		return
 	}
@@ -69,9 +82,17 @@ func (s *Server) handleCapture(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, map[string]string{
-		"id":     item.ID,
-		"status": item.Status,
+	// Record the initial intent as a separate timestamped entry.
+	if req.IntentText != "" {
+		intent := model.NewIntent(uuid.New().String(), item.ID, req.IntentText)
+		_ = s.store.CreateIntent(r.Context(), intent) // best-effort
+	}
+
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"id":         item.ID,
+		"status":     item.Status,
+		"merged":     false,
+		"save_count": item.SaveCount,
 	})
 }
 
@@ -139,6 +160,37 @@ func (s *Server) handleRetry(w http.ResponseWriter, r *http.Request) {
 
 	if item.Status != model.StatusFailed {
 		writeError(w, http.StatusConflict, "only FAILED items can be retried")
+		return
+	}
+
+	if err := s.store.UpdateItemStatus(r.Context(), id, model.StatusCaptured, nil); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update status")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"id": id, "status": model.StatusCaptured})
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/items/{id}/reprocess
+// ---------------------------------------------------------------------------
+
+func (s *Server) handleReprocess(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	item, err := s.store.GetItem(r.Context(), id)
+	if errors.Is(err, sql.ErrNoRows) {
+		writeError(w, http.StatusNotFound, "item not found")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get item")
+		return
+	}
+
+	// Allow reprocessing for READY and FAILED items.
+	if item.Status != model.StatusReady && item.Status != model.StatusFailed {
+		writeError(w, http.StatusConflict, "only READY or FAILED items can be reprocessed")
 		return
 	}
 
