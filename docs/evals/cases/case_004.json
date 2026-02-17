@@ -1,8 +1,0 @@
-{
-    "id": "case_004",
-    "title": "Newsletter on prioritization frameworks",
-    "source_type": "newsletter",
-    "intent_text": "I want a simple prioritization method to decide what to read next based on my intent and time.",
-    "extracted_text": "The newsletter proposes a relevance-first queue: prioritize items by alignment with your stated goal, then by the expected value-to-effort ratio. It suggests labeling content with action-oriented buckets: read next, worth it, if time, skip. The author recommends always showing 'why' (reasons) for each label to reduce second-guessing. It provides examples: if content contains step-by-step instructions, templates, or decision frameworks, it should rank higher."
-  }
-  

@@ -1,0 +1,233 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 360px;
+  font-family: Inter, -apple-system, system-ui, sans-serif;
+  font-size: 14px;
+  color: #1A1D23;
+  background: #FFFFFF;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Header */
+.header {
+  padding: 16px 20px 12px;
+}
+
+.logo {
+  font-size: 15px;
+  font-weight: 600;
+  color: #4F46E5;
+}
+
+/* Page Info */
+.page-info {
+  margin: 0 20px;
+  padding: 12px;
+  background: #F8F9FB;
+  border-radius: 8px;
+}
+
+.page-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1A1D23;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.page-domain {
+  font-size: 12px;
+  color: #9CA3AF;
+  margin-top: 4px;
+}
+
+/* Referrer Info (link mode) */
+.referrer-info {
+  margin: 8px 20px 0;
+  padding: 6px 12px;
+  background: #EEF2FF;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #6B7280;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.referrer-label {
+  color: #9CA3AF;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.referrer-title {
+  color: #4F46E5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Intent */
+.intent-section {
+  padding: 16px 20px 0;
+}
+
+.intent-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: #6B7280;
+  margin-bottom: 6px;
+}
+
+.intent-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  color: #1A1D23;
+  resize: none;
+  outline: none;
+  transition: border-color 150ms ease;
+}
+
+.intent-input:focus {
+  border-color: #4F46E5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.intent-input::placeholder {
+  color: #9CA3AF;
+}
+
+/* Save Button */
+.save-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: calc(100% - 40px);
+  margin: 16px 20px 20px;
+  padding: 10px;
+  background: #4F46E5;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.save-btn:hover {
+  background: #4338CA;
+}
+
+.save-btn:disabled {
+  background: #A5B4FC;
+  cursor: not-allowed;
+}
+
+/* Spinner */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Error Toast */
+.error-toast {
+  margin: 0 20px 16px;
+  padding: 10px 12px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #991B1B;
+}
+
+.retry-btn {
+  background: none;
+  border: 1px solid #991B1B;
+  color: #991B1B;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* Success View */
+#success-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+}
+
+.success-content {
+  text-align: center;
+  padding: 32px 20px;
+}
+
+.success-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 16px;
+  background: #ECFDF5;
+  color: #059669;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.success-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1A1D23;
+  margin-bottom: 4px;
+}
+
+.success-subtitle {
+  font-size: 13px;
+  color: #6B7280;
+  margin-bottom: 20px;
+}
+
+.open-inbox {
+  font-size: 13px;
+  font-weight: 500;
+  color: #4F46E5;
+  text-decoration: none;
+}
+
+.open-inbox:hover {
+  text-decoration: underline;
+}

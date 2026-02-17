@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284C7"/>
+      <stop offset="50%" stop-color="#0EA5E9"/>
+      <stop offset="100%" stop-color="#38BDF8"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="60%" cy="55%" r="50%">
+      <stop offset="0%" stop-color="rgba(125,211,252,0.3)"/>
+      <stop offset="100%" stop-color="rgba(125,211,252,0)"/>
+    </radialGradient>
+    <filter id="arrowGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="0.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Background -->
+  <rect x="0.5" y="0.5" width="15" height="15" rx="3.5" ry="3.5" fill="url(#bg)"/>
+  <rect x="0.5" y="0.5" width="15" height="15" rx="3.5" ry="3.5" fill="url(#glow)"/>
+  <!-- Page with depth -->
+  <rect x="2.5" y="3" width="5.5" height="9.5" rx="1" fill="rgba(255,255,255,0.55)" transform="translate(0.3,0.3)"/>
+  <rect x="2.5" y="3" width="5.5" height="9.5" rx="1" fill="rgba(255,255,255,0.92)"/>
+  <!-- Arrow with glow -->
+  <g filter="url(#arrowGlow)">
+    <path d="M9.5,7.8 L12,7.8 L12,6.2 L14.2,8.25 L12,10.3 L12,8.7 L9.5,8.7 Z"
+          fill="white"/>
+  </g>
+</svg>

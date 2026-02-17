@@ -1,0 +1,22 @@
+# Go
+readdo.db
+readdo.db-wal
+readdo.db-shm
+*.exe
+*.test
+*.out
+
+# Node / Web
+node_modules/
+dist/
+.env
+.env.local
+
+# OS
+.DS_Store
+*.log
+
+# IDE
+.idea/
+.cursor/
+*.swp

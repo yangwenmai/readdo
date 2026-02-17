@@ -1,121 +1,436 @@
-# Read→Do UX 规格（MVP）
-Location: docs/01-UX-Spec.md
-Version: 0.1
-Last Updated: 2026-02-13
+# Read→Do UI/UX 规格（MVP）
+Version: 0.2
+Last Updated: 2026-02-14
 
 ---
 
-## 0. UX North Star
-**从“Tab 堆积的注意力债”到“输出交付的行动系统”。**
+## 1. 设计原则
 
-Aha moment 不来自“更强的总结”，而来自：
-- 你保存时写下的那句 intent，后面被系统反复拿来“解释与驱动行动”
-- Inbox 不再是书签列表，而是一个“决策队列”
-- 每条内容最终都会变成可分享的“卡片输出”，而不是被遗忘
-
----
-
-## 1. 核心用户旅程（MVP）
-Capture（1 秒） → Decide（10 秒） → Do（10~30 分钟） → Ship（1 次点击）
-
-### 1.1 Capture（Chrome Extension）
-- 用户点击插件
-- 弹窗只问 1 个问题：**“Why save this?”**
-- 保存成功后给 2 个 CTA：
-  - `Open Inbox`
-  - `Save another`（不打断）
-
-**MVP 不做语音**（你已确认），intent 纯文字。
-
-### 1.2 Decide（Inbox）
-Inbox 是“队列”不是“列表”。每条 item 的默认卡片展示必须包含：
-- title + domain
-- intent_text（高优先级展示）
-- priority + match_score
-- reasons（默认折叠，hover/展开 1 秒看懂）
-
-**决策动作（最小）**
-- `Read Next`（保持 READY，标记为 READ_NEXT）
-- `Queue`（如果需要：可选，MVP 可不做）
-- `Skip`（archive，原因=SYSTEM_SKIP 或 USER_ARCHIVE）
-
-> 设计原则：让用户用 10 秒做决定，而不是继续“打开 tab”。
-
-### 1.3 Do（Detail）
-Detail 页面结构（建议三段式）：
-1) **Intent Header**
-   - intent_text 置顶，允许编辑（编辑会生成 item-level intent version；MVP 可先直接改写 items.intent_text）
-2) **Explain**
-   - Summary（bullets + insight）
-   - Score（priority/score + reasons）
-3) **Act**
-   - Todos（可编辑，生成 user version）
-   - Card Preview（从 card artifact 渲染）
-   - Export（ship）
-
-### 1.4 Ship（Export）
-Export 是一个“交付瞬间”：
-- 默认导出 PNG + caption
-- 若 PNG 失败，必须仍能导出 caption + md（保证 ship）
-
-导出完成后：
-- item 进入 SHIPPED
-- 显示最近导出记录（路径/时间）
+| 原则 | 说明 |
+|------|------|
+| **速度优先** | Capture 3 秒完成，Inbox 一屏决策 |
+| **可解释** | 每条建议都有理由，用户知道"为什么" |
+| **可编辑** | AI 产物不是只读的，用户随时可改 |
+| **关闭即安心** | Capture 后即可放心关闭 Tab |
 
 ---
 
-## 2. 信息架构（IA）
+## 2. 视觉体系
 
-### 2.1 顶层导航（MVP）
-- Inbox（默认）
-- Shipped
-- Archived
-- Settings（可后置）
+### 2.1 色彩
 
-### 2.2 Inbox 默认分组（按 priority）
-- READ_NEXT
-- WORTH_IT
-- IF_TIME
-- SKIP（可隐藏或折叠）
+**基础色板：**
+
+| Token | 色值 | 用途 |
+|-------|------|------|
+| `--bg-primary` | `#FFFFFF` | 页面背景 |
+| `--bg-secondary` | `#F8F9FB` | 侧边栏 / 卡片背景 |
+| `--bg-hover` | `#F0F2F5` | 悬停态 |
+| `--text-primary` | `#1A1D23` | 主文字 |
+| `--text-secondary` | `#6B7280` | 次要文字 |
+| `--text-tertiary` | `#9CA3AF` | 辅助文字 / 时间戳 |
+| `--border` | `#E5E7EB` | 分割线 / 边框 |
+| `--accent` | `#4F46E5` | 主操作按钮（Indigo） |
+| `--accent-light` | `#EEF2FF` | 按钮悬停背景 |
+
+**Priority 语义色：**
+
+| Priority | 背景色 | 文字色 | 标签 |
+|----------|--------|--------|------|
+| READ_NEXT | `#ECFDF5` | `#065F46` | Read next |
+| WORTH_IT | `#EFF6FF` | `#1E40AF` | Worth it |
+| IF_TIME | `#F9FAFB` | `#6B7280` | If time |
+| SKIP | `#FEF2F2` | `#991B1B` | Skip |
+
+**状态色：**
+
+| 状态 | 色值 | 用途 |
+|------|------|------|
+| Success | `#059669` | 成功反馈 |
+| Warning | `#D97706` | 处理中 |
+| Error | `#DC2626` | 失败状态 |
+
+### 2.2 字体
+
+```
+字体栈：Inter, -apple-system, system-ui, sans-serif
+
+标题层级：
+  H1  24px / 700 / 1.3    页面标题
+  H2  18px / 600 / 1.4    区块标题
+  H3  15px / 600 / 1.4    卡片标题
+
+正文：
+  Body    14px / 400 / 1.6   默认文字
+  Small   12px / 400 / 1.5   辅助信息
+  Label   12px / 500 / 1.0   标签、Badge
+```
+
+### 2.3 间距与圆角
+
+```
+间距基准：4px
+
+常用间距：
+  xs    4px     元素间紧凑间距
+  sm    8px     组内间距
+  md    16px    组间间距
+  lg    24px    区块间距
+  xl    32px    页面边距
+
+圆角：
+  sm    6px     Badge / 小按钮
+  md    8px     输入框 / 按钮
+  lg    12px    卡片 / 对话框
+  xl    16px    大面板
+```
+
+### 2.4 阴影
+
+```
+卡片阴影：0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)
+悬停阴影：0 4px 12px rgba(0,0,0,0.08)
+弹窗阴影：0 8px 24px rgba(0,0,0,0.12)
+```
 
 ---
 
-## 3. 关键交互规格（Interaction Contracts）
+## 3. Chrome Extension Popup
 
-### 3.1 Reasons 展示规则
-- reasons 默认只展示前 1 条 + “+2 more”
-- 展开后显示全部 reasons（3~6）
-- 每条 reasons 必须是“具体线索”，禁止泛化（与 rubric 对齐）
+### 3.1 布局
 
-### 3.2 编辑行为与版本化
-- 编辑 Todos/Card：写入 artifacts 新版本（created_by=user）
-- regenerate：生成新 system 版本，不覆盖 user 版本
-- UI 默认展示 user 版本（如存在）
+紧凑弹窗，宽 360px，高度自适应。圆角 12px，白色背景 + 弹窗阴影。
 
-### 3.3 Loading/Processing 反馈
-- item PROCESSING 时：
-  - Inbox 行内展示 step（可选）或“Processing…”
-  - Detail 展示 progress list（Extract / Summary / Score / Todos / Card）
-- 失败：
-  - 展示 message + Retry
-  - Retry 不新增重复 job（幂等）
+```
+┌─────────────────────────────────────┐
+│                                     │
+│   ◆ Read→Do              ✕         │
+│                                     │
+│   ┌─────────────────────────────┐   │
+│   │  📄 Article Title Here      │   │
+│   │     blog.example.com        │   │
+│   └─────────────────────────────┘   │
+│                                     │
+│   Why save this?                    │
+│   ┌─────────────────────────────┐   │
+│   │                             │   │
+│   │  e.g. "想了解他们的架构设计"  │   │
+│   │                             │   │
+│   └─────────────────────────────┘   │
+│                                     │
+│   ┌─────────────────────────────┐   │
+│   │         💾  Save            │   │
+│   └─────────────────────────────┘   │
+│                                     │
+└─────────────────────────────────────┘
+```
+
+**成功状态：**
+
+```
+┌─────────────────────────────────────┐
+│                                     │
+│            ✓ Captured!              │
+│                                     │
+│    Safe to close this tab.          │
+│                                     │
+│         Open Inbox →                │
+│                                     │
+└─────────────────────────────────────┘
+```
+
+### 3.2 交互流程
+
+| 步骤 | 行为 | 细节 |
+|------|------|------|
+| 1 | 点击插件图标 | 弹出 Popup |
+| 2 | 自动填充 title + domain | 页面信息区，只读，灰底卡片 |
+| 3 | 光标自动聚焦 intent 输入框 | placeholder 引导输入 |
+| 4 | 输入 intent → 点 Save | intent 可选但强烈鼓励 |
+| 5 | 成功：切换为成功画面 | 绿色对勾 + "Safe to close this tab." |
+| 6 | 可点击 "Open Inbox →" | 跳转 Web App |
+
+### 3.3 状态处理
+
+- **保存中**：按钮显示 spinner + "Saving..."，禁用交互
+- **成功**：整个内容替换为成功画面（绿色对勾 + 引导文案）
+- **失败**：底部出现红色 toast "Save failed" + "Retry" 按钮
 
 ---
 
-## 4. 视觉与排版（Design System for MVP）
-- 强层级：Intent > Priority/Score > Reasons > Todos > Card
-- Intent 使用“高对比、可扫描”的样式（这就是 Aha 的开关）
-- 卡片导出采用固定画布：
-  - 4:5（1080x1350）为默认
-  - LIGHT/DARK 主题（MVP 先 LIGHT）
+## 4. Web App
+
+### 4.1 全局布局
+
+左侧窄 Sidebar（200px）+ 右侧 Main Content。Sidebar 背景 `--bg-secondary`，内容区白色。
+
+```
+┌──────────────────────────────────────────────────────┐
+│                                                      │
+│   ┌─────────┬──────────────────────────────────┐     │
+│   │         │                                  │     │
+│   │  ◆      │   Inbox                    🔍   │     │
+│   │  Read   │                                  │     │
+│   │  →Do    │   ┌──────────────────────────┐   │     │
+│   │         │   │  Item Card 1             │   │     │
+│   │─────────│   └──────────────────────────┘   │     │
+│   │         │   ┌──────────────────────────┐   │     │
+│   │  📥     │   │  Item Card 2             │   │     │
+│   │  Inbox  │   └──────────────────────────┘   │     │
+│   │         │   ┌──────────────────────────┐   │     │
+│   │  📦     │   │  Item Card 3             │   │     │
+│   │  Archive│   └──────────────────────────┘   │     │
+│   │         │                                  │     │
+│   │         │                                  │     │
+│   │─────────│                                  │     │
+│   │  ⚙      │                                  │     │
+│   │  Settings                                  │     │
+│   │         │                                  │     │
+│   └─────────┴──────────────────────────────────┘     │
+│                                                      │
+└──────────────────────────────────────────────────────┘
+```
+
+**Sidebar 导航：**
+- **Inbox**（默认，带未处理数量 badge）：CAPTURED / PROCESSING / READY / FAILED
+- **Archive**：已归档的内容（完成或跳过）
 
 ---
 
-## 5. MVP 可用性验收（UX）
-- Capture ≤ 2 步完成（点击 + 输入 + 保存）
-- Inbox 每条 item 10 秒内可做决策（信息齐备）
-- Detail 里“为什么建议读”可被快速解释（reasons）
-- 至少 1 个输出型 todo（WRITE/SHARE/BUILD/DECIDE）
-- 一键导出（失败也能 ship）
+### 4.2 Inbox 列表页
+
+READY 的内容按 priority 分组展示，组内按 score 降序。PROCESSING / FAILED 在顶部单独区域。
+
+**分组结构：**
+
+```
+  ⏳ Processing (2)
+  ┌─────────────────────────────────────────────┐
+  │  ░░░░░░░░░░░░░  骨架屏加载态  ░░░░░░░░░░░░  │
+  └─────────────────────────────────────────────┘
+
+  🟢 Read next
+  ┌─────────────────────────────────────────────┐
+  │  Item Card ...                              │
+  └─────────────────────────────────────────────┘
+
+  🔵 Worth it
+  ┌─────────────────────────────────────────────┐
+  │  Item Card ...                              │
+  └─────────────────────────────────────────────┘
+
+  ⚪ If time
+  ┌─────────────────────────────────────────────┐
+  │  Item Card ...                              │
+  └─────────────────────────────────────────────┘
+
+  🔴 Skip
+  ┌─────────────────────────────────────────────┐
+  │  Item Card ...                              │
+  └─────────────────────────────────────────────┘
+```
+
+**Item 卡片设计（READY 状态）：**
+
+```
+┌──────────────────────────────────────────────────┐
+│                                                  │
+│  Read next                              85       │
+│  ██████████                                      │
+│                                                  │
+│  How We Redesigned Our API Gateway               │
+│  engineering.example.com · web                   │
+│                                                  │
+│  "想了解他们网关的限流和熔断方案"                    │
+│                                                  │
+│  ✦ 与你关注的系统设计方向高度匹配                    │
+│  ✦ 包含可直接复用的架构决策模式                      │
+│  ✦ 有具体的性能数据和对比分析                        │
+│                                                  │
+│                                     2 hours ago  │
+└──────────────────────────────────────────────────┘
+```
+
+**卡片信息层级：**
+
+| 层级 | 内容 | 视觉处理 |
+|------|------|---------|
+| 第一行 | Priority Badge + Score | Badge 用语义色圆角标签；Score 右对齐，大字号 |
+| 第二行 | Title | H3 加粗，单行截断 |
+| 第三行 | Domain + source_type | Small 字号，`--text-tertiary` |
+| 第四行 | Intent（用户的话） | Body 字号，`--text-secondary`，带引号样式 |
+| 第五行 | Reasons（≥3 条） | Small 字号，`--text-secondary`，✦ 前缀 |
+| 底部 | 时间 | Small 字号，右对齐，`--text-tertiary` |
+
+**卡片交互：**
+- 悬停：卡片整体上浮（translate -1px）+ 悬停阴影
+- 点击：进入 Item Detail 页
+
+**特殊状态卡片：**
+
+| 状态 | 展示 |
+|------|------|
+| CAPTURED / PROCESSING | 骨架屏：title 可见，其余为灰色占位块 + 小 spinner |
+| FAILED | 红色左边框 + 错误简述 + `Retry` 按钮（内联） |
+
+**空状态：**
+
+```
+┌──────────────────────────────────────────────────┐
+│                                                  │
+│              📭                                  │
+│                                                  │
+│         Inbox is empty                           │
+│                                                  │
+│   Capture your first link with the               │
+│   Chrome extension to get started.               │
+│                                                  │
+└──────────────────────────────────────────────────┘
+```
 
 ---
+
+### 4.3 Item Detail 页
+
+点击 Inbox 卡片进入详情。采用单列居中布局（max-width 720px），信息区块纵向排列。
+
+**整体布局：**
+
+```
+┌──────────────────────────────────────────────────────┐
+│                                                      │
+│  ← Back to Inbox                                     │
+│                                                      │
+│  ┌──── Header ────────────────────────────────────┐  │
+│  │                                                │  │
+│  │  How We Redesigned Our API Gateway             │  │
+│  │  engineering.example.com                       │  │
+│  │                                                │  │
+│  │  "想了解他们网关的限流和熔断方案"                  │  │
+│  │                                                │  │
+│  │  Read next · 85/100 · 2 hours ago              │  │
+│  │                                                │  │
+│  └────────────────────────────────────────────────┘  │
+│                                                      │
+│  ┌──── Why Read This ─────────────────────────────┐  │
+│  │                                                │  │
+│  │  ✦ 与你关注的系统设计方向高度匹配                  │  │
+│  │  ✦ 包含可直接复用的架构决策模式                    │  │
+│  │  ✦ 有具体的性能数据和对比分析                      │  │
+│  │                                                │  │
+│  └────────────────────────────────────────────────┘  │
+│                                                      │
+│  ┌──── Summary ──────────────────────── Edit ─────┐  │
+│  │                                                │  │
+│  │  •  第一个要点：关于限流策略的设计思路            │  │
+│  │  •  第二个要点：熔断机制的具体实现方案            │  │
+│  │  •  第三个要点：新老架构的性能对比数据            │  │
+│  │                                                │  │
+│  │  💡 核心发现：基于令牌桶算法的自适应限流           │  │
+│  │     比固定阈值方案在突发流量下表现好 3 倍          │  │
+│  │                                                │  │
+│  └────────────────────────────────────────────────┘  │
+│                                                      │
+│  ┌──── Todos ────────────────────────── Edit ─────┐  │
+│  │                                                │  │
+│  │  ☐  阅读限流策略章节              ETA  20m     │  │
+│  │  ☐  对比现有系统的熔断配置         ETA  30m     │  │
+│  │  ☐  整理可复用的设计模式笔记       ETA  45m     │  │
+│  │  ☐  撰写团队内部分享摘要          ETA  30m     │  │
+│  │                                                │  │
+│  │                               Total  ~2h 5m    │  │
+│  │                                                │  │
+│  └────────────────────────────────────────────────┘  │
+│                                                      │
+│         [ Archive ]      [ Open Original ↗ ]         │
+│                                                      │
+└──────────────────────────────────────────────────────┘
+```
+
+**各区块说明：**
+
+| 区块 | 内容 | 交互 |
+|------|------|------|
+| Header | Title + domain + intent + priority/score/time | 只读；title 可点击跳转原文 |
+| Why Read This | Reasons（≥3 条） | 只读 |
+| Summary | 3 bullets + 1 insight | 可编辑 |
+| Todos | 任务列表 + ETA + 汇总时间 | 可勾选完成、编辑文案、新增/删除 |
+| Actions | Archive / Open Original | Archive 归档此条；Open Original 新窗口打开原文 |
+
+**编辑模式（Summary / Todos）：**
+
+```
+┌──── Summary ──────────────── Save · Cancel ───┐
+│                                                │
+│  ┌──────────────────────────────────────────┐  │
+│  │  •  第一个要点（可编辑）                    │  │
+│  │  •  第二个要点（可编辑）                    │  │
+│  │  •  第三个要点（可编辑）                    │  │
+│  │                                          │  │
+│  │  💡 核心发现（可编辑）                      │  │
+│  └──────────────────────────────────────────┘  │
+│                                                │
+└────────────────────────────────────────────────┘
+```
+
+- 点击 `Edit` → 区块内文字变为可编辑输入区域，边框高亮 `--accent`
+- 右上角操作变为 `Save` / `Cancel`
+- Save 后短暂 toast "Saved ✓"
+
+**Todos 交互细节：**
+- 勾选 checkbox → 该条划线 + 透明度降低，自动保存
+- 全部完成 → 底部出现引导 "All done! Archive this item?"
+- 点击 `+ Add` 可新增一条 TODO
+
+---
+
+### 4.4 Archive 页
+
+与 Inbox 列表结构一致，但：
+- 卡片整体透明度略低（opacity 0.85）
+- 每张卡片右侧有 "↩ Restore" 操作（恢复到 Inbox）
+- 支持按时间倒序浏览
+
+---
+
+## 5. 状态与反馈
+
+| 场景 | 反馈形式 | 细节 |
+|------|---------|------|
+| Capture 成功 | Popup 画面切换 | 绿色对勾 + 引导文案 |
+| Capture 失败 | Popup 底部 toast | 红色，附 Retry 按钮 |
+| 处理中 | 列表骨架屏 | 灰色占位 + 小 spinner |
+| 处理失败 | 卡片红色左边框 | 错误简述 + 内联 Retry |
+| 编辑保存 | Toast | "Saved ✓"，1.5 秒自动消失 |
+| 归档 | 卡片滑出动画 | 从列表移除 + toast "Archived" |
+| 恢复 | 卡片滑入 | toast "Restored to Inbox" |
+
+**Toast 样式：**
+- 位置：页面底部居中，距底 24px
+- 样式：圆角 8px，深色背景（`#1A1D23`），白色文字
+- 动画：fade in + slide up → 1.5 秒后 fade out
+
+---
+
+## 6. 响应式策略（MVP）
+
+| 断点 | 处理 |
+|------|------|
+| ≥1200px | 完整布局：Sidebar + 宽内容区 |
+| 768–1199px | Sidebar 折叠为图标模式（48px 宽），hover 展开 |
+| <768px | MVP 不适配移动端（桌面 Chrome 用户为主） |
+
+Extension Popup 固定 360px 宽，不需响应式。
+
+---
+
+## 7. 动效与过渡
+
+| 交互 | 动效 | 时长 |
+|------|------|------|
+| 卡片悬停 | translateY(-1px) + 阴影加深 | 150ms ease |
+| 页面切换 | 内容区 fade in | 200ms ease |
+| Toast 出现 | fade in + translateY(8px→0) | 200ms ease-out |
+| 卡片归档 | slideRight + fadeOut | 250ms ease |
+| 骨架屏 | 灰色块 shimmer 动画 | 1.5s loop |
+| 编辑态切换 | 边框颜色过渡 | 150ms ease |

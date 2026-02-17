@@ -1,0 +1,98 @@
+.layout {
+  display: flex;
+  height: 100vh;
+}
+
+.sidebar {
+  width: 200px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.logo {
+  padding: 20px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logoIcon {
+  color: var(--accent);
+  font-size: 18px;
+}
+
+.logoText {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 8px;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 150ms ease;
+}
+
+.navItem:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.active {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.active:hover {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.navIcon {
+  font-size: 16px;
+}
+
+.navLabel {
+  flex: 1;
+}
+
+.main {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-xl);
+}
+
+@media (max-width: 1199px) {
+  .sidebar {
+    width: 56px;
+  }
+  .logoText, .navLabel {
+    display: none;
+  }
+  .logo {
+    justify-content: center;
+    padding: 20px 8px;
+  }
+  .navItem {
+    justify-content: center;
+    padding: 10px;
+  }
+}
