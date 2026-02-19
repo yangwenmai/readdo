@@ -68,6 +68,7 @@ type ItemWithArtifacts struct {
 type ItemFilter struct {
 	Status   []string
 	Priority []string
+	Query    string
 }
 
 // allowedTransitions defines which status transitions are valid for user-initiated actions.

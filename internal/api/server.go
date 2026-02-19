@@ -34,10 +34,13 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/capture", s.handleCapture)
 	s.mux.HandleFunc("GET /api/items", s.handleListItems)
 	s.mux.HandleFunc("GET /api/items/{id}", s.handleGetItem)
+	s.mux.HandleFunc("DELETE /api/items/{id}", s.handleDeleteItem)
 	s.mux.HandleFunc("POST /api/items/{id}/retry", s.handleRetry)
 	s.mux.HandleFunc("POST /api/items/{id}/reprocess", s.handleReprocess)
 	s.mux.HandleFunc("PATCH /api/items/{id}/status", s.handleUpdateStatus)
 	s.mux.HandleFunc("PUT /api/items/{id}/artifacts/{type}", s.handleEditArtifact)
+	s.mux.HandleFunc("POST /api/items/batch/status", s.handleBatchStatus)
+	s.mux.HandleFunc("POST /api/items/batch/delete", s.handleBatchDelete)
 }
 
 // ---------------------------------------------------------------------------

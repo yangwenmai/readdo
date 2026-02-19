@@ -19,6 +19,9 @@ type ItemWriter interface {
 	UpdateItemStatus(ctx context.Context, id, newStatus string, errorInfo *string) error
 	UpdateItemScoreAndPriority(ctx context.Context, id string, score float64, priority string) error
 	UpdateItemForReprocess(ctx context.Context, id, intentText string, saveCount int) error
+	DeleteItem(ctx context.Context, id string) error
+	BatchUpdateStatus(ctx context.Context, ids []string, status string) (int64, error)
+	BatchDeleteItems(ctx context.Context, ids []string) (int64, error)
 }
 
 // ItemClaimer provides atomic claim operations for background processing.

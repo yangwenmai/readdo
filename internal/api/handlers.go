@@ -104,6 +104,7 @@ func (s *Server) handleListItems(w http.ResponseWriter, r *http.Request) {
 	filter := model.ItemFilter{
 		Status:   splitComma(r.URL.Query().Get("status")),
 		Priority: splitComma(r.URL.Query().Get("priority")),
+		Query:    r.URL.Query().Get("q"),
 	}
 
 	items, err := s.store.ListItems(r.Context(), filter)
@@ -139,6 +140,36 @@ func (s *Server) handleGetItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, item)
+}
+
+// ---------------------------------------------------------------------------
+// DELETE /api/items/{id}
+// ---------------------------------------------------------------------------
+
+func (s *Server) handleDeleteItem(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	item, err := s.store.GetItem(r.Context(), id)
+	if errors.Is(err, sql.ErrNoRows) {
+		writeError(w, http.StatusNotFound, "item not found")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get item")
+		return
+	}
+
+	if item.Status == model.StatusProcessing {
+		writeError(w, http.StatusConflict, "cannot delete while PROCESSING")
+		return
+	}
+
+	if err := s.store.DeleteItem(r.Context(), id); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to delete item")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"id": id, "deleted": "true"})
 }
 
 // ---------------------------------------------------------------------------
@@ -300,4 +331,65 @@ func (s *Server) handleEditArtifact(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, artifact)
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/items/batch/status
+// ---------------------------------------------------------------------------
+
+type batchStatusRequest struct {
+	IDs    []string `json:"ids"`
+	Status string   `json:"status"`
+}
+
+func (s *Server) handleBatchStatus(w http.ResponseWriter, r *http.Request) {
+	var req batchStatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if len(req.IDs) == 0 {
+		writeError(w, http.StatusBadRequest, "ids is required")
+		return
+	}
+	if req.Status != model.StatusArchived && req.Status != model.StatusReady {
+		writeError(w, http.StatusBadRequest, "status must be ARCHIVED or READY")
+		return
+	}
+
+	n, err := s.store.BatchUpdateStatus(r.Context(), req.IDs, req.Status)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update items")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"updated": n})
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/items/batch/delete
+// ---------------------------------------------------------------------------
+
+type batchDeleteRequest struct {
+	IDs []string `json:"ids"`
+}
+
+func (s *Server) handleBatchDelete(w http.ResponseWriter, r *http.Request) {
+	var req batchDeleteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if len(req.IDs) == 0 {
+		writeError(w, http.StatusBadRequest, "ids is required")
+		return
+	}
+
+	n, err := s.store.BatchDeleteItems(r.Context(), req.IDs)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to delete items")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"deleted": n})
 }
