@@ -68,6 +68,17 @@ export default function DetailPage() {
     }
   }
 
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this item? This cannot be undone.')) return
+    try {
+      await api.deleteItem(item.id)
+      setToast('Deleted')
+      setTimeout(() => navigate('/inbox'), 500)
+    } catch {
+      setToast('Delete failed')
+    }
+  }
+
   const handleReprocess = async () => {
     try {
       await api.reprocess(item.id)
@@ -437,6 +448,9 @@ export default function DetailPage() {
             Reprocess
           </button>
         )}
+        <button className={styles.deleteBtn} onClick={handleDelete}>
+          Delete
+        </button>
         <a
           className={styles.originalBtn}
           href={item.url}

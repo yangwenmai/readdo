@@ -168,3 +168,18 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-light, rgba(59, 130, 246, 0.2));
+}
+
+.checkbox {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-size: 1.25rem;
+  cursor: pointer;
+  z-index: 1;
+  line-height: 1;
+}

@@ -85,13 +85,19 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  listItems: (status?: string) => {
-    const params = status ? `?status=${encodeURIComponent(status)}` : '';
-    return request<Item[]>(`/api/items${params}`);
+  listItems: (status?: string, query?: string) => {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    if (query) params.set('q', query);
+    const qs = params.toString();
+    return request<Item[]>(`/api/items${qs ? `?${qs}` : ''}`);
   },
 
   getItem: (id: string) =>
     request<ItemWithArtifacts>(`/api/items/${id}`),
+
+  deleteItem: (id: string) =>
+    request<{ id: string; deleted: string }>(`/api/items/${id}`, { method: 'DELETE' }),
 
   retry: (id: string) =>
     request<{ id: string; status: string }>(`/api/items/${id}/retry`, { method: 'POST' }),
@@ -109,6 +115,18 @@ export const api = {
     request<Artifact>(`/api/items/${itemId}/artifacts/${type}`, {
       method: 'PUT',
       body: JSON.stringify({ payload }),
+    }),
+
+  batchUpdateStatus: (ids: string[], status: string) =>
+    request<{ updated: number }>('/api/items/batch/status', {
+      method: 'POST',
+      body: JSON.stringify({ ids, status }),
+    }),
+
+  batchDelete: (ids: string[]) =>
+    request<{ deleted: number }>('/api/items/batch/delete', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
     }),
 };
 

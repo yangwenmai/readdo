@@ -43,3 +43,26 @@
   flex-direction: column;
   gap: var(--space-md);
 }
+
+.pageHeader {
+  margin-bottom: var(--space-lg);
+}
+
+.searchInput {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  outline: none;
+  margin-top: var(--space-sm);
+  transition: border-color 150ms;
+}
+.searchInput:focus {
+  border-color: var(--accent);
+}
+.searchInput::placeholder {
+  color: var(--text-tertiary);
+}
