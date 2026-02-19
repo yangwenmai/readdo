@@ -49,11 +49,23 @@ func main() {
 
 	var modelClient engine.ModelClient
 	if cfg.UseStubs() {
-		slog.Info("OPENAI_API_KEY not set, using stub LLM client (extraction still uses HTTP)")
+		slog.Info("no API key for provider, using stub LLM client", "provider", cfg.LLMProvider)
 		modelClient = &engine.StubModelClient{}
 	} else {
-		slog.Info("using OpenAI model client", "model", cfg.OpenAIModel)
-		modelClient = engine.NewOpenAIClient(cfg.OpenAIKey, engine.WithModel(cfg.OpenAIModel))
+		switch cfg.LLMProvider {
+		case "claude":
+			slog.Info("using Claude model client", "model", cfg.AnthropicModel)
+			modelClient = engine.NewClaudeClient(cfg.AnthropicKey, engine.WithClaudeModel(cfg.AnthropicModel))
+		case "gemini":
+			slog.Info("using Gemini model client", "model", cfg.GeminiModel)
+			modelClient = engine.NewGeminiClient(cfg.GeminiKey, engine.WithGeminiModel(cfg.GeminiModel))
+		case "ollama":
+			slog.Info("using Ollama model client", "url", cfg.OllamaURL, "model", cfg.OllamaModel)
+			modelClient = engine.NewOllamaClient(cfg.OllamaURL, engine.WithOllamaModel(cfg.OllamaModel))
+		default:
+			slog.Info("using OpenAI model client", "model", cfg.OpenAIModel)
+			modelClient = engine.NewOpenAIClient(cfg.OpenAIKey, engine.WithModel(cfg.OpenAIModel))
+		}
 	}
 
 	// Build pipeline with pluggable steps.
