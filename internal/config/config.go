@@ -1,15 +1,22 @@
 // Package config provides centralized configuration for the readdo server.
-// All configurable values are loaded from environment variables with sensible defaults.
+// Values are loaded from .env.local (if present), then overridden by real
+// environment variables. This keeps secrets out of version control.
 package config
 
 import (
+	"bufio"
+	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
 // Config holds all server configuration values.
 type Config struct {
+	// LogLevel controls the minimum log level: "debug", "info", "warn", "error".
+	LogLevel string
+
 	// Port is the HTTP server listen port.
 	Port string
 
@@ -19,8 +26,12 @@ type Config struct {
 	// LLMProvider selects which LLM backend to use: "openai", "claude", "gemini", "ollama".
 	LLMProvider string
 
-	// OpenAIKey is the API key for the OpenAI service.
+	// OpenAIKey is the API key for the OpenAI service (or any OpenAI-compatible provider like Aiberm).
 	OpenAIKey string
+
+	// OpenAIBaseURL overrides the default OpenAI API endpoint.
+	// Set to "https://aiberm.com/v1" to use Aiberm, or any other OpenAI-compatible service.
+	OpenAIBaseURL string
 
 	// OpenAIModel is the model identifier for OpenAI completions.
 	OpenAIModel string
@@ -56,13 +67,23 @@ type Config struct {
 	CORSOrigin string
 }
 
-// Load reads configuration from environment variables, applying defaults.
+// Load reads configuration from .env.local (if present) then environment
+// variables, applying defaults. Real env vars always override file values.
 func Load() Config {
+	if loaded := loadEnvFile(".env.local"); loaded {
+		fmt.Println("[config] loaded .env.local")
+	} else {
+		cwd, _ := os.Getwd()
+		fmt.Printf("[config] .env.local not found (cwd: %s)\n", cwd)
+	}
+
 	return Config{
+		LogLevel:       envOr("LOG_LEVEL", "info"),
 		Port:           envOr("PORT", "8080"),
 		DBPath:         envOr("DB_PATH", "readdo.db"),
 		LLMProvider:    envOr("LLM_PROVIDER", "openai"),
 		OpenAIKey:      os.Getenv("OPENAI_API_KEY"),
+		OpenAIBaseURL:  envOr("OPENAI_BASE_URL", "https://api.openai.com/v1"),
 		OpenAIModel:    envOr("OPENAI_MODEL", "gpt-4o-mini"),
 		AnthropicKey:   os.Getenv("ANTHROPIC_API_KEY"),
 		AnthropicModel: envOr("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
@@ -75,6 +96,35 @@ func Load() Config {
 		MaxTextLength:  envInt("MAX_TEXT_LENGTH", 15000),
 		CORSOrigin:     envOr("CORS_ORIGIN", "*"),
 	}
+}
+
+// loadEnvFile reads a KEY=VALUE file and sets env vars that are not already set,
+// so real environment variables always take precedence.
+func loadEnvFile(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		k, v, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		k = strings.TrimSpace(k)
+		v = strings.TrimSpace(v)
+		v = strings.Trim(v, `"'`)
+		if os.Getenv(k) == "" {
+			os.Setenv(k, v)
+		}
+	}
+	return true
 }
 
 // UseStubs returns true when no LLM API key is configured for the selected provider.
