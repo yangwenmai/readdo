@@ -8,12 +8,15 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
 // OpenAIClient implements ModelClient using the OpenAI Chat Completions API.
+// It also works with any OpenAI-compatible service (e.g. Aiberm) by setting a custom base URL.
 type OpenAIClient struct {
 	apiKey     string
+	baseURL    string
 	model      string
 	httpClient *http.Client
 }
@@ -26,11 +29,17 @@ func WithModel(model string) OpenAIOption {
 	return func(c *OpenAIClient) { c.model = model }
 }
 
+// WithBaseURL overrides the API endpoint (default: https://api.openai.com/v1).
+func WithBaseURL(url string) OpenAIOption {
+	return func(c *OpenAIClient) { c.baseURL = strings.TrimRight(url, "/") }
+}
+
 // NewOpenAIClient creates a new OpenAI model client.
 func NewOpenAIClient(apiKey string, opts ...OpenAIOption) *OpenAIClient {
 	c := &OpenAIClient{
-		apiKey: apiKey,
-		model:  "gpt-4o-mini",
+		apiKey:  apiKey,
+		baseURL: "https://api.openai.com/v1",
+		model:   "gpt-4o-mini",
 		httpClient: &http.Client{
 			Timeout: 60 * time.Second,
 		},
@@ -124,7 +133,7 @@ func (c *OpenAIClient) Complete(ctx context.Context, prompt string) (string, err
 }
 
 func (c *OpenAIClient) doRequest(ctx context.Context, body []byte) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.openai.com/v1/chat/completions", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/chat/completions", bytes.NewReader(body))
 	if err != nil {
 		return "", err
 	}
