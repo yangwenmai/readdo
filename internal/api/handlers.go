@@ -288,11 +288,11 @@ func (s *Server) handleEditArtifact(w http.ResponseWriter, r *http.Request) {
 
 	// Validate artifact type.
 	validTypes := map[string]bool{
-		model.ArtifactSummary: true,
-		model.ArtifactTodos:   true,
+		model.ArtifactSynthesis: true,
+		model.ArtifactTodos:     true,
 	}
 	if !validTypes[artifactType] {
-		writeError(w, http.StatusBadRequest, "only summary and todos can be edited")
+		writeError(w, http.StatusBadRequest, "only synthesis and todos can be edited")
 		return
 	}
 

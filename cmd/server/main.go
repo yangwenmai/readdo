@@ -95,7 +95,7 @@ func main() {
 	// Build pipeline with pluggable steps.
 	pipeline := engine.NewPipeline(
 		&engine.ExtractStep{Extractor: extractor, Artifacts: s},
-		&engine.SummarizeStep{Model: modelClient, Artifacts: s},
+		&engine.SynthesizeStep{Model: modelClient, Artifacts: s},
 		&engine.ScoreStep{Model: modelClient, Artifacts: s, Scores: s},
 		&engine.TodoStep{Model: modelClient, Artifacts: s},
 	)
