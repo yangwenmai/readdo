@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/yangwenmai/readdo/internal/api"
@@ -16,10 +17,33 @@ import (
 )
 
 func main() {
-	// Initialize structured logger.
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
-
 	cfg := config.Load()
+
+	// Initialize structured logger with configurable level.
+	var logLevel slog.Level
+	switch strings.ToLower(cfg.LogLevel) {
+	case "debug":
+		logLevel = slog.LevelDebug
+	case "warn":
+		logLevel = slog.LevelWarn
+	case "error":
+		logLevel = slog.LevelError
+	default:
+		logLevel = slog.LevelInfo
+	}
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: logLevel,
+	})))
+
+	slog.Info("config loaded",
+		"log_level", cfg.LogLevel,
+		"llm_provider", cfg.LLMProvider,
+		"use_stubs", cfg.UseStubs(),
+		"openai_model", cfg.OpenAIModel,
+		"openai_base_url", cfg.OpenAIBaseURL,
+		"openai_key_set", cfg.OpenAIKey != "",
+		"worker_interval", cfg.WorkerInterval.String(),
+	)
 
 	// Open SQLite.
 	db, err := store.OpenSQLite(cfg.DBPath)
@@ -63,8 +87,8 @@ func main() {
 			slog.Info("using Ollama model client", "url", cfg.OllamaURL, "model", cfg.OllamaModel)
 			modelClient = engine.NewOllamaClient(cfg.OllamaURL, engine.WithOllamaModel(cfg.OllamaModel))
 		default:
-			slog.Info("using OpenAI model client", "model", cfg.OpenAIModel)
-			modelClient = engine.NewOpenAIClient(cfg.OpenAIKey, engine.WithModel(cfg.OpenAIModel))
+			slog.Info("using OpenAI model client", "model", cfg.OpenAIModel, "base_url", cfg.OpenAIBaseURL)
+			modelClient = engine.NewOpenAIClient(cfg.OpenAIKey, engine.WithModel(cfg.OpenAIModel), engine.WithBaseURL(cfg.OpenAIBaseURL))
 		}
 	}
 
