@@ -125,6 +125,8 @@ func (e *HTTPExtractor) doExtract(ctx context.Context, url string) (*ExtractedCo
 			Author:      article.Byline,
 			PublishDate: publishDate,
 			WordCount:   wordCount,
+			ImageURL:    article.Image,
+			Language:    article.Language,
 		},
 	}, nil
 }

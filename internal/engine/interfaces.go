@@ -38,6 +38,8 @@ type ContentMeta struct {
 	Author      string `json:"author,omitempty"`
 	PublishDate string `json:"publish_date,omitempty"`
 	WordCount   int    `json:"word_count"`
+	ImageURL    string `json:"image_url,omitempty"`
+	Language    string `json:"language,omitempty"`
 }
 
 // SummaryResult is the structured output of the summarize step.
