@@ -36,7 +36,7 @@ func New(db *sql.DB) (*Store, error) {
 
 // currentSchemaVersion is bumped whenever the schema changes.
 // Add a new migration function in the migrations slice below.
-const currentSchemaVersion = 3
+const currentSchemaVersion = 4
 
 func (s *Store) migrate() error {
 	// Ensure the schema_version table exists.
@@ -62,6 +62,7 @@ func (s *Store) migrate() error {
 		s.migrateV1, // v0 → v1: initial schema
 		s.migrateV2, // v1 → v2: add save_count column
 		s.migrateV3, // v2 → v3: add intents table, migrate existing intent_text
+		s.migrateV4, // v3 → v4: rename priority values (READ_NEXT→DO_FIRST, etc.)
 	}
 
 	for i := version; i < len(migrations); i++ {
@@ -163,6 +164,30 @@ func (s *Store) migrateV3() error {
 		}
 	}
 	return rows.Err()
+}
+
+// migrateV4 renames priority values from the old naming to the new action-oriented naming (v3 → v4).
+// Also updates the priority field inside score artifact JSON payloads.
+func (s *Store) migrateV4() error {
+	renames := [][2]string{
+		{"READ_NEXT", "DO_FIRST"},
+		{"WORTH_IT", "PLAN_IT"},
+		{"IF_TIME", "SKIM_IT"},
+		{"SKIP", "LET_GO"},
+	}
+
+	for _, r := range renames {
+		if _, err := s.db.Exec(`UPDATE items SET priority = ? WHERE priority = ?`, r[1], r[0]); err != nil {
+			return fmt.Errorf("rename priority %s→%s: %w", r[0], r[1], err)
+		}
+		if _, err := s.db.Exec(
+			`UPDATE artifacts SET payload = REPLACE(payload, ?, ?) WHERE artifact_type = 'score' AND payload LIKE ?`,
+			`"priority":"`+r[0]+`"`, `"priority":"`+r[1]+`"`, `%`+r[0]+`%`,
+		); err != nil {
+			return fmt.Errorf("rename score artifact priority %s→%s: %w", r[0], r[1], err)
+		}
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------

@@ -133,7 +133,7 @@ func TestUpdateItemScoreAndPriority(t *testing.T) {
 	item := makeItem("item-1", "https://example.com/1")
 	s.CreateItem(ctx, item)
 
-	if err := s.UpdateItemScoreAndPriority(ctx, "item-1", 85.0, model.PriorityReadNext); err != nil {
+	if err := s.UpdateItemScoreAndPriority(ctx, "item-1", 85.0, model.PriorityDoFirst); err != nil {
 		t.Fatalf("UpdateItemScoreAndPriority: %v", err)
 	}
 
@@ -141,8 +141,8 @@ func TestUpdateItemScoreAndPriority(t *testing.T) {
 	if got.MatchScore == nil || *got.MatchScore != 85.0 {
 		t.Errorf("MatchScore = %v, want 85.0", got.MatchScore)
 	}
-	if got.Priority == nil || *got.Priority != model.PriorityReadNext {
-		t.Errorf("Priority = %v, want %q", got.Priority, model.PriorityReadNext)
+	if got.Priority == nil || *got.Priority != model.PriorityDoFirst {
+		t.Errorf("Priority = %v, want %q", got.Priority, model.PriorityDoFirst)
 	}
 }
 
@@ -260,7 +260,7 @@ func TestUpsertArtifact(t *testing.T) {
 	item := makeItem("item-1", "https://example.com/1")
 	s.CreateItem(ctx, item)
 
-	a1 := model.NewArtifact("a-1", "item-1", model.ArtifactSummary, `{"bullets":[],"insight":"test"}`)
+	a1 := model.NewArtifact("a-1", "item-1", model.ArtifactSynthesis, `{"points":[],"insight":"test"}`)
 	if err := s.UpsertArtifact(ctx, a1); err != nil {
 		t.Fatalf("UpsertArtifact: %v", err)
 	}
@@ -269,12 +269,12 @@ func TestUpsertArtifact(t *testing.T) {
 	if len(got.Artifacts) != 1 {
 		t.Fatalf("Artifacts len = %d, want 1", len(got.Artifacts))
 	}
-	if got.Artifacts[0].ArtifactType != model.ArtifactSummary {
-		t.Errorf("ArtifactType = %q, want %q", got.Artifacts[0].ArtifactType, model.ArtifactSummary)
+	if got.Artifacts[0].ArtifactType != model.ArtifactSynthesis {
+		t.Errorf("ArtifactType = %q, want %q", got.Artifacts[0].ArtifactType, model.ArtifactSynthesis)
 	}
 
 	// Upsert replaces
-	a2 := model.NewArtifact("a-2", "item-1", model.ArtifactSummary, `{"bullets":["new"],"insight":"updated"}`)
+	a2 := model.NewArtifact("a-2", "item-1", model.ArtifactSynthesis, `{"points":["new"],"insight":"updated"}`)
 	if err := s.UpsertArtifact(ctx, a2); err != nil {
 		t.Fatalf("UpsertArtifact replace: %v", err)
 	}
@@ -357,7 +357,7 @@ func TestDeleteItem(t *testing.T) {
 	item := makeItem("item-1", "https://example.com/1")
 	s.CreateItem(ctx, item)
 
-	a := model.NewArtifact("a-1", "item-1", model.ArtifactSummary, `{}`)
+	a := model.NewArtifact("a-1", "item-1", model.ArtifactSynthesis, `{}`)
 	s.UpsertArtifact(ctx, a)
 
 	intent := model.NewIntent("int-1", "item-1", "learn Go")
