@@ -23,41 +23,40 @@ func (e *StubExtractor) Extract(_ context.Context, url string) (*ExtractedConten
 type StubModelClient struct{}
 
 func (m *StubModelClient) Complete(_ context.Context, prompt string) (string, error) {
-	// Detect which step is calling based on prompt content.
-	if strings.Contains(prompt, "Summarize the following") {
+	if strings.Contains(prompt, "阅读助手") {
 		result := SummaryResult{
 			Bullets: []string{
-				"The article covers key architectural decisions and trade-offs.",
-				"It presents practical implementation patterns with real-world examples.",
-				"Performance benchmarks show significant improvements over previous approaches.",
+				"文章介绍了关键的架构决策和技术取舍方案。",
+				"提供了基于真实项目的实践模式和具体实现细节。",
+				"包含性能基准测试数据，证明了新方案相比旧方案的显著提升。",
 			},
-			Insight: "The core insight is that simple, well-tested patterns consistently outperform complex over-engineered solutions.",
+			Insight: "核心启示：经过充分测试的简单方案，往往比过度设计的复杂方案表现更好。",
 		}
 		b, _ := json.Marshal(result)
 		return string(b), nil
 	}
 
-	if strings.Contains(prompt, "content relevance scorer") {
+	if strings.Contains(prompt, "相关性评估") {
 		result := ScoreResult{
 			MatchScore: 82,
 			Priority:   "READ_NEXT",
 			Reasons: []string{
-				"Directly relevant to the user's interest in system design patterns.",
-				"Contains actionable implementation details, not just theory.",
-				"Includes performance data that can inform real decisions.",
+				"[Stub] 文章内容与用户意图高度相关，提供了可直接应用的解决方案。",
+				"[Stub] 包含具体的实现步骤和代码示例，不仅是理论讨论。",
+				"[Stub] 附带真实的性能数据，有助于做出技术决策。",
 			},
 		}
 		b, _ := json.Marshal(result)
 		return string(b), nil
 	}
 
-	if strings.Contains(prompt, "task planner") {
+	if strings.Contains(prompt, "任务规划") {
 		result := TodosResult{
 			Todos: []TodoItem{
-				{Title: "Read the architecture overview section", ETA: "20m", Type: "READ"},
-				{Title: "Compare the proposed patterns with current system", ETA: "30m", Type: "READ"},
-				{Title: "Extract reusable design patterns into notes", ETA: "30m", Type: "WRITE"},
-				{Title: "Write a summary for the team", ETA: "45m", Type: "SHARE"},
+				{Title: "阅读文章核心章节，理解主要观点", ETA: "20m", Type: "READ"},
+				{Title: "对比文章方案与当前项目的异同", ETA: "30m", Type: "READ"},
+				{Title: "提取可复用的设计模式，整理为笔记", ETA: "30m", Type: "WRITE"},
+				{Title: "撰写总结分享给团队", ETA: "45m", Type: "SHARE"},
 			},
 		}
 		b, _ := json.Marshal(result)
