@@ -4,12 +4,12 @@ import ItemCard from '../components/ItemCard'
 import Toast from '../components/Toast'
 import styles from './InboxPage.module.css'
 
-const PRIORITY_ORDER = ['READ_NEXT', 'WORTH_IT', 'IF_TIME', 'SKIP']
-const PRIORITY_LABELS: Record<string, string> = {
-  READ_NEXT: '🟢 Read next',
-  WORTH_IT: '🔵 Worth it',
-  IF_TIME: '⚪ If time',
-  SKIP: '🔴 Skip',
+const PRIORITY_ORDER = ['DO_FIRST', 'PLAN_IT', 'SKIM_IT', 'LET_GO']
+const PRIORITY_META: Record<string, { label: string; hint: string }> = {
+  DO_FIRST: { label: '🟢 Do first', hint: '匹配度 ≥ 80 · 与你的意图高度匹配，优先行动' },
+  PLAN_IT: { label: '🔵 Plan it', hint: '匹配度 60–79 · 值得投入时间，纳入计划' },
+  SKIM_IT: { label: '⚪ Skim it', hint: '匹配度 40–59 · 快速扫一眼即可' },
+  LET_GO: { label: '🔴 Let go', hint: '匹配度 < 40 · 放心放手，不会错过' },
 }
 
 export default function InboxPage() {
@@ -176,10 +176,15 @@ export default function InboxPage() {
       {PRIORITY_ORDER.map(priority => {
         const group = groupedByPriority[priority]
         if (!group) return null
+        const meta = PRIORITY_META[priority]
         return (
           <section key={priority} className={styles.section}>
             <h2 className={styles.sectionTitle}>
-              {PRIORITY_LABELS[priority]} ({group.length})
+              {meta.label} ({group.length})
+              <span className={styles.hintWrap}>
+                <span className={styles.hintIcon}>ⓘ</span>
+                <span className={styles.hintTooltip}>{meta.hint}</span>
+              </span>
             </h2>
             <div className={styles.grid}>
               {group.map(item => (

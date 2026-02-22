@@ -59,7 +59,7 @@ export default function ItemCard({ item, onRetry, onRestore, isArchive, selectab
       ) : (
         <>
           <div className={styles.header}>
-            {item.priority && <PriorityBadge priority={item.priority} />}
+            {item.priority && <PriorityBadge priority={item.priority} matchScore={item.match_score} />}
             {item.match_score != null && (
               <span className={styles.score}>{Math.round(item.match_score)}</span>
             )}

@@ -39,15 +39,16 @@ export interface ItemWithArtifacts extends Item {
   intents: Intent[];
 }
 
-export interface SummaryPayload {
-  bullets: string[];
+export interface SynthesisPayload {
+  points: string[];
   insight: string;
 }
 
 export interface ScorePayload {
-  match_score: number;
+  intent_score: number;
+  quality_score: number;
+  final_score: number;
   priority: string;
-  reasons: string[];
 }
 
 export interface TodoItem {

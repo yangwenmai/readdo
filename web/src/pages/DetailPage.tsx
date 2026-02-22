@@ -7,7 +7,7 @@ import {
   readingTime,
   previewText,
   type ItemWithArtifacts,
-  type SummaryPayload,
+  type SynthesisPayload,
   type ScorePayload,
   type TodosPayload,
   type TodoItem,
@@ -25,9 +25,9 @@ export default function DetailPage() {
   const [toast, setToast] = useState<string | null>(null)
 
   // Edit state
-  const [editingSummary, setEditingSummary] = useState(false)
+  const [editingSynthesis, setEditingSynthesis] = useState(false)
   const [editingTodos, setEditingTodos] = useState(false)
-  const [summaryDraft, setSummaryDraft] = useState<SummaryPayload | null>(null)
+  const [synthesisDraft, setSynthesisDraft] = useState<SynthesisPayload | null>(null)
   const [todosDraft, setTodosDraft] = useState<TodosPayload | null>(null)
 
   const fetchItem = useCallback(async () => {
@@ -50,7 +50,7 @@ export default function DetailPage() {
   if (!item) return null
 
   const extraction = parseArtifact<ExtractionPayload>(item.artifacts, 'extraction')
-  const summary = parseArtifact<SummaryPayload>(item.artifacts, 'summary')
+  const synthesis = parseArtifact<SynthesisPayload>(item.artifacts, 'synthesis')
   const score = parseArtifact<ScorePayload>(item.artifacts, 'score')
   const todos = parseArtifact<TodosPayload>(item.artifacts, 'todos')
 
@@ -89,17 +89,17 @@ export default function DetailPage() {
     }
   }
 
-  // Summary edit
-  const startEditSummary = () => {
-    setSummaryDraft(summary ? { ...summary, bullets: [...summary.bullets] } : null)
-    setEditingSummary(true)
+  // Synthesis edit
+  const startEditSynthesis = () => {
+    setSynthesisDraft(synthesis ? { ...synthesis, points: [...synthesis.points] } : null)
+    setEditingSynthesis(true)
   }
 
-  const saveSummary = async () => {
-    if (!summaryDraft) return
+  const saveSynthesis = async () => {
+    if (!synthesisDraft) return
     try {
-      await api.editArtifact(item.id, 'summary', summaryDraft)
-      setEditingSummary(false)
+      await api.editArtifact(item.id, 'synthesis', synthesisDraft)
+      setEditingSynthesis(false)
       setToast('Saved ✓')
       fetchItem()
     } catch {
@@ -192,7 +192,7 @@ export default function DetailPage() {
           {item.domain}
         </div>
         <div className={styles.badges}>
-          {item.priority && <PriorityBadge priority={item.priority} />}
+          {item.priority && <PriorityBadge priority={item.priority} matchScore={item.match_score} intentScore={score?.intent_score} qualityScore={score?.quality_score} />}
           {item.match_score != null && (
             <span className={styles.score}>{Math.round(item.match_score)}/100</span>
           )}
@@ -241,62 +241,48 @@ export default function DetailPage() {
         </section>
       ) : null}
 
-      {/* Why Read This */}
-      {score && score.reasons.length > 0 && (
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Why Read This</h2>
-          <div className={styles.sectionContent}>
-            <ul className={styles.reasons}>
-              {score.reasons.map((reason, i) => (
-                <li key={i} className={styles.reason}>
-                  <span className={styles.reasonIcon}>✦</span>
-                  {reason}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-      )}
-
-      {/* Summary */}
-      {summary && (
+      {/* AI Brief (synthesis) */}
+      {synthesis && (
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>Summary</h2>
-            {!editingSummary ? (
-              <button className={styles.editBtn} onClick={startEditSummary}>Edit</button>
+            <h2 className={styles.sectionTitle}>AI Brief</h2>
+            {!editingSynthesis ? (
+              <button className={styles.editBtn} onClick={startEditSynthesis}>Edit</button>
             ) : (
               <div className={styles.editActions}>
-                <button className={styles.saveBtn} onClick={saveSummary}>Save</button>
-                <button className={styles.cancelBtn} onClick={() => setEditingSummary(false)}>Cancel</button>
+                <button className={styles.saveBtn} onClick={saveSynthesis}>Save</button>
+                <button className={styles.cancelBtn} onClick={() => setEditingSynthesis(false)}>Cancel</button>
               </div>
             )}
           </div>
           <div className={styles.sectionContent}>
-            {!editingSummary ? (
+            {!editingSynthesis ? (
               <>
-                <ul className={styles.bullets}>
-                  {summary.bullets.map((b, i) => (
-                    <li key={i}>{b}</li>
+                <ul className={styles.points}>
+                  {synthesis.points.map((point, i) => (
+                    <li key={i} className={styles.point}>
+                      <span className={styles.pointIcon}>✦</span>
+                      {point}
+                    </li>
                   ))}
                 </ul>
                 <div className={styles.insight}>
                   <span className={styles.insightIcon}>💡</span>
-                  {summary.insight}
+                  {synthesis.insight}
                 </div>
               </>
             ) : (
               <div className={styles.editArea}>
-                {summaryDraft?.bullets.map((b, i) => (
+                {synthesisDraft?.points.map((p, i) => (
                   <div key={i} className={styles.editRow}>
-                    <span className={styles.bulletDot}>•</span>
+                    <span className={styles.pointIcon}>✦</span>
                     <input
                       className={styles.editInput}
-                      value={b}
+                      value={p}
                       onChange={e => {
-                        const updated = [...(summaryDraft?.bullets || [])]
+                        const updated = [...(synthesisDraft?.points || [])]
                         updated[i] = e.target.value
-                        setSummaryDraft({ ...summaryDraft!, bullets: updated })
+                        setSynthesisDraft({ ...synthesisDraft!, points: updated })
                       }}
                     />
                   </div>
@@ -305,8 +291,8 @@ export default function DetailPage() {
                   <span className={styles.insightIcon}>💡</span>
                   <input
                     className={styles.editInput}
-                    value={summaryDraft?.insight || ''}
-                    onChange={e => setSummaryDraft({ ...summaryDraft!, insight: e.target.value })}
+                    value={synthesisDraft?.insight || ''}
+                    onChange={e => setSynthesisDraft({ ...synthesisDraft!, insight: e.target.value })}
                   />
                 </div>
               </div>
@@ -461,14 +447,6 @@ export default function DetailPage() {
         <button className={styles.deleteBtn} onClick={handleDelete}>
           Delete
         </button>
-        <a
-          className={styles.originalBtn}
-          href={item.url}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Open Original ↗
-        </a>
       </div>
 
       <Toast message={toast} onClose={() => setToast(null)} />
