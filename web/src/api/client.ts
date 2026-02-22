@@ -65,6 +65,8 @@ export interface ContentMeta {
   author?: string;
   publish_date?: string;
   word_count: number;
+  image_url?: string;
+  language?: string;
 }
 
 export interface ExtractionPayload {

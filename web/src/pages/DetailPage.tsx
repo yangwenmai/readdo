@@ -171,6 +171,16 @@ export default function DetailPage() {
         ← Back to Inbox
       </button>
 
+      {/* Hero Image */}
+      {extraction?.content_meta?.image_url && (
+        <img
+          className={styles.heroImage}
+          src={extraction.content_meta.image_url}
+          alt={item.title || ''}
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+        />
+      )}
+
       {/* Header */}
       <div className={styles.header}>
         <h1 className={styles.title}>

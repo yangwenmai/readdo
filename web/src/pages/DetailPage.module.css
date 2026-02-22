@@ -23,6 +23,16 @@
   color: var(--accent);
 }
 
+/* Hero Image */
+.heroImage {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--border);
+}
+
 /* Header */
 .header {
   margin-bottom: var(--space-lg);
