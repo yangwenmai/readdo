@@ -16,10 +16,10 @@ const (
 
 // Priority constants
 const (
-	PriorityReadNext = "READ_NEXT"
-	PriorityWorthIt  = "WORTH_IT"
-	PriorityIfTime   = "IF_TIME"
-	PrioritySkip     = "SKIP"
+	PriorityDoFirst = "DO_FIRST"
+	PriorityPlanIt  = "PLAN_IT"
+	PrioritySkimIt  = "SKIM_IT"
+	PriorityLetGo   = "LET_GO"
 )
 
 // Item represents a captured content item.

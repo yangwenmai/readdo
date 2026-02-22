@@ -110,12 +110,12 @@ func TestNewIntent(t *testing.T) {
 }
 
 func TestNewArtifact(t *testing.T) {
-	a := NewArtifact("a-1", "item-1", ArtifactSummary, `{"bullets":[],"insight":""}`)
+	a := NewArtifact("a-1", "item-1", ArtifactSynthesis, `{"points":[],"insight":""}`)
 	if a.CreatedBy != CreatedBySystem {
 		t.Errorf("CreatedBy = %q, want %q", a.CreatedBy, CreatedBySystem)
 	}
-	if a.ArtifactType != ArtifactSummary {
-		t.Errorf("ArtifactType = %q, want %q", a.ArtifactType, ArtifactSummary)
+	if a.ArtifactType != ArtifactSynthesis {
+		t.Errorf("ArtifactType = %q, want %q", a.ArtifactType, ArtifactSynthesis)
 	}
 	if a.CreatedAt == "" {
 		t.Error("CreatedAt should not be empty")
