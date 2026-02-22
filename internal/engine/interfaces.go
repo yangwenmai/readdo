@@ -42,17 +42,21 @@ type ContentMeta struct {
 	Language    string `json:"language,omitempty"`
 }
 
-// SummaryResult is the structured output of the summarize step.
-type SummaryResult struct {
-	Bullets []string `json:"bullets"`
+// SynthesisResult is the structured output of the synthesize step.
+// Each point combines what the article says with why it matters to the user's intent.
+type SynthesisResult struct {
+	Points  []string `json:"points"`
 	Insight string   `json:"insight"`
 }
 
 // ScoreResult is the structured output of the score step.
+// It evaluates two dimensions: how well the article matches the user's intent,
+// and the intrinsic quality of the article itself.
 type ScoreResult struct {
-	MatchScore float64  `json:"match_score"`
-	Priority   string   `json:"priority"`
-	Reasons    []string `json:"reasons"`
+	IntentScore  float64 `json:"intent_score"`
+	QualityScore float64 `json:"quality_score"`
+	FinalScore   float64 `json:"final_score"`
+	Priority     string  `json:"priority"`
 }
 
 // TodoItem represents a single actionable task.
@@ -73,7 +77,7 @@ type StepContext struct {
 	Item       *model.Item
 	SaveCount  int // how many times this URL has been saved; used as a scoring boost signal
 	Extraction *ExtractedContent
-	Summary    *SummaryResult
+	Synthesis  *SynthesisResult
 	Score      *ScoreResult
 	Todos      *TodosResult
 }

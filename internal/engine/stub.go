@@ -23,28 +23,25 @@ func (e *StubExtractor) Extract(_ context.Context, url string) (*ExtractedConten
 type StubModelClient struct{}
 
 func (m *StubModelClient) Complete(_ context.Context, prompt string) (string, error) {
-	if strings.Contains(prompt, "阅读助手") {
-		result := SummaryResult{
-			Bullets: []string{
-				"文章介绍了关键的架构决策和技术取舍方案。",
-				"提供了基于真实项目的实践模式和具体实现细节。",
-				"包含性能基准测试数据，证明了新方案相比旧方案的显著提升。",
+	if strings.Contains(prompt, "阅读顾问") {
+		result := SynthesisResult{
+			Points: []string{
+				"[Stub] 文章介绍了关键的架构决策——这直接回应了你对技术选型的关注，可以帮你避免常见的设计陷阱。",
+				"[Stub] 提供了基于真实项目的实践模式——你可以将这些模式与当前项目对比，快速判断适用性。",
+				"[Stub] 包含性能基准测试数据——为你正在做的技术决策提供了客观的数据支撑。",
 			},
-			Insight: "核心启示：经过充分测试的简单方案，往往比过度设计的复杂方案表现更好。",
+			Insight: "这篇文章的独特价值在于：用真实案例证明了简单方案的优越性，正好回应了你对架构取舍的关切。",
 		}
 		b, _ := json.Marshal(result)
 		return string(b), nil
 	}
 
-	if strings.Contains(prompt, "相关性评估") {
+	if strings.Contains(prompt, "内容评估") {
 		result := ScoreResult{
-			MatchScore: 82,
-			Priority:   "READ_NEXT",
-			Reasons: []string{
-				"[Stub] 文章内容与用户意图高度相关，提供了可直接应用的解决方案。",
-				"[Stub] 包含具体的实现步骤和代码示例，不仅是理论讨论。",
-				"[Stub] 附带真实的性能数据，有助于做出技术决策。",
-			},
+			IntentScore:  78,
+			QualityScore: 88,
+			FinalScore:   82,
+			Priority:     "DO_FIRST",
 		}
 		b, _ := json.Marshal(result)
 		return string(b), nil

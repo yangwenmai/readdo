@@ -42,7 +42,7 @@ func TestPipeline_FullRun(t *testing.T) {
 
 	pipeline := NewPipeline(
 		&ExtractStep{Extractor: extractor, Artifacts: as},
-		&SummarizeStep{Model: stub, Artifacts: as},
+		&SynthesizeStep{Model: stub, Artifacts: as},
 		&ScoreStep{Model: stub, Artifacts: as, Scores: su},
 		&TodoStep{Model: stub, Artifacts: as},
 	)
@@ -59,7 +59,7 @@ func TestPipeline_FullRun(t *testing.T) {
 		t.Fatalf("Pipeline.Run: %v", err)
 	}
 
-	// 4 steps should produce 4 artifacts (extraction, summary, score, todos).
+	// 4 steps should produce 4 artifacts (extraction, synthesis, score, todos).
 	if len(as.artifacts) != 4 {
 		t.Errorf("artifacts count = %d, want 4", len(as.artifacts))
 	}
@@ -68,7 +68,7 @@ func TestPipeline_FullRun(t *testing.T) {
 	for _, a := range as.artifacts {
 		types[a.ArtifactType] = true
 	}
-	for _, expected := range []string{model.ArtifactExtraction, model.ArtifactSummary, model.ArtifactScore, model.ArtifactTodos} {
+	for _, expected := range []string{model.ArtifactExtraction, model.ArtifactSynthesis, model.ArtifactScore, model.ArtifactTodos} {
 		if !types[expected] {
 			t.Errorf("missing artifact type %q", expected)
 		}
@@ -120,7 +120,7 @@ func TestPipeline_StopsOnFirstError(t *testing.T) {
 	pipeline := NewPipeline(
 		&ExtractStep{Extractor: extractor, Artifacts: as},
 		&failingStep{name: "fail-step"},
-		&SummarizeStep{Model: &StubModelClient{}, Artifacts: as},
+		&SynthesizeStep{Model: &StubModelClient{}, Artifacts: as},
 	)
 
 	item := &model.Item{

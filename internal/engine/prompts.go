@@ -6,17 +6,20 @@ import (
 	"unicode/utf8"
 )
 
-func buildSummarizePrompt(text, intent string) string {
-	return fmt.Sprintf(`你是一位专业的阅读助手。请根据用户的阅读意图，对以下文章进行总结。
+func buildSynthesisPrompt(text, intent string) string {
+	return fmt.Sprintf(`你是一位专业的阅读顾问。用户保存了一篇文章，并留下了阅读意图。请以用户的意图为锚点，从文章中提取对用户最有价值的内容。
 
 用户的阅读意图："%s"
 
 请仅输出合法的 JSON（不要 markdown、不要额外解释），结构如下：
-{"bullets": ["要点1", "要点2", "要点3"], "insight": "一句话核心洞察"}
+{"points": ["要点1", "要点2", "要点3"], "insight": "一句话核心洞察"}
 
 规则：
-- 恰好 3 个要点（bullets），每个 1-2 句话，需紧扣文章核心内容
-- 1 条洞察（insight），必须将文章内容与用户的阅读意图关联起来
+- 恰好 3 个要点（points），每个 1-2 句话
+- 每个要点必须同时说明「文章讲了什么」和「这对用户意味着什么」，而不是单纯的文章摘要
+- 要点的筛选标准是「与用户意图的相关性」，而非文章自身的重要性排序
+- 1 条洞察（insight）：用一句话说明这篇文章对用户最独特的价值
+- 特殊情况：如果文章质量很高（内容深度、权威性、原创性突出）但与用户意图关联度不强，请在 insight 中主动提示，例如"这篇文章与你的意图关联度不高，但它在 X 领域的深度值得一看"
 - 使用中文输出
 - 保持简洁、可操作
 
@@ -24,38 +27,38 @@ func buildSummarizePrompt(text, intent string) string {
 %s`, intent, truncateRunes(text, 12000))
 }
 
-func buildScorePrompt(intent string, summary *SummaryResult, extraction *ExtractedContent, saveCount int) string {
-	summaryJSON := mustJSON(summary)
+func buildScorePrompt(intent string, synthesis *SynthesisResult, extraction *ExtractedContent, saveCount int) string {
+	synthesisJSON := mustJSON(synthesis)
 	saveCountHint := ""
 	if saveCount > 1 {
 		saveCountHint = fmt.Sprintf(`
-- 重要：这篇文章被用户保存了 %d 次（带有不同的意图），表明用户对此非常感兴趣。请在基础分数上加 %d 分（上限 100 分）。`, saveCount, min(saveCount*5, 20))
+- 重要：这篇文章被用户保存了 %d 次（带有不同的意图），表明用户对此非常感兴趣。请在 intent_score 基础上加 %d 分（上限 100 分）。`, saveCount, min(saveCount*5, 20))
 	}
-	return fmt.Sprintf(`你是一位内容相关性评估专家。请评估这篇文章与用户阅读意图的匹配程度。
+	return fmt.Sprintf(`你是一位内容评估专家。请从两个维度评估这篇文章。
 
 用户的阅读意图："%s"
-文章摘要：%s
+文章结合解答：%s
 字数：%d
 保存次数：%d
 
 请仅输出合法的 JSON（不要 markdown、不要额外解释），结构如下：
-{"match_score": 75, "priority": "WORTH_IT", "reasons": ["原因1", "原因2", "原因3"]}
+{"intent_score": 70, "quality_score": 90, "final_score": 78, "priority": "PLAN_IT"}
 
 规则：
-- match_score：0-100 的整数
-- priority：根据分数选择 "READ_NEXT"（≥80）、"WORTH_IT"（60-79）、"IF_TIME"（40-59）、"SKIP"（<40）
-- reasons：至少 3 条中文理由，解释为什么这篇文章值得/不值得阅读
-- 每条理由必须具体引用文章内容或用户意图，不要泛泛而谈
-- 理由应回答"为什么我现在应该读这篇文章"这个问题%s`, intent, summaryJSON, extraction.Meta.WordCount, saveCount, saveCountHint)
+- intent_score（0-100）：文章与用户阅读意图的匹配程度。完全不相关为 0，完美回答用户问题为 100
+- quality_score（0-100）：文章本身的客观质量，包括内容深度、原创性、权威性、实用性。与用户意图无关，纯粹评价文章本身
+- final_score：加权综合分，建议权重为 intent_score × 0.6 + quality_score × 0.4，但你可以根据具体情况微调（例如文章质量极高时适当提升 quality 权重）
+- priority：根据 final_score 选择 "DO_FIRST"（≥80）、"PLAN_IT"（60-79）、"SKIM_IT"（40-59）、"LET_GO"（<40）
+- 所有分数必须为 0-100 的整数%s`, intent, synthesisJSON, extraction.Meta.WordCount, saveCount, saveCountHint)
 }
 
-func buildTodoPrompt(intent string, summary *SummaryResult, score *ScoreResult) string {
-	summaryJSON := mustJSON(summary)
+func buildTodoPrompt(intent string, synthesis *SynthesisResult, score *ScoreResult) string {
+	synthesisJSON := mustJSON(synthesis)
 	return fmt.Sprintf(`你是一位任务规划专家。请为保存了这篇文章的用户创建可执行的待办事项。
 
 用户的阅读意图："%s"
 文章优先级：%s
-文章摘要：%s
+文章结合解答：%s
 
 请仅输出合法的 JSON（不要 markdown、不要额外解释），结构如下：
 {"todos": [{"title": "阅读关于 X 的章节", "eta": "20m", "type": "READ"}, ...]}
@@ -66,8 +69,8 @@ func buildTodoPrompt(intent string, summary *SummaryResult, score *ScoreResult) 
 - eta：从 "10m"、"20m"、"30m"、"45m"、"1h"、"2h"、"3h+" 中选择
 - type：从 "READ"、"WRITE"、"BUILD"、"SHARE" 中选择
 - 至少 1 个事项的 type 必须是 "WRITE" 或 "SHARE"（输出导向型任务）
-- 所有任务必须与用户的阅读意图和文章实际内容紧密结合
-- 使用中文输出`, intent, score.Priority, summaryJSON)
+- 所有任务必须与用户的阅读意图和文章结合解答紧密结合
+- 使用中文输出`, intent, score.Priority, synthesisJSON)
 }
 
 // truncateRunes truncates s to maxRunes runes (Unicode-safe).
