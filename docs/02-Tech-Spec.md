@@ -7,7 +7,7 @@ Last Updated: 2026-02-17
 ## 1. 设计目标与约束
 
 ### 设计目标
-- **可解释**：score/priority 必须有 reasons，可指向 intent 与内容特征
+- **可解释**：score 提供双维度评分（intent_score + quality_score），synthesis 提供结合解答
 - **可编辑**：AI 产物支持用户修改
 - **可迁移**：Core Engine 与 UI/框架解耦，未来可替换前端
 - **可测试**：核心逻辑接口驱动，覆盖单元测试与集成测试
@@ -109,7 +109,7 @@ CREATE TABLE items (
   source_type TEXT NOT NULL,
   intent_text TEXT,
   status      TEXT NOT NULL,       -- CAPTURED / PROCESSING / READY / FAILED / ARCHIVED
-  priority    TEXT,                -- READ_NEXT / WORTH_IT / IF_TIME / SKIP
+  priority    TEXT,                -- DO_FIRST / PLAN_IT / SKIM_IT / LET_GO
   match_score REAL,
   error_info  TEXT,
   save_count  INTEGER DEFAULT 1,  -- 同 URL 重复捕捉计数
@@ -127,7 +127,7 @@ CREATE INDEX idx_items_priority ON items(priority, match_score DESC);
 CREATE TABLE artifacts (
   id            TEXT PRIMARY KEY,
   item_id       TEXT NOT NULL REFERENCES items(id),
-  artifact_type TEXT NOT NULL,     -- extraction / summary / score / todos
+  artifact_type TEXT NOT NULL,     -- extraction / synthesis / score / todos
   payload       TEXT NOT NULL,     -- JSON
   created_by    TEXT NOT NULL,     -- system / user
   created_at    TEXT NOT NULL
@@ -155,7 +155,7 @@ CREATE INDEX idx_intents_item ON intents(item_id);
 
 ```json
 {
-  "failed_step": "summarize",
+  "failed_step": "synthesize",
   "message": "LLM request timeout",
   "retryable": true,
   "failed_at": "2026-02-14T10:00:00Z"
@@ -206,9 +206,9 @@ CAPTURED → PROCESSING → READY ↔ ARCHIVED
 | Step | 输入 | 输出 Artifact |
 |------|------|---------------|
 | **ExtractStep** | url, source_type | extraction：normalized_text + content_meta |
-| **SummarizeStep** | normalized_text + intent | summary：bullets[3] + insight |
-| **ScoreStep** | intent + summary + content_meta | score：match_score + priority + reasons[≥3] |
-| **TodoStep** | intent + summary + priority | todos：tasks[3-7]（含 ETA） |
+| **SynthesizeStep** | normalized_text + intent | synthesis：points[3] + insight |
+| **ScoreStep** | intent + synthesis + content_meta | score：intent_score + quality_score + final_score + priority |
+| **TodoStep** | intent + synthesis + priority | todos：tasks[3-7]（含 ETA） |
 
 - 全部成功 → `status=READY`，同步更新 `items.priority` 和 `items.match_score`
 - 任一步失败 → `status=FAILED`，写入 `error_info`（含 `failed_step`）

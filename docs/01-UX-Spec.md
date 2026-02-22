@@ -38,10 +38,10 @@ Last Updated: 2026-02-17
 
 | Priority | 背景色 | 文字色 | 标签 |
 |----------|--------|--------|------|
-| READ_NEXT | `#ECFDF5` | `#065F46` | Read next |
-| WORTH_IT | `#EFF6FF` | `#1E40AF` | Worth it |
-| IF_TIME | `#F9FAFB` | `#6B7280` | If time |
-| SKIP | `#FEF2F2` | `#991B1B` | Skip |
+| DO_FIRST | `#ECFDF5` | `#065F46` | Do first |
+| PLAN_IT | `#EFF6FF` | `#1E40AF` | Plan it |
+| SKIM_IT | `#F9FAFB` | `#6B7280` | Skim it |
+| LET_GO | `#FEF2F2` | `#991B1B` | Let go |
 
 **状态色：**
 
@@ -168,17 +168,17 @@ READY 内容按 priority 分组，组内按 score 降序。PROCESSING / FAILED �
 
 ```
 ⏳ Processing (2)     ← 骨架屏加载态
-🟢 Read next          ← 高优先级
-🔵 Worth it
-⚪ If time
-🔴 Skip
+🟢 Do first           ← 优先行动
+🔵 Plan it
+⚪ Skim it
+🔴 Let go
 ```
 
 #### Item 卡片
 
 ```
 ┌──────────────────────────────────────────────────┐
-│  [☐]  Read next                           85     │
+│  [☐]  Do first                            85     │
 │       How We Redesigned Our API Gateway          │
 │       engineering.example.com · web              │
 │       "想了解他们网关的限流和熔断方案"                │
@@ -229,18 +229,13 @@ READY 内容按 priority 分组，组内按 score 降序。PROCESSING / FAILED �
 │  How We Redesigned Our API Gateway                   │
 │  engineering.example.com                             │
 │  "想了解他们网关的限流和熔断方案"                        │
-│  Read next · 85/100 · 2 hours ago                    │
+│  Do first · 85/100 · 2 hours ago                     │
 │                                                      │
-│  ──── Why Read This ──────────────────────────────── │
-│  ✦ 与你关注的系统设计方向高度匹配                        │
-│  ✦ 包含可直接复用的架构决策模式                          │
-│  ✦ 有具体的性能数据和对比分析                            │
-│                                                      │
-│  ──── Summary ──────────────────────────── Edit ──── │
-│  •  第一个要点：关于限流策略的设计思路                    │
-│  •  第二个要点：熔断机制的具体实现方案                    │
-│  •  第三个要点：新老架构的性能对比数据                    │
-│  💡 核心发现：基于令牌桶算法的自适应限流……               │
+│  ──── AI Brief ──────────────────────────── Edit ──── │
+│  ✦ 文章介绍了限流策略设计——正好回应你对网关方案的关注      │
+│  ✦ 提供了熔断机制实现——可直接与当前项目对比适用性          │
+│  ✦ 附带新老架构性能数据——为你的技术决策提供客观支撑        │
+│  💡 这篇文章的独特价值：用真实案例证明了简单方案的优越性    │
 │                                                      │
 │  ──── Todos ──────────────────────────── Edit ────── │
 │  ☐  阅读限流策略章节              ETA  20m            │
@@ -257,8 +252,7 @@ READY 内容按 priority 分组，组内按 score 降序。PROCESSING / FAILED �
 | 区块 | 内容 | 交互 |
 |------|------|------|
 | Header | Title + domain + intent + priority/score/time | 只读 |
-| Why Read This | Reasons（≥3 条） | 只读 |
-| Summary | 3 bullets + 1 insight | 可编辑 |
+| AI Brief | 3 价值要点（结合 Intent 与文章内容）+ 1 洞察 | 可编辑 |
 | Todos | 任务列表 + ETA | 可勾选、编辑、新增/删除 |
 | Actions | Archive / Open Original / Delete | Delete 需确认 |
 

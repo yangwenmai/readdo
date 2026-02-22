@@ -46,7 +46,7 @@ Slogan：Save less. Do more.
 **核心场景**：
 1. 网页上看到内容 → 一键 Capture + 写一句"为什么存它" → 关闭 Tab
 2. 打开 Inbox → 搜索/筛选 → 按优先级快速取舍
-3. 对值得的内容 → 查看 AI 生成的摘要和 TODO → 逐条执行
+3. 对值得的内容 → 查看 AI 生成的结合解答和 TODO → 逐条执行
 4. 批量归档或删除不需要的条目
 
 ---
@@ -54,8 +54,8 @@ Slogan：Save less. Do more.
 ## 5. 成功标准
 
 - 用户能在 3 秒内完成一次 Capture
-- Inbox 清楚呈现：匹配分（0-100）、优先级、建议理由（≥3 条）
-- 对每条 READY 内容可查看摘要和 TODO，且支持编辑
+- Inbox 清楚呈现：综合分（0-100）、优先级、双维度评分（意图匹配 + 文章质量）
+- 对每条 READY 内容可查看结合解答（AI Brief）和 TODO，且支持编辑
 - 失败时有可见状态与重试
 - 搜索结果即时响应（<300ms）
 - 批量操作支持多选 + 一键归档/删除
@@ -69,19 +69,19 @@ Slogan：Save less. Do more.
 Extension 不做正文抓取、不调用 AI。同一 URL 重复捕捉自动合并 Intent。
 
 ### 6.2 Backend
-接收 capture 请求 → 调度处理（提取/总结/评分/生成 TODO）→ 更新状态 → 提供 API 给前端。
+接收 capture 请求 → 调度处理（提取/结合解答/评分/生成 TODO）→ 更新状态 → 提供 API 给前端。
 支持多种 LLM 后端（OpenAI / Claude / Gemini / Ollama）。
 
 ### 6.3 Core Engine（AI 产物）
-- **Summary**：3 bullets + 1 insight
-- **Score**：match_score（0-100）+ priority（Read next / Worth it / If time / Skip）+ reasons（≥3）
+- **Synthesis（结合解答）**：3 个价值要点（结合 Intent 与文章内容）+ 1 条核心洞察
+- **Score**：intent_score（意图匹配）+ quality_score（文章质量）→ final_score（0-100）+ priority（Do first / Plan it / Skim it / Let go）
 - **Todos**：3–7 条可执行任务（动词开头，含 ETA，至少 1 条输出型）
 
-AI 产物必须可编辑，用户可修改 Summary 和 Todos。
+AI 产物必须可编辑，用户可修改 Synthesis 和 Todos。
 
 ### 6.4 Web App
 - **Inbox**（默认）：搜索、筛选、按 priority/score 排序，支持多选 + 批量归档/删除
-- **Item Detail**：展示 Summary / TODO，支持编辑、删除
+- **Item Detail**：展示 Synthesis（AI Brief）/ TODO，支持编辑、删除
 - **Archive**：已归档的内容，支持搜索、恢复
 
 ---
@@ -135,7 +135,7 @@ AI 产物必须可编辑，用户可修改 Summary 和 Todos。
 ## 11. 里程碑
 
 - ~~M1：Extension capture → 后端入库（CAPTURED）~~
-- ~~M2：最小 pipeline：extract + summary + score（READY partial）~~
+- ~~M2：最小 pipeline：extract + synthesis + score（READY partial）~~
 - ~~M3：todos（READY full）~~
 - ~~M4：Web Inbox + Detail（展示 + 编辑）~~
 - ~~M5：搜索 + 删除 + 批量操作~~

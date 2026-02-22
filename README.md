@@ -7,7 +7,7 @@ Read→Do 是一个 AI-native 的"从读到做"系统，把浏览器里堆积的
 **Capture（捕捉）→ Decide（取舍）→ Do（行动）**
 
 - 一键捕捉链接 + 写一句"为什么存它"
-- AI 自动生成摘要、评分、行动建议（Todos）
+- AI 自动生成结合解答、双维度评分、行动建议（Todos）
 - 多模型支持（OpenAI / Claude / Gemini / Ollama）
 - 本地优先（Go + SQLite），零运维
 
@@ -112,9 +112,8 @@ npm run dev
 
 打开 Inbox，AI 会自动处理捕捉的链接（约 3-5 秒），生成：
 
-- **匹配分**（0-100）
-- **优先级**（Read next / Worth it / If time / Skip）
-- **推荐理由**（≥3 条）
+- **双维度评分**：意图匹配分 + 文章质量分 → 综合分（0-100）
+- **优先级**（Do first / Plan it / Skim it / Let go）
 
 卡片按优先级自动分组排列。支持**搜索**（标题/域名/意图）和**批量操作**（归档/删除）。
 
@@ -122,10 +121,10 @@ npm run dev
 
 点击卡片进入详情页：
 
-- **Summary**：3 条核心要点 + 1 条洞察
+- **AI Brief（结合解答）**：3 条价值要点（结合用户意图与文章内容）+ 1 条核心洞察
 - **Todos**：3-7 条可执行任务（含预计时间）
 
-Summary 和 Todos 均支持编辑。勾选完所有 Todos 后会提示归档。可删除不需要的条目。
+AI Brief 和 Todos 均支持编辑。勾选完所有 Todos 后会提示归档。可删除不需要的条目。
 
 ---
 
@@ -140,7 +139,7 @@ Summary 和 Todos 均支持编辑。勾选完所有 Todos 后会提示归档。�
 | `POST` | `/api/items/:id/retry` | 重试失败项 |
 | `POST` | `/api/items/:id/reprocess` | 重新处理已完成项 |
 | `PATCH` | `/api/items/:id/status` | 更新状态（归档/恢复） |
-| `PUT` | `/api/items/:id/artifacts/:type` | 编辑 artifact（summary/todos） |
+| `PUT` | `/api/items/:id/artifacts/:type` | 编辑 artifact（synthesis/todos） |
 | `POST` | `/api/items/batch/status` | 批量更新状态 |
 | `POST` | `/api/items/batch/delete` | 批量删除 |
 
@@ -157,7 +156,7 @@ Chrome Extension ──POST /capture──→ Go Backend (API)
                                               │
                                               └── Pipeline
                                                    ├── Extract (HTTP + go-readability)
-                                                   ├── Summarize (LLM)
+                                                   ├── Synthesize (LLM)
                                                    ├── Score (LLM)
                                                    └── Todos (LLM)
 
@@ -175,11 +174,11 @@ CAPTURED → PROCESSING → READY → ARCHIVED
 ### AI Pipeline（4 步）
 
 1. **Extract**：HTTP 抓取 + go-readability 提取正文
-2. **Summarize**：生成 3 bullets + 1 insight
-3. **Score**：匹配分（0-100）+ 优先级 + 理由
+2. **Synthesize**：以用户 Intent 为锚点，生成 3 个价值要点 + 1 条核心洞察（结合解答）
+3. **Score**：双维度评分（意图匹配 + 文章质量 → 综合分）+ 优先级
 4. **Todos**：生成 3-7 条可执行任务
 
-每步产物存入 `artifacts` 表，类型为 `extraction` / `summary` / `score` / `todos`。
+每步产物存入 `artifacts` 表，类型为 `extraction` / `synthesis` / `score` / `todos`。
 
 ### 多模型支持
 
