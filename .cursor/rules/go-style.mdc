@@ -1,0 +1,63 @@
+---
+description: Go code style and conventions for readdo project
+globs: "**/*.go"
+alwaysApply: false
+---
+
+# Go Code Style
+
+## Standard Library First
+
+- HTTP server: `net/http` + `http.ServeMux` (Go 1.22+ method routing)
+- Logging: `log/slog` with JSON handler — never `log.Printf`
+- No web frameworks (Gin, Echo, etc.) unless justified
+
+## Error Handling
+
+- Never ignore errors with `_` — at minimum log them
+- Use `errors.Is()` / `errors.As()` for error comparison, never `==`
+- Wrap errors with context: `fmt.Errorf("create item: %w", err)`
+- Define custom error types when callers need to inspect error details
+
+```go
+// BAD
+if err == sql.ErrNoRows { ... }
+payload, _ := json.Marshal(result)
+
+// GOOD
+if errors.Is(err, sql.ErrNoRows) { ... }
+payload, err := json.Marshal(result)
+if err != nil { return fmt.Errorf("marshal payload: %w", err) }
+```
+
+## Logging
+
+- Use `log/slog` with structured fields
+- Include identifiers: `slog.String("item_id", id)`
+- Use appropriate levels: `Info` for flow, `Warn` for recoverable, `Error` for failures
+
+## Functions
+
+- Functions should be under 50 lines — split if longer
+- Handler functions should be pure HTTP glue (parse request → call service → write response)
+- Use generics to eliminate repetitive patterns (see `runLLMStep[T]`)
+
+## Naming
+
+- Interfaces: verb-noun (`ItemReader`, `ContentExtractor`, `Processor`)
+- Concrete types: noun (`Store`, `Pipeline`, `Worker`)
+- Constructors: `New` + type name (`NewPipeline`, `NewOpenAIClient`)
+- Configuration: functional options pattern (`WithModel(...)`)
+
+## Configuration
+
+- All configurable values go in `internal/config/config.go`
+- Read from environment variables with sensible defaults
+- No hardcoded magic numbers in business logic files
+
+## Testing (Convention)
+
+- Test files: `*_test.go` alongside the code
+- Use table-driven tests
+- Mock external dependencies via interfaces
+- Name: `TestFunctionName_Scenario`

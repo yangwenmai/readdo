@@ -1,25 +1,29 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { api, type Item } from '../api/client'
 import ItemCard from '../components/ItemCard'
 import Toast from '../components/Toast'
 import styles from './InboxPage.module.css'
 
-const PRIORITY_ORDER = ['READ_NEXT', 'WORTH_IT', 'IF_TIME', 'SKIP']
-const PRIORITY_LABELS: Record<string, string> = {
-  READ_NEXT: '🟢 Read next',
-  WORTH_IT: '🔵 Worth it',
-  IF_TIME: '⚪ If time',
-  SKIP: '🔴 Skip',
+const PRIORITY_ORDER = ['DO_FIRST', 'PLAN_IT', 'SKIM_IT', 'LET_GO']
+const PRIORITY_META: Record<string, { label: string; hint: string }> = {
+  DO_FIRST: { label: '🟢 Do first', hint: '匹配度 ≥ 80 · 与你的意图高度匹配，优先行动' },
+  PLAN_IT: { label: '🔵 Plan it', hint: '匹配度 60–79 · 值得投入时间，纳入计划' },
+  SKIM_IT: { label: '⚪ Skim it', hint: '匹配度 40–59 · 快速扫一眼即可' },
+  LET_GO: { label: '🔴 Let go', hint: '匹配度 < 40 · 放心放手，不会错过' },
 }
 
 export default function InboxPage() {
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectMode, setSelectMode] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>()
 
-  const fetchItems = useCallback(async () => {
+  const fetchItems = useCallback(async (query?: string) => {
     try {
-      const data = await api.listItems('CAPTURED,PROCESSING,READY,FAILED')
+      const data = await api.listItems('CAPTURED,PROCESSING,READY,FAILED', query || undefined)
       setItems(data)
     } catch (err) {
       console.error('Failed to fetch items:', err)
@@ -29,19 +33,63 @@ export default function InboxPage() {
   }, [])
 
   useEffect(() => {
-    fetchItems()
-    const interval = setInterval(fetchItems, 5000)
+    fetchItems(searchQuery)
+    const interval = setInterval(() => fetchItems(searchQuery), 5000)
     return () => clearInterval(interval)
-  }, [fetchItems])
+  }, [fetchItems, searchQuery])
+
+  const handleSearchChange = (value: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => setSearchQuery(value), 300)
+  }
 
   const handleRetry = async (id: string) => {
     try {
       await api.retry(id)
       setToast('Retrying...')
-      fetchItems()
-    } catch (err) {
+      fetchItems(searchQuery)
+    } catch {
       setToast('Retry failed')
     }
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const handleBatchArchive = async () => {
+    try {
+      await api.batchUpdateStatus([...selected], 'ARCHIVED')
+      setSelected(new Set())
+      setSelectMode(false)
+      setToast(`Archived ${selected.size} items`)
+      fetchItems(searchQuery)
+    } catch {
+      setToast('Batch archive failed')
+    }
+  }
+
+  const handleBatchDelete = async () => {
+    if (!window.confirm(`Delete ${selected.size} items? This cannot be undone.`)) return
+    try {
+      await api.batchDelete([...selected])
+      setSelected(new Set())
+      setSelectMode(false)
+      setToast(`Deleted ${selected.size} items`)
+      fetchItems(searchQuery)
+    } catch {
+      setToast('Batch delete failed')
+    }
+  }
+
+  const exitSelectMode = () => {
+    setSelectMode(false)
+    setSelected(new Set())
   }
 
   // Group items
@@ -67,7 +115,24 @@ export default function InboxPage() {
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.pageTitle}>Inbox</h1>
+      <div className={styles.pageHeader}>
+        <h1 className={styles.pageTitle}>Inbox</h1>
+        <div className={styles.toolbar}>
+          <input
+            className={styles.searchInput}
+            type="text"
+            placeholder="Search by title, domain, or intent..."
+            defaultValue={searchQuery}
+            onChange={e => handleSearchChange(e.target.value)}
+          />
+          <button
+            className={`${styles.selectBtn} ${selectMode ? styles.selectBtnActive : ''}`}
+            onClick={() => selectMode ? exitSelectMode() : setSelectMode(true)}
+          >
+            {selectMode ? 'Cancel' : 'Select'}
+          </button>
+        </div>
+      </div>
 
       {loading && isEmpty && (
         <div className={styles.loading}>Loading...</div>
@@ -89,7 +154,7 @@ export default function InboxPage() {
           <h2 className={styles.sectionTitle}>⏳ Processing ({processingItems.length})</h2>
           <div className={styles.grid}>
             {processingItems.map(item => (
-              <ItemCard key={item.id} item={item} />
+              <ItemCard key={item.id} item={item} selectable={selectMode} selected={selected.has(item.id)} onToggle={toggleSelect} />
             ))}
           </div>
         </section>
@@ -101,7 +166,7 @@ export default function InboxPage() {
           <h2 className={styles.sectionTitle}>❌ Failed ({failedItems.length})</h2>
           <div className={styles.grid}>
             {failedItems.map(item => (
-              <ItemCard key={item.id} item={item} onRetry={handleRetry} />
+              <ItemCard key={item.id} item={item} onRetry={handleRetry} selectable={selectMode} selected={selected.has(item.id)} onToggle={toggleSelect} />
             ))}
           </div>
         </section>
@@ -111,14 +176,19 @@ export default function InboxPage() {
       {PRIORITY_ORDER.map(priority => {
         const group = groupedByPriority[priority]
         if (!group) return null
+        const meta = PRIORITY_META[priority]
         return (
           <section key={priority} className={styles.section}>
             <h2 className={styles.sectionTitle}>
-              {PRIORITY_LABELS[priority]} ({group.length})
+              {meta.label} ({group.length})
+              <span className={styles.hintWrap}>
+                <span className={styles.hintIcon}>ⓘ</span>
+                <span className={styles.hintTooltip}>{meta.hint}</span>
+              </span>
             </h2>
             <div className={styles.grid}>
               {group.map(item => (
-                <ItemCard key={item.id} item={item} />
+                <ItemCard key={item.id} item={item} selectable={selectMode} selected={selected.has(item.id)} onToggle={toggleSelect} />
               ))}
             </div>
           </section>
@@ -130,10 +200,19 @@ export default function InboxPage() {
           <h2 className={styles.sectionTitle}>Other ({ungrouped.length})</h2>
           <div className={styles.grid}>
             {ungrouped.map(item => (
-              <ItemCard key={item.id} item={item} />
+              <ItemCard key={item.id} item={item} selectable={selectMode} selected={selected.has(item.id)} onToggle={toggleSelect} />
             ))}
           </div>
         </section>
+      )}
+
+      {/* Floating batch action bar */}
+      {selectMode && selected.size > 0 && (
+        <div className={styles.batchBar}>
+          <span>{selected.size} selected</span>
+          <button className={styles.batchArchiveBtn} onClick={handleBatchArchive}>Archive</button>
+          <button className={styles.batchDeleteBtn} onClick={handleBatchDelete}>Delete</button>
+        </div>
       )}
 
       <Toast message={toast} onClose={() => setToast(null)} />

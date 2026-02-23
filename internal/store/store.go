@@ -36,7 +36,7 @@ func New(db *sql.DB) (*Store, error) {
 
 // currentSchemaVersion is bumped whenever the schema changes.
 // Add a new migration function in the migrations slice below.
-const currentSchemaVersion = 3
+const currentSchemaVersion = 4
 
 func (s *Store) migrate() error {
 	// Ensure the schema_version table exists.
@@ -62,6 +62,7 @@ func (s *Store) migrate() error {
 		s.migrateV1, // v0 → v1: initial schema
 		s.migrateV2, // v1 → v2: add save_count column
 		s.migrateV3, // v2 → v3: add intents table, migrate existing intent_text
+		s.migrateV4, // v3 → v4: rename priority values (READ_NEXT→DO_FIRST, etc.)
 	}
 
 	for i := version; i < len(migrations); i++ {
@@ -165,6 +166,30 @@ func (s *Store) migrateV3() error {
 	return rows.Err()
 }
 
+// migrateV4 renames priority values from the old naming to the new action-oriented naming (v3 → v4).
+// Also updates the priority field inside score artifact JSON payloads.
+func (s *Store) migrateV4() error {
+	renames := [][2]string{
+		{"READ_NEXT", "DO_FIRST"},
+		{"WORTH_IT", "PLAN_IT"},
+		{"IF_TIME", "SKIM_IT"},
+		{"SKIP", "LET_GO"},
+	}
+
+	for _, r := range renames {
+		if _, err := s.db.Exec(`UPDATE items SET priority = ? WHERE priority = ?`, r[1], r[0]); err != nil {
+			return fmt.Errorf("rename priority %s→%s: %w", r[0], r[1], err)
+		}
+		if _, err := s.db.Exec(
+			`UPDATE artifacts SET payload = REPLACE(payload, ?, ?) WHERE artifact_type = 'score' AND payload LIKE ?`,
+			`"priority":"`+r[0]+`"`, `"priority":"`+r[1]+`"`, `%`+r[0]+`%`,
+		); err != nil {
+			return fmt.Errorf("rename score artifact priority %s→%s: %w", r[0], r[1], err)
+		}
+	}
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // Items
 // ---------------------------------------------------------------------------
@@ -221,6 +246,11 @@ func (s *Store) ListItems(ctx context.Context, f model.ItemFilter) ([]model.Item
 			args = append(args, p)
 		}
 		conditions = append(conditions, "priority IN ("+strings.Join(placeholders, ",")+") ")
+	}
+	if f.Query != "" {
+		like := "%" + f.Query + "%"
+		conditions = append(conditions, "(title LIKE ? OR domain LIKE ? OR intent_text LIKE ?)")
+		args = append(args, like, like, like)
 	}
 
 	if len(conditions) > 0 {
@@ -306,6 +336,84 @@ func (s *Store) ResetStaleProcessing(ctx context.Context) (int64, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	res, err := s.db.ExecContext(ctx, `UPDATE items SET status = ?, updated_at = ? WHERE status = ?`, model.StatusCaptured, now, model.StatusProcessing)
 	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+// DeleteItem removes an item and its associated artifacts and intents.
+func (s *Store) DeleteItem(ctx context.Context, id string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM intents WHERE item_id = ?`, id); err != nil {
+		return fmt.Errorf("delete intents: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM artifacts WHERE item_id = ?`, id); err != nil {
+		return fmt.Errorf("delete artifacts: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM items WHERE id = ?`, id); err != nil {
+		return fmt.Errorf("delete item: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+// BatchUpdateStatus changes the status of multiple items at once.
+func (s *Store) BatchUpdateStatus(ctx context.Context, ids []string, status string) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, 0, len(ids)+2)
+	args = append(args, status, now)
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args = append(args, id)
+	}
+	query := fmt.Sprintf(`UPDATE items SET status = ?, updated_at = ? WHERE id IN (%s)`, strings.Join(placeholders, ","))
+	res, err := s.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+// BatchDeleteItems removes multiple items and their associated data.
+func (s *Store) BatchDeleteItems(ctx context.Context, ids []string) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	inClause := strings.Join(placeholders, ",")
+
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM intents WHERE item_id IN (%s)`, inClause), args...); err != nil {
+		return 0, fmt.Errorf("delete intents: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM artifacts WHERE item_id IN (%s)`, inClause), args...); err != nil {
+		return 0, fmt.Errorf("delete artifacts: %w", err)
+	}
+	res, err := tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM items WHERE id IN (%s)`, inClause), args...)
+	if err != nil {
+		return 0, fmt.Errorf("delete items: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
 	return res.RowsAffected()

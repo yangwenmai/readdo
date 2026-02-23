@@ -18,14 +18,14 @@
   --accent-hover: #4338CA;
 
   /* Priority colors */
-  --priority-read-next-bg: #ECFDF5;
-  --priority-read-next-text: #065F46;
-  --priority-worth-it-bg: #EFF6FF;
-  --priority-worth-it-text: #1E40AF;
-  --priority-if-time-bg: #F9FAFB;
-  --priority-if-time-text: #6B7280;
-  --priority-skip-bg: #FEF2F2;
-  --priority-skip-text: #991B1B;
+  --priority-do-first-bg: #ECFDF5;
+  --priority-do-first-text: #065F46;
+  --priority-plan-it-bg: #EFF6FF;
+  --priority-plan-it-text: #1E40AF;
+  --priority-skim-it-bg: #F9FAFB;
+  --priority-skim-it-text: #6B7280;
+  --priority-let-go-bg: #FEF2F2;
+  --priority-let-go-text: #991B1B;
 
   /* Status colors */
   --success: #059669;

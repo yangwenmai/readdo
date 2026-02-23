@@ -39,15 +39,16 @@ export interface ItemWithArtifacts extends Item {
   intents: Intent[];
 }
 
-export interface SummaryPayload {
-  bullets: string[];
+export interface SynthesisPayload {
+  points: string[];
   insight: string;
 }
 
 export interface ScorePayload {
-  match_score: number;
+  intent_score: number;
+  quality_score: number;
+  final_score: number;
   priority: string;
-  reasons: string[];
 }
 
 export interface TodoItem {
@@ -65,6 +66,8 @@ export interface ContentMeta {
   author?: string;
   publish_date?: string;
   word_count: number;
+  image_url?: string;
+  language?: string;
 }
 
 export interface ExtractionPayload {
@@ -85,13 +88,19 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  listItems: (status?: string) => {
-    const params = status ? `?status=${encodeURIComponent(status)}` : '';
-    return request<Item[]>(`/api/items${params}`);
+  listItems: (status?: string, query?: string) => {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    if (query) params.set('q', query);
+    const qs = params.toString();
+    return request<Item[]>(`/api/items${qs ? `?${qs}` : ''}`);
   },
 
   getItem: (id: string) =>
     request<ItemWithArtifacts>(`/api/items/${id}`),
+
+  deleteItem: (id: string) =>
+    request<{ id: string; deleted: string }>(`/api/items/${id}`, { method: 'DELETE' }),
 
   retry: (id: string) =>
     request<{ id: string; status: string }>(`/api/items/${id}/retry`, { method: 'POST' }),
@@ -110,6 +119,18 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ payload }),
     }),
+
+  batchUpdateStatus: (ids: string[], status: string) =>
+    request<{ updated: number }>('/api/items/batch/status', {
+      method: 'POST',
+      body: JSON.stringify({ ids, status }),
+    }),
+
+  batchDelete: (ids: string[]) =>
+    request<{ deleted: number }>('/api/items/batch/delete', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    }),
 };
 
 export function parseArtifact<T>(artifacts: Artifact[], type: string): T | null {
@@ -120,23 +141,6 @@ export function parseArtifact<T>(artifacts: Artifact[], type: string): T | null 
   } catch {
     return null;
   }
-}
-
-/** Estimate reading time from word count (avg 200 words/min for English, 400 chars/min for CJK). */
-export function readingTime(wordCount: number): string {
-  const minutes = Math.max(1, Math.ceil(wordCount / 200));
-  if (minutes < 60) return `${minutes} min`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m > 0 ? `${h}h ${m}min` : `${h}h`;
-}
-
-/** Truncate text to roughly N lines (by character count), adding ellipsis. */
-export function previewText(text: string, maxChars = 300): string {
-  if (text.length <= maxChars) return text;
-  // Cut at the last space before maxChars to avoid breaking words.
-  const cut = text.lastIndexOf(' ', maxChars);
-  return text.slice(0, cut > 0 ? cut : maxChars) + ' …';
 }
 
 export function timeAgo(dateStr: string): string {

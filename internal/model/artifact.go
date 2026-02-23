@@ -5,7 +5,7 @@ import "time"
 // Artifact type constants
 const (
 	ArtifactExtraction = "extraction"
-	ArtifactSummary    = "summary"
+	ArtifactSynthesis  = "synthesis"
 	ArtifactScore      = "score"
 	ArtifactTodos      = "todos"
 )

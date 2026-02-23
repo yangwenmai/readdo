@@ -1,0 +1,62 @@
+---
+description: Go backend architecture rules - layering, dependency direction, interfaces, context propagation
+globs: "**/*.go"
+alwaysApply: false
+---
+
+# Go Backend Architecture
+
+## Layering
+
+The backend follows a strict 5-layer architecture:
+
+```
+cmd/server/     → Composition root (wire dependencies, start services)
+internal/api/   → HTTP layer (routing, middleware, request/response)
+internal/engine/→ Core business logic (pipeline, steps, LLM abstraction)
+internal/worker/→ Background processing (polling, orchestration)
+internal/store/ → Data access (SQLite, queries)
+internal/model/ → Domain models (structs, constants, validation)
+internal/config/→ Configuration (env vars, defaults)
+```
+
+## Dependency Direction
+
+- Outer layers depend on inner layers, NEVER the reverse
+- `engine` must NOT import `store` — use interfaces (`ArtifactStore`, `ItemScoreUpdater`)
+- `worker` must NOT import `engine` directly — use `Processor` interface
+- `api` depends on `store.ItemRepository` interface, not `*store.Store`
+- `cmd/server/main.go` is the only place that wires concrete types to interfaces
+
+## Interface Design
+
+- Define interfaces where they are **consumed**, not where they are implemented
+- Keep interfaces small (1-3 methods) — follow Interface Segregation Principle
+- Use compile-time checks: `var _ MyInterface = (*MyStruct)(nil)`
+
+```go
+// BAD: large interface defined in the implementation package
+// GOOD: small interface defined in the consumer package
+type Processor interface {
+    Run(ctx context.Context, item *model.Item) error
+}
+```
+
+## Context Propagation
+
+- Every public method that does I/O MUST accept `context.Context` as first parameter
+- Store methods use `db.ExecContext` / `db.QueryContext` / `db.QueryRowContext`
+- Pass `r.Context()` from HTTP handlers to store/service calls
+- Worker passes its `ctx` to all pipeline and store calls
+
+## Pipeline Steps
+
+- Each step implements the `engine.Step` interface: `Name() string` + `Run(ctx, *StepContext) error`
+- Steps communicate via `StepContext` (shared mutable state bag)
+- Adding a new step = implement interface + register in `main.go`
+- Pipeline does NOT know about specific step implementations
+
+## Domain Logic in Models
+
+- State machine validation belongs in `model.Item.ValidateTransition()`
+- Handlers must NOT contain business logic — only HTTP parsing and response formatting

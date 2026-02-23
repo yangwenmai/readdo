@@ -9,14 +9,21 @@ interface ItemCardProps {
   onRetry?: (id: string) => void
   onRestore?: (id: string) => void
   isArchive?: boolean
+  selectable?: boolean
+  selected?: boolean
+  onToggle?: (id: string) => void
 }
 
-export default function ItemCard({ item, onRetry, onRestore, isArchive }: ItemCardProps) {
+export default function ItemCard({ item, onRetry, onRestore, isArchive, selectable, selected, onToggle }: ItemCardProps) {
   const navigate = useNavigate()
   const isProcessing = item.status === 'CAPTURED' || item.status === 'PROCESSING'
   const isFailed = item.status === 'FAILED'
 
   const handleClick = () => {
+    if (selectable && onToggle) {
+      onToggle(item.id)
+      return
+    }
     if (item.status === 'READY' || item.status === 'ARCHIVED') {
       navigate(`/items/${item.id}`)
     }
@@ -33,10 +40,15 @@ export default function ItemCard({ item, onRetry, onRestore, isArchive }: ItemCa
 
   return (
     <div
-      className={`${styles.card} ${isFailed ? styles.failed : ''} ${isProcessing ? styles.processing : ''} ${isArchive ? styles.archive : ''}`}
+      className={`${styles.card} ${isFailed ? styles.failed : ''} ${isProcessing ? styles.processing : ''} ${isArchive ? styles.archive : ''} ${selected ? styles.selected : ''}`}
       onClick={handleClick}
-      role={item.status === 'READY' || item.status === 'ARCHIVED' ? 'button' : undefined}
+      role={item.status === 'READY' || item.status === 'ARCHIVED' || selectable ? 'button' : undefined}
     >
+      {selectable && (
+        <div className={styles.checkbox} onClick={e => { e.stopPropagation(); onToggle?.(item.id) }}>
+          {selected ? '☑' : '☐'}
+        </div>
+      )}
       {isProcessing ? (
         <div className={styles.skeleton}>
           <div className={styles.skeletonTitle}>{item.title || 'Processing...'}</div>
@@ -47,7 +59,7 @@ export default function ItemCard({ item, onRetry, onRestore, isArchive }: ItemCa
       ) : (
         <>
           <div className={styles.header}>
-            {item.priority && <PriorityBadge priority={item.priority} />}
+            {item.priority && <PriorityBadge priority={item.priority} matchScore={item.match_score} />}
             {item.match_score != null && (
               <span className={styles.score}>{Math.round(item.match_score)}</span>
             )}

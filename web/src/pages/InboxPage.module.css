@@ -50,10 +50,151 @@
   margin-bottom: var(--space-sm);
   padding-bottom: var(--space-sm);
   border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* --- Section hint tooltip --- */
+
+.hintWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.hintIcon {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  cursor: default;
+  transition: color 0.15s;
+}
+
+.hintWrap:hover .hintIcon {
+  color: var(--accent);
+}
+
+.hintTooltip {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 6px);
+  transform: translateX(-50%) translateY(-4px);
+  white-space: nowrap;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popup);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease, transform 0.15s ease;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.hintWrap:hover .hintTooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
 }
 
 .grid {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+}
+
+.pageHeader {
+  margin-bottom: var(--space-lg);
+}
+
+.toolbar {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.searchInput {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 150ms;
+}
+.searchInput:focus {
+  border-color: var(--accent);
+}
+.searchInput::placeholder {
+  color: var(--text-tertiary);
+}
+
+.selectBtn {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 150ms;
+  white-space: nowrap;
+}
+.selectBtn:hover {
+  border-color: var(--text-secondary);
+}
+.selectBtnActive {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.batchBar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: 12px 24px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.batchArchiveBtn {
+  padding: 6px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+.batchArchiveBtn:hover {
+  background: var(--bg-secondary, #f5f5f5);
+}
+
+.batchDeleteBtn {
+  padding: 6px 16px;
+  border: 1px solid var(--danger, #e53e3e);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--danger, #e53e3e);
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+.batchDeleteBtn:hover {
+  background: var(--danger, #e53e3e);
+  color: white;
 }

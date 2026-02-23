@@ -1,0 +1,57 @@
+---
+description: Security best practices — prevent credential leaks, injection, and unsafe patterns
+alwaysApply: true
+---
+
+# Security Rules
+
+## 1. Never put secrets in URLs
+
+API keys, tokens, and passwords must NEVER appear in URL query parameters.
+They leak into server logs, proxy logs, browser history, and Referer headers.
+
+```go
+// ❌ BAD — key in URL query string
+url := fmt.Sprintf("https://api.example.com/v1/chat?key=%s", apiKey)
+
+// ✅ GOOD — key in request header
+req.Header.Set("Authorization", "Bearer "+apiKey)
+// or provider-specific header
+req.Header.Set("x-goog-api-key", apiKey)
+```
+
+## 2. Never hardcode secrets
+
+Secrets must come from environment variables or a secret manager, never from source code.
+
+```go
+// ❌ BAD
+const apiKey = "sk-abc123..."
+
+// ✅ GOOD
+apiKey := os.Getenv("OPENAI_API_KEY")
+```
+
+## 3. Never commit secret files
+
+Files like `.env`, `.env.local`, credentials JSON, and private keys must be in `.gitignore`.
+
+## 4. Sanitize user input
+
+- Use parameterized queries for SQL — never string-concatenate user input into queries.
+- Validate and sanitize all external input before use.
+
+```go
+// ❌ BAD — SQL injection
+query := fmt.Sprintf("SELECT * FROM items WHERE title = '%s'", userInput)
+
+// ✅ GOOD — parameterized query
+query := "SELECT * FROM items WHERE title = ?"
+db.Query(query, userInput)
+```
+
+## 5. Principle of least privilege
+
+- HTTP clients should set reasonable timeouts.
+- File permissions should be restrictive (0600 for secrets, 0755 for executables).
+- Only request the scopes/permissions actually needed.

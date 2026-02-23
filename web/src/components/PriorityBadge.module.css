@@ -6,24 +6,137 @@
   font-size: 12px;
   font-weight: 500;
   line-height: 1.6;
+  position: relative;
+  cursor: default;
 }
 
-.readNext {
-  background: var(--priority-read-next-bg);
-  color: var(--priority-read-next-text);
+.badge:hover .tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
 }
 
-.worthIt {
-  background: var(--priority-worth-it-bg);
-  color: var(--priority-worth-it-text);
+/* --- Tooltip --- */
+
+.tooltip {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  z-index: 100;
+  width: 220px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-popup);
+  border: 1px solid var(--border);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: opacity 0.15s ease, visibility 0.15s ease, transform 0.15s ease;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 400;
 }
 
-.ifTime {
-  background: var(--priority-if-time-bg);
-  color: var(--priority-if-time-text);
+.tooltipWide {
+  width: 280px;
 }
 
-.skip {
-  background: var(--priority-skip-bg);
-  color: var(--priority-skip-text);
+.tooltipHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tooltipLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tooltipScore {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-light);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.tooltipDesc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.tooltipScores {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.scoreRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scoreLabel {
+  font-size: 11px;
+  color: var(--text-secondary);
+  width: 56px;
+  flex-shrink: 0;
+}
+
+.scoreBar {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-secondary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.scoreBarFill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.scoreValue {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  width: 24px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* --- Priority color variants --- */
+
+.doFirst {
+  background: var(--priority-do-first-bg);
+  color: var(--priority-do-first-text);
+}
+
+.planIt {
+  background: var(--priority-plan-it-bg);
+  color: var(--priority-plan-it-text);
+}
+
+.skimIt {
+  background: var(--priority-skim-it-bg);
+  color: var(--priority-skim-it-text);
+}
+
+.letGo {
+  background: var(--priority-let-go-bg);
+  color: var(--priority-let-go-text);
 }

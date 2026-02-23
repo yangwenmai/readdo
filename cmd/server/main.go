@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/yangwenmai/readdo/internal/api"
@@ -16,10 +17,33 @@ import (
 )
 
 func main() {
-	// Initialize structured logger.
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
-
 	cfg := config.Load()
+
+	// Initialize structured logger with configurable level.
+	var logLevel slog.Level
+	switch strings.ToLower(cfg.LogLevel) {
+	case "debug":
+		logLevel = slog.LevelDebug
+	case "warn":
+		logLevel = slog.LevelWarn
+	case "error":
+		logLevel = slog.LevelError
+	default:
+		logLevel = slog.LevelInfo
+	}
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: logLevel,
+	})))
+
+	slog.Info("config loaded",
+		"log_level", cfg.LogLevel,
+		"llm_provider", cfg.LLMProvider,
+		"use_stubs", cfg.UseStubs(),
+		"openai_model", cfg.OpenAIModel,
+		"openai_base_url", cfg.OpenAIBaseURL,
+		"openai_key_set", cfg.OpenAIKey != "",
+		"worker_interval", cfg.WorkerInterval.String(),
+	)
 
 	// Open SQLite.
 	db, err := store.OpenSQLite(cfg.DBPath)
@@ -49,17 +73,29 @@ func main() {
 
 	var modelClient engine.ModelClient
 	if cfg.UseStubs() {
-		slog.Info("OPENAI_API_KEY not set, using stub LLM client (extraction still uses HTTP)")
+		slog.Info("no API key for provider, using stub LLM client", "provider", cfg.LLMProvider)
 		modelClient = &engine.StubModelClient{}
 	} else {
-		slog.Info("using OpenAI model client", "model", cfg.OpenAIModel)
-		modelClient = engine.NewOpenAIClient(cfg.OpenAIKey, engine.WithModel(cfg.OpenAIModel))
+		switch cfg.LLMProvider {
+		case "claude":
+			slog.Info("using Claude model client", "model", cfg.AnthropicModel)
+			modelClient = engine.NewClaudeClient(cfg.AnthropicKey, engine.WithClaudeModel(cfg.AnthropicModel))
+		case "gemini":
+			slog.Info("using Gemini model client", "model", cfg.GeminiModel)
+			modelClient = engine.NewGeminiClient(cfg.GeminiKey, engine.WithGeminiModel(cfg.GeminiModel))
+		case "ollama":
+			slog.Info("using Ollama model client", "url", cfg.OllamaURL, "model", cfg.OllamaModel)
+			modelClient = engine.NewOllamaClient(cfg.OllamaURL, engine.WithOllamaModel(cfg.OllamaModel))
+		default:
+			slog.Info("using OpenAI model client", "model", cfg.OpenAIModel, "base_url", cfg.OpenAIBaseURL)
+			modelClient = engine.NewOpenAIClient(cfg.OpenAIKey, engine.WithModel(cfg.OpenAIModel), engine.WithBaseURL(cfg.OpenAIBaseURL))
+		}
 	}
 
 	// Build pipeline with pluggable steps.
 	pipeline := engine.NewPipeline(
 		&engine.ExtractStep{Extractor: extractor, Artifacts: s},
-		&engine.SummarizeStep{Model: modelClient, Artifacts: s},
+		&engine.SynthesizeStep{Model: modelClient, Artifacts: s},
 		&engine.ScoreStep{Model: modelClient, Artifacts: s, Scores: s},
 		&engine.TodoStep{Model: modelClient, Artifacts: s},
 	)

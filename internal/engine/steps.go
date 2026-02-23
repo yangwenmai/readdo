@@ -69,24 +69,24 @@ func (s *ExtractStep) Run(ctx context.Context, sc *StepContext) error {
 }
 
 // ---------------------------------------------------------------------------
-// Step 2: Summarize
+// Step 2: Synthesize
 // ---------------------------------------------------------------------------
 
-// SummarizeStep generates a summary using an LLM.
-type SummarizeStep struct {
+// SynthesizeStep generates an intent-driven synthesis using an LLM.
+type SynthesizeStep struct {
 	Model     ModelClient
 	Artifacts ArtifactStore
 }
 
-func (s *SummarizeStep) Name() string { return "summarize" }
+func (s *SynthesizeStep) Name() string { return "synthesize" }
 
-func (s *SummarizeStep) Run(ctx context.Context, sc *StepContext) error {
-	prompt := buildSummarizePrompt(sc.Extraction.NormalizedText, sc.Item.IntentText)
-	result, err := runLLMStep[SummaryResult](ctx, s.Model, s.Artifacts, sc.Item.ID, model.ArtifactSummary, prompt)
+func (s *SynthesizeStep) Run(ctx context.Context, sc *StepContext) error {
+	prompt := buildSynthesisPrompt(sc.Extraction.NormalizedText, sc.Item.IntentText)
+	result, err := runLLMStep[SynthesisResult](ctx, s.Model, s.Artifacts, sc.Item.ID, model.ArtifactSynthesis, prompt)
 	if err != nil {
 		return err
 	}
-	sc.Summary = result
+	sc.Synthesis = result
 	return nil
 }
 
@@ -104,14 +104,13 @@ type ScoreStep struct {
 func (s *ScoreStep) Name() string { return "score" }
 
 func (s *ScoreStep) Run(ctx context.Context, sc *StepContext) error {
-	prompt := buildScorePrompt(sc.Item.IntentText, sc.Summary, sc.Extraction, sc.SaveCount)
+	prompt := buildScorePrompt(sc.Item.IntentText, sc.Synthesis, sc.Extraction, sc.SaveCount)
 	result, err := runLLMStep[ScoreResult](ctx, s.Model, s.Artifacts, sc.Item.ID, model.ArtifactScore, prompt)
 	if err != nil {
 		return err
 	}
 
-	// Persist the score and priority on the item itself.
-	if err := s.Scores.UpdateItemScoreAndPriority(ctx, sc.Item.ID, result.MatchScore, result.Priority); err != nil {
+	if err := s.Scores.UpdateItemScoreAndPriority(ctx, sc.Item.ID, result.FinalScore, result.Priority); err != nil {
 		return err
 	}
 
@@ -132,7 +131,7 @@ type TodoStep struct {
 func (s *TodoStep) Name() string { return "todo" }
 
 func (s *TodoStep) Run(ctx context.Context, sc *StepContext) error {
-	prompt := buildTodoPrompt(sc.Item.IntentText, sc.Summary, sc.Score)
+	prompt := buildTodoPrompt(sc.Item.IntentText, sc.Synthesis, sc.Score)
 	result, err := runLLMStep[TodosResult](ctx, s.Model, s.Artifacts, sc.Item.ID, model.ArtifactTodos, prompt)
 	if err != nil {
 		return err
