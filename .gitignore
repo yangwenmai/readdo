@@ -18,6 +18,4 @@ dist/
 
 # IDE
 .idea/
-.cursor/*
-!.cursor/rules/
 *.swp
