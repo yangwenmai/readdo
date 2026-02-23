@@ -42,6 +42,44 @@ Web App ←──GET/PATCH/POST/DELETE──→ Backend API ──→ Core Engin
 - Web App 通过 API 访问 local backend
 - Extension 通过 fetch 调用 local API
 
+### 2.3 端到端工作流
+
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+flowchart TD
+    A[Browser Extension Captures URL] --> B[POST /api/capture]
+    B --> C{URL exists?}
+    C -->|Yes| D[Merge Intent + save_count++ + Re-queue]
+    C -->|No| E[Create New Item]
+    D --> F[CAPTURED]
+    E --> F
+
+    F --> G[Worker Claims Item]
+    G --> G1[PROCESSING]
+    G1 --> H[ExtractStep: Fetch & Extract Content]
+    H --> I[SynthesizeStep: LLM generates intent-driven points + insight]
+    I --> J[ScoreStep: intent_score + quality_score → final_score + priority]
+    J --> K[TodoStep: Generate action items with ETA]
+
+    K --> L[READY with Priority]
+    K -->|Any step fails| ERR[FAILED + error_info]
+    ERR -->|User Retry| F
+
+    L --> M{User Action}
+    M -->|Search| N[Keyword search on title/domain/intent]
+    M -->|View| O[Detail Page: AI Brief + Todos]
+    M -->|Batch Select| P[Multi-select with checkboxes]
+    M -->|Archive| Q[ARCHIVED]
+    M -->|Delete| R[Cascade delete: intents → artifacts → item]
+    M -->|Reprocess| F
+
+    Q -->|Restore| L
+
+    P --> S{Batch Action}
+    S -->|Archive| T[Batch update status → ARCHIVED]
+    S -->|Delete| U[Batch cascade delete]
+```
+
 ---
 
 ## 3. 技术选型
