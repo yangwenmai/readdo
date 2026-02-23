@@ -143,23 +143,6 @@ export function parseArtifact<T>(artifacts: Artifact[], type: string): T | null 
   }
 }
 
-/** Estimate reading time from word count (avg 200 words/min for English, 400 chars/min for CJK). */
-export function readingTime(wordCount: number): string {
-  const minutes = Math.max(1, Math.ceil(wordCount / 200));
-  if (minutes < 60) return `${minutes} min`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m > 0 ? `${h}h ${m}min` : `${h}h`;
-}
-
-/** Truncate text to roughly N lines (by character count), adding ellipsis. */
-export function previewText(text: string, maxChars = 300): string {
-  if (text.length <= maxChars) return text;
-  // Cut at the last space before maxChars to avoid breaking words.
-  const cut = text.lastIndexOf(' ', maxChars);
-  return text.slice(0, cut > 0 ? cut : maxChars) + ' …';
-}
-
 export function timeAgo(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
