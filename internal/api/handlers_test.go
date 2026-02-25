@@ -223,6 +223,39 @@ func TestBatchStatus_InvalidStatus(t *testing.T) {
 	}
 }
 
+func TestStats(t *testing.T) {
+	srv, st := newTestServer(t)
+	h := srv.Handler()
+	ctx := context.Background()
+
+	// Empty stats
+	rr := doRequest(t, h, "GET", "/api/stats", "")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rr.Code, http.StatusOK)
+	}
+	result := decodeJSON(t, rr)
+	if result["inbox"] != float64(0) || result["archive"] != float64(0) {
+		t.Errorf("empty stats: inbox=%v archive=%v", result["inbox"], result["archive"])
+	}
+
+	// Create items, then archive one
+	doRequest(t, h, "POST", "/api/capture", `{"url":"https://example.com/1","title":"One"}`)
+	rr2 := doRequest(t, h, "POST", "/api/capture", `{"url":"https://example.com/2","title":"Two"}`)
+	id2 := decodeJSON(t, rr2)["id"].(string)
+
+	st.UpdateItemStatus(ctx, id2, model.StatusReady, nil)
+	st.UpdateItemStatus(ctx, id2, model.StatusArchived, nil)
+
+	rr = doRequest(t, h, "GET", "/api/stats", "")
+	result = decodeJSON(t, rr)
+	if result["inbox"] != float64(1) {
+		t.Errorf("inbox = %v, want 1", result["inbox"])
+	}
+	if result["archive"] != float64(1) {
+		t.Errorf("archive = %v, want 1", result["archive"])
+	}
+}
+
 func TestBatchDelete(t *testing.T) {
 	srv, _ := newTestServer(t)
 	h := srv.Handler()

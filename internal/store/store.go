@@ -419,6 +419,20 @@ func (s *Store) BatchDeleteItems(ctx context.Context, ids []string) (int64, erro
 	return res.RowsAffected()
 }
 
+// CountByStatus returns the number of inbox (non-ARCHIVED) and archived items.
+func (s *Store) CountByStatus(ctx context.Context) (StatusCounts, error) {
+	var counts StatusCounts
+	row := s.db.QueryRowContext(ctx, `
+		SELECT
+			COALESCE(SUM(CASE WHEN status != ? THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN status  = ? THEN 1 ELSE 0 END), 0)
+		FROM items`, model.StatusArchived, model.StatusArchived)
+	if err := row.Scan(&counts.Inbox, &counts.Archive); err != nil {
+		return counts, err
+	}
+	return counts, nil
+}
+
 // ---------------------------------------------------------------------------
 // Artifacts
 // ---------------------------------------------------------------------------
