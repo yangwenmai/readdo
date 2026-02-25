@@ -424,6 +424,43 @@ func TestBatchDeleteItems(t *testing.T) {
 	}
 }
 
+func TestCountByStatus(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	// Empty DB
+	counts, err := s.CountByStatus(ctx)
+	if err != nil {
+		t.Fatalf("CountByStatus: %v", err)
+	}
+	if counts.Inbox != 0 || counts.Archive != 0 {
+		t.Errorf("empty: inbox=%d archive=%d, want 0/0", counts.Inbox, counts.Archive)
+	}
+
+	// Add items in various statuses
+	for i, status := range []string{model.StatusCaptured, model.StatusReady, model.StatusFailed, model.StatusArchived, model.StatusArchived} {
+		item := makeItem(
+			"item-"+string(rune('a'+i)),
+			"https://example.com/"+string(rune('a'+i)),
+		)
+		item.Status = status
+		if err := s.CreateItem(ctx, item); err != nil {
+			t.Fatalf("CreateItem: %v", err)
+		}
+	}
+
+	counts, err = s.CountByStatus(ctx)
+	if err != nil {
+		t.Fatalf("CountByStatus: %v", err)
+	}
+	if counts.Inbox != 3 {
+		t.Errorf("inbox = %d, want 3", counts.Inbox)
+	}
+	if counts.Archive != 2 {
+		t.Errorf("archive = %d, want 2", counts.Archive)
+	}
+}
+
 func TestMigration(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "migrate.db")
 	db, err := OpenSQLite(dbPath)

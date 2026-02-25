@@ -41,6 +41,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("PUT /api/items/{id}/artifacts/{type}", s.handleEditArtifact)
 	s.mux.HandleFunc("POST /api/items/batch/status", s.handleBatchStatus)
 	s.mux.HandleFunc("POST /api/items/batch/delete", s.handleBatchDelete)
+	s.mux.HandleFunc("GET /api/stats", s.handleStats)
 }
 
 // ---------------------------------------------------------------------------

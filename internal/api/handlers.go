@@ -334,6 +334,19 @@ func (s *Server) handleEditArtifact(w http.ResponseWriter, r *http.Request) {
 }
 
 // ---------------------------------------------------------------------------
+// GET /api/stats
+// ---------------------------------------------------------------------------
+
+func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
+	counts, err := s.store.CountByStatus(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get stats")
+		return
+	}
+	writeJSON(w, http.StatusOK, counts)
+}
+
+// ---------------------------------------------------------------------------
 // POST /api/items/batch/status
 // ---------------------------------------------------------------------------
 

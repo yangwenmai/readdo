@@ -6,11 +6,18 @@ import (
 	"github.com/yangwenmai/readdo/internal/model"
 )
 
+// StatusCounts holds the number of items per logical group.
+type StatusCounts struct {
+	Inbox   int `json:"inbox"`
+	Archive int `json:"archive"`
+}
+
 // ItemReader provides read access to items.
 type ItemReader interface {
 	GetItem(ctx context.Context, id string) (*model.ItemWithArtifacts, error)
 	ListItems(ctx context.Context, f model.ItemFilter) ([]model.Item, error)
 	FindItemByURL(ctx context.Context, url string) (*model.Item, error)
+	CountByStatus(ctx context.Context) (StatusCounts, error)
 }
 
 // ItemWriter provides write access to items.

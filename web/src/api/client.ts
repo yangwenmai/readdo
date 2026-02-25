@@ -87,6 +87,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return resp.json();
 }
 
+export interface StatusCounts {
+  inbox: number;
+  archive: number;
+}
+
 export const api = {
   listItems: (status?: string, query?: string) => {
     const params = new URLSearchParams();
@@ -131,6 +136,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ ids }),
     }),
+
+  getStats: () => request<StatusCounts>('/api/stats'),
 };
 
 export function parseArtifact<T>(artifacts: Artifact[], type: string): T | null {
